@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Citas Médicas - Prueba de conexión (Login / Registro)</title>
+<style>
+  *{box-sizing:border-box;}
+  body{font-family:system-ui,Arial,sans-serif;background:#f0f4f8;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;margin:0;padding:40px 16px;}
+  .card{background:#fff;max-width:380px;width:100%;padding:28px 26px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08);}
+  h1{font-size:18px;margin:0 0 4px;color:#1a2b4c;}
+  p.sub{color:#667085;font-size:13px;margin:0 0 20px;}
+  .tabs{display:flex;margin-bottom:18px;border-bottom:1px solid #e3e7ee;}
+  .tab{flex:1;text-align:center;padding:10px 0;cursor:pointer;font-size:14px;color:#667085;border-bottom:2px solid transparent;}
+  .tab.active{color:#2563eb;border-color:#2563eb;font-weight:600;}
+  .form{display:none;}
+  .form.active{display:block;}
+  label{display:block;font-size:12.5px;color:#374151;margin:10px 0 4px;}
+  input,select{width:100%;padding:9px 10px;border:1px solid #d0d5dd;border-radius:7px;font-size:14px;}
+  button{width:100%;margin-top:18px;padding:10px;border:none;border-radius:7px;background:#2563eb;color:#fff;font-size:14px;font-weight:600;cursor:pointer;}
+  button:hover{background:#1d4ed8;}
+  #resultado{margin-top:16px;font-size:12.5px;padding:10px;border-radius:7px;white-space:pre-wrap;display:none;}
+  #resultado.ok{display:block;background:#ecfdf3;color:#067647;border:1px solid #abefc6;}
+  #resultado.error{display:block;background:#fef3f2;color:#b42318;border:1px solid #fda29b;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🩺 Citas Médicas</h1>
+  <p class="sub">Prueba de conexión a PostgreSQL (nomina5M)</p>
+
+  <div class="tabs">
+    <div class="tab active" onclick="cambiarTab('login')">Iniciar sesión</div>
+    <div class="tab" onclick="cambiarTab('registro')">Registrar usuario</div>
+  </div>
+
+  <!-- LOGIN -->
+  <form class="form active" id="form-login" onsubmit="return login(event)">
+    <label>Usuario</label>
+    <input type="text" id="login-usuario" required placeholder="ej. admin">
+    <label>Contraseña</label>
+    <input type="password" id="login-password" required>
+    <button type="submit">Entrar</button>
+  </form>
+
+  <!-- REGISTRO -->
+  <form class="form" id="form-registro" onsubmit="return registrar(event)">
+    <label>Nombre completo</label>
+    <input type="text" id="reg-nombre" required>
+    <label>Usuario</label>
+    <input type="text" id="reg-usuario" required>
+    <label>Contraseña</label>
+    <input type="password" id="reg-password" required minlength="4">
+    <label>Rol</label>
+    <select id="reg-rol">
+      <option value="paciente">Paciente</option>
+      <option value="medico">Médico</option>
+      <option value="admin">Admin</option>
+    </select>
+    <button type="submit">Registrar</button>
+  </form>
+
+  <div id="resultado"></div>
+</div>
+
+<script>
+const API = 'http://localhost:3000/api/auth';
+
+function cambiarTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
+  document.querySelector(`.tab:nth-child(${tab === 'login' ? 1 : 2})`).classList.add('active');
+  document.getElementById(`form-${tab}`).classList.add('active');
+  ocultarResultado();
+}
+
+function mostrarResultado(data, ok) {
+  const el = document.getElementById('resultado');
+  el.className = ok ? 'ok' : 'error';
+  el.textContent = JSON.stringify(data, null, 2);
+}
+function ocultarResultado() {
+  const el = document.getElementById('resultado');
+  el.className = '';
+  el.textContent = '';
+}
+
+async function login(e) {
+  e.preventDefault();
+  const usuario = document.getElementById('login-usuario').value;
+  const password = document.getElementById('login-password').value;
+  try {
+    const res = await fetch(`${API}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario, password })
+    });
+    const data = await res.json();
+    mostrarResultado(data, res.ok);
+  } catch (err) {
+    mostrarResultado({ ok: false, mensaje: 'No se pudo conectar al servidor backend', error: err.message }, false);
+  }
+  return false;
+}
+
+async function registrar(e) {
+  e.preventDefault();
+  const nombre = document.getElementById('reg-nombre').value;
+  const usuario = document.getElementById('reg-usuario').value;
+  const password = document.getElementById('reg-password').value;
+  const rol = document.getElementById('reg-rol').value;
+  try {
+    const res = await fetch(`${API}/registrar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, usuario, password, rol })
+    });
+    const data = await res.json();
+    mostrarResultado(data, res.ok);
+    if (res.ok) cambiarTab('login');
+  } catch (err) {
+    mostrarResultado({ ok: false, mensaje: 'No se pudo conectar al servidor backend', error: err.message }, false);
+  }
+  return false;
+}
+</script>
+</body>
+</html>
