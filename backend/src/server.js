@@ -7,6 +7,7 @@ const cors = require('cors');
 
 const authRoutes = require('./interfaces/http/routes/auth.routes');
 const captchaRoutes = require('./interfaces/http/routes/captcha.routes');
+const usuariosRoutes = require('./interfaces/http/routes/usuarios.routes');
 const pacientesRoutes = require('./interfaces/http/routes/pacientes.routes');
 const medicosRoutes = require('./interfaces/http/routes/medicos.routes');
 const consultoriosRoutes = require('./interfaces/http/routes/consultorios.routes');
@@ -21,6 +22,7 @@ app.use(express.static(path.join(__dirname, '..', '..', 'frontend')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/captcha', captchaRoutes);
+app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/pacientes', pacientesRoutes);
 app.use('/api/medicos', medicosRoutes);
 app.use('/api/consultorios', consultoriosRoutes);

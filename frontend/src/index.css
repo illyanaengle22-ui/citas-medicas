@@ -618,6 +618,22 @@ body {
   gap: 0.5rem;
 }
 
+.panel-vacio {
+  padding: 2rem 1.5rem;
+  text-align: center;
+  color: var(--texto);
+  opacity: 0.5;
+  font-size: 0.95rem;
+}
+
+.cargando {
+  padding: 1rem;
+  text-align: center;
+  color: var(--primario);
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+
 /* ═══════════════════════════════════════════
    BADGES
    ═══════════════════════════════════════════ */

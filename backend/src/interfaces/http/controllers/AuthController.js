@@ -31,10 +31,10 @@ async function registrar(req, res) {
       `INSERT INTO usuarios (nombre, email, password_hash, rol_id, estado_id)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, uuid_publico, nombre, email, rol_id, estado_id, created_at`,
-      [nombre, email, passwordHash, rol_id || 3, 2] // rol_id 3 = paciente, estado_id 2 = activo
+      [nombre, email, passwordHash, rol_id || 3, 1] // rol_id 3 = paciente, estado_id 1 = pendiente
     );
 
-    return res.status(201).json({ ok: true, mensaje: 'Usuario registrado correctamente', data: result.rows[0] });
+    return res.status(201).json({ ok: true, mensaje: 'Registro exitoso. Tu cuenta está pendiente de aprobación por un administrador.', data: result.rows[0] });
   } catch (error) {
     console.error('[Auth] Error en registro:', error.message);
     return res.status(500).json({ ok: false, mensaje: 'Error al registrar en la base de datos', error: error.message });

@@ -9,10 +9,8 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password, captchaId, captchaTexto) => {
     const usuario = await loginService(email, password, captchaId, captchaTexto);
-    console.log('[AuthContext] login — usuario recibido:', { nombre: usuario?.nombre, rol_id: usuario?.rol_id });
     setToken(obtenerToken());
     setUser(usuario);
-    console.log('[AuthContext] estado actualizado — token:', !!obtenerToken(), 'user:', !!usuario);
     return usuario;
   }, []);
 

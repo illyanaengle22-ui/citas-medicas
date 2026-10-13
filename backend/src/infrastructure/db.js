@@ -51,11 +51,7 @@ class Database {
   }
 
   async query(text, params) {
-    const start = Date.now();
     const res = await this.pool.query(text, params);
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[DB] ${Date.now() - start}ms → ${text.replace(/\s+/g, ' ').trim()}`);
-    }
     return res;
   }
 
