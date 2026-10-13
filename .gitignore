@@ -26,3 +26,5 @@ Thumbs.db
 # === Logs ===
 *.log
 
+frontend/.env
+frontend/.env.local
