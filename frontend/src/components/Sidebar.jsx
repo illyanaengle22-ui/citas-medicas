@@ -15,7 +15,7 @@ const items = [
   { to: '/admin/medicos', icono: faUserMd, texto: 'Médicos' },
   { to: '/admin/citas', icono: faCalendar, texto: 'Citas' },
   { to: '/admin/consultorios', icono: faBuilding, texto: 'Consultorios' },
-  { to: '/admin/especialidades', icono: faStethoscope, texto: 'Especialidades' },
+  { to: '/admin/especialidades', icono: faStethoscope, texto: 'Especialidades', proximamente: false },
 ];
 
 export default function Sidebar() {
@@ -31,7 +31,7 @@ export default function Sidebar() {
           >
             <FontAwesomeIcon icon={item.icono} className="sidebar-icono" />
             <span>{item.texto}</span>
-            <span className="sidebar-badge">Próximamente</span>
+            {item.proximamente !== false && <span className="sidebar-badge">Próximamente</span>}
           </NavLink>
         ))}
       </nav>

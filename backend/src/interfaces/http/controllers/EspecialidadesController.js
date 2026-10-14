@@ -3,9 +3,27 @@
 const { PostgresEspecialidadRepository, DuplicadoError } = require('../../../infrastructure/adapters/PostgresEspecialidadRepository');
 const CrearEspecialidad = require('../../../application/use-cases/CrearEspecialidad');
 const ActualizarEspecialidad = require('../../../application/use-cases/ActualizarEspecialidad');
+const CambiarEstadoEspecialidad = require('../../../application/use-cases/CambiarEstadoEspecialidad');
+const validarId = require('../utils/validarId');
 
 const repo = new PostgresEspecialidadRepository();
-module.exports = { listar, obtenerPorId, crear, actualizar, cambiarEstado };
+
+function esAdmin(usuario) {
+  return usuario?.rol_id === 1;
+}
+
+// Errores de PostgreSQL que deben responder 400 en lugar de 500
+function esErrorDeDatos(error) {
+  return error.code === '22003' || error.code === '22P02';
+}
+
+function respuestaError500(res, mensaje, error) {
+  if (esErrorDeDatos(error)) {
+    return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+  }
+  console.error('[Especialidades] Error:', error.message);
+  return res.status(500).json({ ok: false, mensaje });
+}
 
 async function listar(req, res) {
   try {
@@ -14,21 +32,23 @@ async function listar(req, res) {
     const data = await repo.listar({ incluirInactivas });
     return res.json({ ok: true, mensaje: 'Lista de especialidades', data });
   } catch (error) {
-    console.error('[Especialidades] Error en listar:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al obtener especialidades' });
+    return respuestaError500(res, 'Error al obtener especialidades', error);
   }
 }
 
 async function obtenerPorId(req, res) {
   try {
-    const data = await repo.obtenerPorId(parseInt(req.params.id));
+    const id = validarId(req.params.id, 'smallint');
+    if (!id) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
+    const data = await repo.obtenerPorId(id);
     if (!data) {
       return res.status(404).json({ ok: false, mensaje: 'Especialidad no encontrada' });
     }
     return res.json({ ok: true, mensaje: 'Especialidad encontrada', data });
   } catch (error) {
-    console.error('[Especialidades] Error en obtenerPorId:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al obtener especialidad', error: error.message });
+    return respuestaError500(res, 'Error al obtener especialidad', error);
   }
 }
 
@@ -36,7 +56,7 @@ async function crear(req, res) {
   try {
     const { nombre } = req.body;
 
-    if (!nombre) {
+    if (!nombre || !nombre.trim()) {
       return res.status(400).json({ ok: false, mensaje: 'nombre es requerido' });
     }
 
@@ -47,18 +67,25 @@ async function crear(req, res) {
     if (error instanceof DuplicadoError) {
       return res.status(409).json({ ok: false, mensaje: error.message });
     }
-    console.error('[Especialidades] Error en crear:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al crear especialidad', error: error.message });
+    return respuestaError500(res, 'Error al crear especialidad', error);
   }
 }
 
 async function actualizar(req, res) {
   try {
-    const { id } = req.params;
-    const { nombre, activo } = req.body;
+    const id = validarId(req.params.id, 'smallint');
+    if (!id) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
+
+    const { nombre } = req.body;
+
+    if (!nombre || !nombre.trim()) {
+      return res.status(400).json({ ok: false, mensaje: 'nombre es requerido y no puede estar vacío' });
+    }
 
     const caso = new ActualizarEspecialidad(repo);
-    const data = await caso.execute(parseInt(id), { nombre, activo });
+    const data = await caso.execute(id, { nombre });
 
     if (!data) {
       return res.status(404).json({ ok: false, mensaje: 'Especialidad no encontrada' });
@@ -69,34 +96,38 @@ async function actualizar(req, res) {
     if (error instanceof DuplicadoError) {
       return res.status(409).json({ ok: false, mensaje: error.message });
     }
-    console.error('[Especialidades] Error en actualizar:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al actualizar especialidad', error: error.message });
+    return respuestaError500(res, 'Error al actualizar especialidad', error);
   }
 }
 
 async function cambiarEstado(req, res) {
   try {
-    const id = parseInt(req.params.id, 10);
-    const { activo } = req.body;
-    if (!Number.isInteger(id)) {
+    const id = validarId(req.params.id, 'smallint');
+    if (!id) {
       return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
     }
+
+    const { activo } = req.body;
+
     if (typeof activo !== 'boolean') {
       return res.status(400).json({ ok: false, mensaje: '"activo" debe ser true o false' });
     }
-    const esp = await repo.cambiarEstado(id, activo);
-    if (!esp) {
+
+    const caso = new CambiarEstadoEspecialidad(repo);
+    const data = await caso.execute(id, activo);
+
+    if (!data) {
       return res.status(404).json({ ok: false, mensaje: 'Especialidad no encontrada' });
     }
+
     return res.json({
       ok: true,
       mensaje: activo ? 'Especialidad activada' : 'Especialidad desactivada',
-      data: esp
+      data
     });
   } catch (error) {
-    console.error('[Especialidades] Error en cambiarEstado:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al cambiar el estado' });
+    return respuestaError500(res, 'Error al cambiar el estado', error);
   }
 }
 
-module.exports = { listar, obtenerPorId, crear, actualizar, eliminar };
+module.exports = { listar, obtenerPorId, crear, actualizar, cambiarEstado };

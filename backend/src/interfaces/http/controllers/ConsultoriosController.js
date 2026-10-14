@@ -1,6 +1,7 @@
 'use strict';
 
 const db = require('../../../infrastructure/db');
+const validarId = require('../utils/validarId');
 
 async function listar(req, res) {
   try {
@@ -13,13 +14,16 @@ async function listar(req, res) {
     return res.json({ ok: true, mensaje: 'Lista de consultorios', data: result.rows });
   } catch (error) {
     console.error('[Consultorios] Error en listar:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al obtener consultorios', error: error.message });
+    return res.status(500).json({ ok: false, mensaje: 'Error al obtener consultorios' });
   }
 }
 
 async function obtenerPorId(req, res) {
-  const { id } = req.params;
   try {
+    const id = validarId(req.params.id, 'integer');
+    if (!id) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
     const result = await db.query(
       `SELECT id, nombre, direccion, telefono, activo, created_at
        FROM consultorios WHERE id = $1 AND deleted_at IS NULL`,
@@ -31,18 +35,18 @@ async function obtenerPorId(req, res) {
     return res.json({ ok: true, mensaje: 'Consultorio encontrado', data: result.rows[0] });
   } catch (error) {
     console.error('[Consultorios] Error en obtenerPorId:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al obtener consultorio', error: error.message });
+    return res.status(500).json({ ok: false, mensaje: 'Error al obtener consultorio' });
   }
 }
 
 async function crear(req, res) {
-  const { nombre, direccion, telefono } = req.body;
-
-  if (!nombre) {
-    return res.status(400).json({ ok: false, mensaje: 'nombre es requerido' });
-  }
-
   try {
+    const { nombre, direccion, telefono } = req.body;
+
+    if (!nombre) {
+      return res.status(400).json({ ok: false, mensaje: 'nombre es requerido' });
+    }
+
     const result = await db.query(
       `INSERT INTO consultorios (nombre, direccion, telefono)
        VALUES ($1, $2, $3)
@@ -52,15 +56,18 @@ async function crear(req, res) {
     return res.status(201).json({ ok: true, mensaje: 'Consultorio creado correctamente', data: result.rows[0] });
   } catch (error) {
     console.error('[Consultorios] Error en crear:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al crear consultorio', error: error.message });
+    return res.status(500).json({ ok: false, mensaje: 'Error al crear consultorio' });
   }
 }
 
 async function actualizar(req, res) {
-  const { id } = req.params;
-  const { nombre, direccion, telefono, activo } = req.body;
-
   try {
+    const id = validarId(req.params.id, 'integer');
+    if (!id) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
+    const { nombre, direccion, telefono, activo } = req.body;
+
     const result = await db.query(
       `UPDATE consultorios
        SET nombre = COALESCE($1, nombre),
@@ -77,13 +84,16 @@ async function actualizar(req, res) {
     return res.json({ ok: true, mensaje: 'Consultorio actualizado correctamente', data: result.rows[0] });
   } catch (error) {
     console.error('[Consultorios] Error en actualizar:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al actualizar consultorio', error: error.message });
+    return res.status(500).json({ ok: false, mensaje: 'Error al actualizar consultorio' });
   }
 }
 
 async function eliminar(req, res) {
-  const { id } = req.params;
   try {
+    const id = validarId(req.params.id, 'integer');
+    if (!id) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
     const result = await db.query(
       `UPDATE consultorios SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
       [id]
@@ -94,7 +104,7 @@ async function eliminar(req, res) {
     return res.json({ ok: true, mensaje: 'Consultorio eliminado correctamente' });
   } catch (error) {
     console.error('[Consultorios] Error en eliminar:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al eliminar consultorio', error: error.message });
+    return res.status(500).json({ ok: false, mensaje: 'Error al eliminar consultorio' });
   }
 }
 

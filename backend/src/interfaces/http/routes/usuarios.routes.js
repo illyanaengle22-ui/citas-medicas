@@ -6,7 +6,7 @@ const ctrl = require('../controllers/UsuariosController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
 
-router.use(authMiddleware, roleMiddleware(1));
+router.use(authMiddleware, roleMiddleware('admin'));
 
 router.get('/', ctrl.listar);
 router.get('/pendientes', ctrl.listarPendientes);

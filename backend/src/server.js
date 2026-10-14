@@ -30,5 +30,17 @@ app.use('/api/especialidades', especialidadesRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true, mensaje: 'Servidor activo' }));
 
+// RN-120: middleware 404 para rutas no encontradas
+app.use((req, res) => {
+  res.status(404).json({ ok: false, mensaje: 'Ruta no encontrada' });
+});
+
+// RN-120: manejador de errores global sin exponer stack
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error('[Error]', err.message);
+  res.status(500).json({ ok: false, mensaje: 'Error interno del servidor' });
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`🚀 Servidor escuchando en http://localhost:${PORT}`));

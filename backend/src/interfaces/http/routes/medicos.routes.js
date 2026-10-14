@@ -3,6 +3,9 @@
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/MedicosController');
+const authMiddleware = require('../middlewares/authMiddleware');
+
+router.use(authMiddleware);
 
 router.get('/', ctrl.listar);
 router.get('/:id', ctrl.obtenerPorId);

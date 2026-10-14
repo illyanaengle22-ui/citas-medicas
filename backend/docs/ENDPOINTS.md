@@ -248,3 +248,174 @@ DELETE /api/usuarios/:id
   "mensaje": "No puedes eliminar tu propia cuenta"
 }
 ```
+
+---
+
+# API Endpoints - Módulo de Especialidades
+
+## Base URL
+```
+http://localhost:4000/api/especialidades
+```
+
+## Autenticación
+- **GET**: cualquier usuario autenticado (requiere `Authorization: Bearer <token>`)
+- **POST, PUT, PATCH**: solo administradores (rol `admin`)
+
+---
+
+## Endpoints
+
+### 1. Listar especialidades
+```http
+GET /api/especialidades
+GET /api/especialidades?todas=true
+```
+
+**Parámetros query opcionales:**
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `todas` | string | Si es `true` y el usuario es admin, incluye especialidades inactivas (RN-031) |
+
+**Respuesta 200:**
+```json
+{
+  "ok": true,
+  "mensaje": "Lista de especialidades",
+  "data": [
+    { "id": 1, "nombre": "Cardiología", "activo": true },
+    { "id": 2, "nombre": "Neurología", "activo": true }
+  ]
+}
+```
+
+---
+
+### 2. Obtener especialidad por ID
+```http
+GET /api/especialidades/:id
+```
+
+**Respuesta 200:**
+```json
+{
+  "ok": true,
+  "mensaje": "Especialidad encontrada",
+  "data": { "id": 1, "nombre": "Cardiología", "activo": true }
+}
+```
+
+**Respuesta 400 (ID inválido):**
+```json
+{ "ok": false, "mensaje": "ID inválido" }
+```
+
+**Respuesta 404:**
+```json
+{ "ok": false, "mensaje": "Especialidad no encontrada" }
+```
+
+---
+
+### 3. Crear especialidad
+```http
+POST /api/especialidades
+Content-Type: application/json
+
+{ "nombre": "Cardiología" }
+```
+
+**Respuesta 201:**
+```json
+{
+  "ok": true,
+  "mensaje": "Especialidad creada correctamente",
+  "data": { "id": 3, "nombre": "Cardiología", "activo": true }
+}
+```
+
+**Respuesta 400 (nombre vacío):**
+```json
+{ "ok": false, "mensaje": "nombre es requerido" }
+```
+
+**Respuesta 409 (duplicado, case-insensitive):**
+```json
+{ "ok": false, "mensaje": "Ya existe una especialidad con ese nombre" }
+```
+
+---
+
+### 4. Actualizar especialidad (solo nombre)
+```http
+PUT /api/especialidades/:id
+Content-Type: application/json
+
+{ "nombre": "Cardiología Pediátrica" }
+```
+
+**Respuesta 200:**
+```json
+{
+  "ok": true,
+  "mensaje": "Especialidad actualizada correctamente",
+  "data": { "id": 1, "nombre": "Cardiología Pediátrica", "activo": true }
+}
+```
+
+**Respuesta 400 (nombre vacío):**
+```json
+{ "ok": false, "mensaje": "nombre es requerido y no puede estar vacío" }
+```
+
+**Respuesta 404:**
+```json
+{ "ok": false, "mensaje": "Especialidad no encontrada" }
+```
+
+**Respuesta 409 (duplicado):**
+```json
+{ "ok": false, "mensaje": "Ya existe una especialidad con ese nombre" }
+```
+
+---
+
+### 5. Cambiar estado (activar/desactivar)
+```http
+PATCH /api/especialidades/:id/estado
+Content-Type: application/json
+
+{ "activo": false }
+```
+
+**Respuesta 200:**
+```json
+{
+  "ok": true,
+  "mensaje": "Especialidad desactivada",
+  "data": { "id": 1, "nombre": "Cardiología", "activo": false }
+}
+```
+
+**Respuesta 400 (activo no booleano):**
+```json
+{ "ok": false, "mensaje": "\"activo\" debe ser true o false" }
+```
+
+**Respuesta 404:**
+```json
+{ "ok": false, "mensaje": "Especialidad no encontrada" }
+```
+
+---
+
+## Códigos de error comunes
+
+| Código | Significado |
+|--------|-------------|
+| 400 | Datos inválidos (ID no entero, nombre vacío, activo no booleano) |
+| 401 | Token no proporcionado o inválido |
+| 403 | Rol no autorizado (solo admin para POST/PUT/PATCH) |
+| 404 | Especialidad no encontrada |
+| 409 | Nombre duplicado (case-insensitive) |
+| 500 | Error interno del servidor |
