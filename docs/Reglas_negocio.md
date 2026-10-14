@@ -106,7 +106,7 @@ El sistema permite gestionar citas médicas: registro y aprobación de usuarios,
 | RN-061 | La **hora de fin debe ser posterior a la de inicio**. |
 | RN-062 | Un médico **no puede tener horarios traslapados el mismo día**. Se garantiza en la base de datos con `EXCLUDE USING gist`. |
 | RN-063 | El médico solo puede tener horarios en consultorios a los que está asignado. |
-| RN-064 | Un horario puede desactivarse (`activo = false`) sin borrarse. Las citas ya agendadas no se eliminan automáticamente. 🔶 |
+| RN-064 | Un horario puede desactivarse (`activo = false`) sin borrarse. Las citas ya agendadas no se eliminan automáticamente.  |
 | RN-065 | Los horarios disponibles para agendar son los horarios activos del médico menos el tiempo ocupado por citas vigentes. |
 
 ---
@@ -151,7 +151,7 @@ cancelada, completada, no_asistio → (estados finales, sin cambios)
 |---|---|
 | RN-080 | Solo se permiten las transiciones de la tabla anterior; las demás se rechazan.  |
 | RN-081 | Los **estados finales no se pueden modificar**.  |
-| RN-082 | Marcar la asistencia (`completada` / `no_asistio`) solo corresponde al médico de la cita o a un administrador, y solo a partir de la hora de inicio. 🔶 |
+| RN-082 | Marcar la asistencia (`completada` / `no_asistio`) solo corresponde al médico de la cita o a un administrador, y solo a partir de la hora de inicio. 	|
 | RN-083 | **Reagendar** propone al paciente los **3 horarios libres más cercanos** del mismo médico. |
 | RN-084 | Al reagendar se valida de nuevo la disponibilidad (RN-072 y RN-074) antes de confirmar el cambio. |
 | RN-085 | Cancelar libera inmediatamente el horario. |
