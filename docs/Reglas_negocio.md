@@ -1,11 +1,5 @@
 # Reglas de negocio — Sistema de Citas Médicas
 
-> **Versión:** 1.0 · **Ubicación sugerida:** `docs/REGLAS_DE_NEGOCIO.md`
->
-> Cada regla tiene un código (`RN-XXX`) para poder citarla en el código, en los casos de uso y en el informe académico.
-> Las reglas marcadas con 🔶 son **propuestas** que deben confirmarse con el equipo o el profesor; el resto proviene del diseño del schema y del plan del proyecto.
-
----
 
 ## 1. Propósito y alcance
 
@@ -45,7 +39,7 @@ El sistema permite gestionar citas médicas: registro y aprobación de usuarios,
 |---|---|---|
 | `pendiente` | Registrado, esperando aprobación | No |
 | `activo` | Aprobado | Sí |
-| `rechazado` / `suspendido` 🔶 | Denegado o bloqueado | No |
+| `rechazado` / `suspendido`  | Denegado o bloqueado | No |
 
 ---
 
@@ -86,7 +80,7 @@ El sistema permite gestionar citas médicas: registro y aprobación de usuarios,
 | RN-041 | La **cédula profesional es única** entre médicos no eliminados. |
 | RN-042 | Registrar un médico crea usuario, médico y asignaciones en **una sola transacción**; si algo falla, no se guarda nada. |
 | RN-043 | Un médico puede tener **varias especialidades** y atender en **varios consultorios** (relaciones N:M). |
-| RN-044 | Un médico solo aparece para agendar si está **activo**, no eliminado y tiene al menos una especialidad. 🔶 |
+| RN-044 | Un médico solo aparece para agendar si está **activo**, no eliminado y tiene al menos una especialidad.  |
 | RN-045 | Eliminar un médico es un borrado lógico que afecta a `medicos` y a su `usuarios` en una transacción. |
 | RN-046 | Solo un administrador puede crear, editar, asignar especialidades o consultorios y eliminar médicos. |
 | RN-047 | El formato de respuesta de `GET /api/medicos` es estable, porque lo consume el flujo de agendamiento. |
@@ -99,7 +93,7 @@ El sistema permite gestionar citas médicas: registro y aprobación de usuarios,
 |---|---|
 | RN-050 | Todo paciente está vinculado a **un único usuario** con rol `paciente` (relación 1:1). |
 | RN-051 | El `telegram_chat_id` es **único** entre pacientes; un chat no puede estar ligado a dos pacientes. |
-| RN-052 | Para recibir recordatorios el paciente debe tener un `telegram_chat_id` vinculado. 🔶 |
+| RN-052 | Para recibir recordatorios el paciente debe tener un `telegram_chat_id` vinculado.  |
 | RN-053 | Un paciente solo puede ver y gestionar **sus propias citas**. |
 
 ---
@@ -111,7 +105,7 @@ El sistema permite gestionar citas médicas: registro y aprobación de usuarios,
 | RN-060 | Un horario define: médico, consultorio, **día de la semana (1–7)**, hora de inicio y hora de fin. |
 | RN-061 | La **hora de fin debe ser posterior a la de inicio**. |
 | RN-062 | Un médico **no puede tener horarios traslapados el mismo día**. Se garantiza en la base de datos con `EXCLUDE USING gist`. |
-| RN-063 | El médico solo puede tener horarios en consultorios a los que está asignado. 🔶 |
+| RN-063 | El médico solo puede tener horarios en consultorios a los que está asignado. |
 | RN-064 | Un horario puede desactivarse (`activo = false`) sin borrarse. Las citas ya agendadas no se eliminan automáticamente. 🔶 |
 | RN-065 | Los horarios disponibles para agendar son los horarios activos del médico menos el tiempo ocupado por citas vigentes. |
 
@@ -126,12 +120,12 @@ El sistema permite gestionar citas médicas: registro y aprobación de usuarios,
 | RN-070 | Una cita relaciona un **paciente**, un **médico** y un **consultorio**, con fecha y hora (`TIMESTAMPTZ`) y duración. |
 | RN-071 | La **duración** debe estar entre **10 y 240 minutos**. |
 | RN-072 | La cita debe caer **dentro de un horario activo** del médico en ese consultorio. |
-| RN-073 | No se pueden agendar citas en el **pasado**. 🔶 |
+| RN-073 | No se pueden agendar citas en el **pasado**.  |
 | RN-074 | Un médico **no puede tener dos citas vigentes que se traslapen** en el tiempo. Se garantiza en la base de datos con `EXCLUDE USING gist`, lo que evita el doble agendamiento aun con usuarios concurrentes. |
 | RN-075 | Si el traslape es detectado por la base de datos, la API responde con un mensaje claro (por ejemplo, *"El horario ya fue ocupado"*) y no con un error técnico. |
 | RN-076 | Se consideran **vigentes** las citas en estado `pendiente`, `confirmada` o `reagendada`. Las canceladas y las finalizadas no bloquean el horario. |
 | RN-077 | Una cita nueva se crea en estado **pendiente**. |
-| RN-078 | Un paciente no puede tener dos citas vigentes que se traslapen. 🔶 |
+| RN-078 | Un paciente no puede tener dos citas vigentes que se traslapen.  |
 
 ### 8.2 Ciclo de vida
 
@@ -141,10 +135,10 @@ El sistema permite gestionar citas médicas: registro y aprobación de usuarios,
 | `confirmada` | Confirmada por el paciente (web o Telegram) | Sí |
 | `reagendada` | Movida a un nuevo horario | Sí |
 | `cancelada` | Anulada por paciente, médico, admin o sistema | No |
-| `completada` / `asistio` 🔶 | El paciente fue atendido | No |
-| `no_asistio` 🔶 | El paciente no se presentó | No |
+| `completada` / `asistio`  | El paciente fue atendido | No |
+| `no_asistio`  | El paciente no se presentó | No |
 
-**Transiciones permitidas** 🔶
+**Transiciones permitidas** 
 
 ```
 pendiente  → confirmada | cancelada | reagendada
@@ -155,13 +149,13 @@ cancelada, completada, no_asistio → (estados finales, sin cambios)
 
 | Código | Regla |
 |---|---|
-| RN-080 | Solo se permiten las transiciones de la tabla anterior; las demás se rechazan. 🔶 |
-| RN-081 | Los **estados finales no se pueden modificar**. 🔶 |
+| RN-080 | Solo se permiten las transiciones de la tabla anterior; las demás se rechazan.  |
+| RN-081 | Los **estados finales no se pueden modificar**.  |
 | RN-082 | Marcar la asistencia (`completada` / `no_asistio`) solo corresponde al médico de la cita o a un administrador, y solo a partir de la hora de inicio. 🔶 |
 | RN-083 | **Reagendar** propone al paciente los **3 horarios libres más cercanos** del mismo médico. |
 | RN-084 | Al reagendar se valida de nuevo la disponibilidad (RN-072 y RN-074) antes de confirmar el cambio. |
 | RN-085 | Cancelar libera inmediatamente el horario. |
-| RN-086 | Hay un plazo mínimo de **anticipación para cancelar o reagendar** (por ejemplo, 2 horas antes). 🔶 |
+| RN-086 | Hay un plazo mínimo de **anticipación para cancelar o reagendar** (por ejemplo, 2 horas antes).  |
 | RN-087 | Las citas **no se eliminan físicamente**; se cancelan o se marcan con borrado lógico. |
 
 ### 8.3 Visibilidad según rol
@@ -194,8 +188,8 @@ cancelada, completada, no_asistio → (estados finales, sin cambios)
 | RN-102 | Solo se envían recordatorios de citas **vigentes** (pendiente, confirmada o reagendada) y a pacientes con Telegram vinculado. |
 | RN-103 | El paciente responde desde Telegram con **confirmar**, **cancelar** o **reagendar**; el sistema actualiza la cita según la respuesta. |
 | RN-104 | Cada recordatorio queda registrado con canal, tipo, estado, respuesta y fechas de envío y respuesta. |
-| RN-105 | No se envía el mismo tipo de recordatorio dos veces para la misma cita. 🔶 |
-| RN-106 | Si el envío falla, el estado del recordatorio refleja el fallo y la cita **no se ve afectada**. 🔶 |
+| RN-105 | No se envía el mismo tipo de recordatorio dos veces para la misma cita.  |
+| RN-106 | Si el envío falla, el estado del recordatorio refleja el fallo y la cita **no se ve afectada**.  |
 | RN-107 | El backend no habla directamente con Telegram: usa el puerto `NotificacionPort`, implementado por el adaptador de n8n. |
 
 ---
@@ -234,7 +228,7 @@ cancelada, completada, no_asistio → (estados finales, sin cambios)
 | CRUD de especialidades y consultorios | ✔ | — | — |
 | Listar especialidades, consultorios y médicos | ✔ | ✔ | ✔ |
 | Gestionar horarios | ✔ | Solo los suyos | — |
-| Agendar una cita | ✔ | — 🔶 | ✔ |
+| Agendar una cita | ✔ | —  | ✔ |
 | Ver citas | Todas | Las suyas | Las suyas |
 | Confirmar, cancelar o reagendar una cita | ✔ | ✔ | Solo las suyas |
 | Marcar asistencia | ✔ | Solo las suyas | — |
@@ -243,12 +237,3 @@ cancelada, completada, no_asistio → (estados finales, sin cambios)
 
 ---
 
-## 14. Pendientes por confirmar (🔶)
-
-- [ ] Nombres exactos de las claves de `estados_cuenta` y `estados_cita` sembradas en la base de datos.
-- [ ] Diagrama de transiciones de estado definitivo (RN-080).
-- [ ] Plazo mínimo para cancelar o reagendar (RN-086).
-- [ ] Si los médicos pueden agendar citas a nombre de un paciente.
-- [ ] Quién crea el registro en `pacientes`: el registro público o la aprobación (RN-011).
-- [ ] Cómo se vincula el paciente con su `telegram_chat_id`.
-- [ ] Si se permite cancelar o reagendar citas ya iniciadas.
