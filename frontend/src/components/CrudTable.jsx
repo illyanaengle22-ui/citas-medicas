@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { faInbox, faEdit, faToggleOn, faToggleOff } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 export default function CrudTable({
@@ -48,7 +49,7 @@ export default function CrudTable({
 
       {datosFiltrados.length === 0 ? (
         <div className="crud-vacio">
-          <FontAwesomeIcon icon={['fas', 'inbox']} className="crud-vacio-icono" />
+          <FontAwesomeIcon icon={faInbox} className="crud-vacio-icono" />
           <p>{mensajeVacio}</p>
         </div>
       ) : (

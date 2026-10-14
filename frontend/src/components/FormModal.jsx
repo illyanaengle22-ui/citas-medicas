@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { faXmark } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 export default function FormModal({
@@ -9,6 +10,7 @@ export default function FormModal({
   onCerrar,
   errores = {},
   guardando = false,
+  soloLectura = false,
 }) {
   useEffect(() => {
     const handleKey = (e) => {
@@ -19,6 +21,7 @@ export default function FormModal({
   }, [onCerrar]);
 
   const handleSubmit = (e) => {
+    if (soloLectura) return;
     e.preventDefault();
     const valores = {};
     campos.forEach((campo) => {
@@ -35,17 +38,22 @@ export default function FormModal({
     const nombre = campo.nombre;
     const valor = valoresIniciales[nombre] ?? (campo.tipo === 'checkbox' ? false : '');
     const error = errores[nombre];
+    const comun = {
+      name: nombre,
+      disabled: soloLectura,
+      required: campo.requerido && !soloLectura,
+    };
 
     switch (campo.tipo) {
       case 'textarea':
         return (
           <textarea
             className={`input ${error ? 'input-error' : ''}`}
-            name={nombre}
+            {...comun}
             defaultValue={valor}
-            required={campo.requerido}
             rows={campo.filas || 3}
             placeholder={campo.placeholder}
+            readOnly={soloLectura}
           />
         );
 
@@ -53,9 +61,8 @@ export default function FormModal({
         return (
           <select
             className={`input ${error ? 'input-error' : ''}`}
-            name={nombre}
+            {...comun}
             defaultValue={valor}
-            required={campo.requerido}
           >
             {campo.placeholder && <option value="">{campo.placeholder}</option>}
             {campo.opciones?.map((op) => (
@@ -71,9 +78,8 @@ export default function FormModal({
           <label className="form-checkbox-label">
             <input
               type="checkbox"
-              name={nombre}
+              {...comun}
               defaultChecked={valor}
-              required={campo.requerido}
             />
             <span>{campo.etiqueta}</span>
           </label>
@@ -84,10 +90,10 @@ export default function FormModal({
           <input
             type={campo.tipo || 'text'}
             className={`input ${error ? 'input-error' : ''}`}
-            name={nombre}
+            {...comun}
             defaultValue={valor}
-            required={campo.requerido}
             placeholder={campo.placeholder}
+            readOnly={soloLectura}
           />
         );
     }
@@ -99,17 +105,17 @@ export default function FormModal({
         <div className="modal-header">
           <h2>{titulo}</h2>
           <button className="modal-cerrar" onClick={onCerrar} aria-label="Cerrar">
-            <FontAwesomeIcon icon={['fas', 'times']} />
+            <FontAwesomeIcon icon={faXmark} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="form">
+        <form onSubmit={handleSubmit} className="form modal-form-body">
           {campos.map((campo) => (
             <div key={campo.nombre} className="form-campo">
               {campo.tipo !== 'checkbox' && (
                 <label className="form-label">
                   {campo.etiqueta}
-                  {campo.requerido && <span className="form-requerido"> *</span>}
+                  {campo.requerido && !soloLectura && <span className="form-requerido"> *</span>}
                 </label>
               )}
               {renderCampo(campo)}
@@ -120,12 +126,21 @@ export default function FormModal({
           ))}
 
           <div className="modal-acciones">
-            <button type="button" className="btn btn-secundario" onClick={onCerrar} disabled={guardando}>
-              Cancelar
-            </button>
-            <button type="submit" className="btn btn-primario" disabled={guardando}>
-              {guardando ? 'Guardando...' : 'Guardar'}
-            </button>
+            {!soloLectura && (
+              <button type="button" className="btn btn-secundario" onClick={onCerrar} disabled={guardando}>
+                Cancelar
+              </button>
+            )}
+            {!soloLectura && (
+              <button type="submit" className="btn btn-primario" disabled={guardando}>
+                {guardando ? 'Guardando...' : 'Guardar'}
+              </button>
+            )}
+            {soloLectura && (
+              <button type="button" className="btn btn-primario" onClick={onCerrar}>
+                Cerrar
+              </button>
+            )}
           </div>
         </form>
       </div>

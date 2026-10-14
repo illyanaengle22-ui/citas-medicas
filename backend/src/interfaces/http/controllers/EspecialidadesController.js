@@ -12,6 +12,16 @@ function esAdmin(usuario) {
   return usuario?.rol_id === 1;
 }
 
+// RN-030b: la descripción es opcional y de máximo 500 caracteres
+function validarDescripcion(descripcion) {
+  if (descripcion === undefined || descripcion === null) return null;
+  if (typeof descripcion !== 'string') return 'La descripción debe ser texto';
+  const limpia = descripcion.trim();
+  if (limpia === '') return null;
+  if (limpia.length > 500) return 'La descripción no puede superar los 500 caracteres';
+  return null;
+}
+
 // Errores de PostgreSQL que deben responder 400 en lugar de 500
 function esErrorDeDatos(error) {
   return error.code === '22003' || error.code === '22P02';
@@ -54,14 +64,25 @@ async function obtenerPorId(req, res) {
 
 async function crear(req, res) {
   try {
-    const { nombre } = req.body;
+    const { nombre, descripcion } = req.body;
 
     if (!nombre || !nombre.trim()) {
       return res.status(400).json({ ok: false, mensaje: 'nombre es requerido' });
     }
 
+    // RN-030b: la descripción es opcional y de máximo 500 caracteres
+    if (descripcion !== undefined && descripcion !== null) {
+      if (typeof descripcion !== 'string') {
+        return res.status(400).json({ ok: false, mensaje: 'La descripción debe ser texto' });
+      }
+      const limpia = descripcion.trim().replace(/\s+/g, ' ');
+      if (limpia.length > 500) {
+        return res.status(400).json({ ok: false, mensaje: 'La descripción no puede superar los 500 caracteres' });
+      }
+    }
+
     const caso = new CrearEspecialidad(repo);
-    const data = await caso.execute(nombre);
+    const data = await caso.execute(nombre, descripcion);
     return res.status(201).json({ ok: true, mensaje: 'Especialidad creada correctamente', data });
   } catch (error) {
     if (error instanceof DuplicadoError) {
@@ -78,14 +99,25 @@ async function actualizar(req, res) {
       return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
     }
 
-    const { nombre } = req.body;
+    const { nombre, descripcion } = req.body;
 
     if (!nombre || !nombre.trim()) {
       return res.status(400).json({ ok: false, mensaje: 'nombre es requerido y no puede estar vacío' });
     }
 
+    // RN-030b: la descripción es opcional y de máximo 500 caracteres
+    if (descripcion !== undefined && descripcion !== null) {
+      if (typeof descripcion !== 'string') {
+        return res.status(400).json({ ok: false, mensaje: 'La descripción debe ser texto' });
+      }
+      const limpia = descripcion.trim().replace(/\s+/g, ' ');
+      if (limpia.length > 500) {
+        return res.status(400).json({ ok: false, mensaje: 'La descripción no puede superar los 500 caracteres' });
+      }
+    }
+
     const caso = new ActualizarEspecialidad(repo);
-    const data = await caso.execute(id, { nombre });
+    const data = await caso.execute(id, { nombre, descripcion });
 
     if (!data) {
       return res.status(404).json({ ok: false, mensaje: 'Especialidad no encontrada' });

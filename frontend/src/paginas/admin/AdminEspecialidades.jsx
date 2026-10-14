@@ -1,14 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
-import { faPlus, faEdit, faToggleOn, faToggleOff } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faEdit, faToggleOn, faToggleOff, faEye } from '@fortawesome/free-solid-svg-icons';
 import CrudTable from '../../components/CrudTable';
 import FormModal from '../../components/FormModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { apiFetch, obtenerToken } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
-
 const columnas = [
   { clave: 'nombre', titulo: 'Nombre' },
+  {
+    clave: 'descripcion',
+    titulo: 'Descripción',
+    render: (fila) =>
+      fila.descripcion ? (
+        <span className="celda-truncada" title={fila.descripcion}>
+          {fila.descripcion.length > 60
+            ? `${fila.descripcion.slice(0, 60)}…`
+            : fila.descripcion}
+        </span>
+      ) : (
+        <span className="celda-vacia">—</span>
+      ),
+  },
   {
     clave: 'activo',
     titulo: 'Estado',
@@ -22,6 +35,7 @@ const columnas = [
 
 const camposForm = [
   { nombre: 'nombre', etiqueta: 'Nombre', tipo: 'text', requerido: true, placeholder: 'Ej. Cardiología' },
+  { nombre: 'descripcion', etiqueta: 'Descripción (opcional)', tipo: 'textarea', placeholder: 'Breve descripción de la especialidad', filas: 3 },
 ];
 
 export default function AdminEspecialidades() {
@@ -34,6 +48,7 @@ export default function AdminEspecialidades() {
   const [errores, setErrores] = useState({});
   const [confirmacion, setConfirmacion] = useState(null);
   const [toast, setToast] = useState(null);
+  const [soloLectura, setSoloLectura] = useState(false);
 
   const cargarDatos = useCallback(async () => {
     setCargando(true);
@@ -53,39 +68,43 @@ export default function AdminEspecialidades() {
     cargarDatos();
   }, [cargarDatos]);
 
-  const mostrarToast = (mensaje, tipo = 'exito') => {
+  function mostrarToast(mensaje, tipo = 'exito') {
     setToast({ mensaje, tipo });
     setTimeout(() => setToast(null), 3000);
-  };
+  }
 
-  const abrirNueva = () => {
+  function abrirNueva() {
     setEditando(null);
     setErrores({});
     setModalAbierto(true);
-  };
+  }
 
-  const abrirEditar = (fila) => {
+  function abrirEditar(fila) {
     setEditando(fila);
     setErrores({});
     setModalAbierto(true);
-  };
+  }
 
-  const handleSubmit = async (valores) => {
+  async function handleSubmit(valores) {
     setGuardando(true);
     setErrores({});
     try {
       const token = obtenerToken();
+      const cuerpo = {
+        nombre: valores.nombre,
+        descripcion: valores.descripcion || '',
+      };
       if (editando) {
         await apiFetch(`/api/especialidades/${editando.id}`, {
           method: 'PUT',
-          body: valores,
+          body: cuerpo,
           token,
         });
         mostrarToast('Especialidad actualizada correctamente');
       } else {
         await apiFetch('/api/especialidades', {
           method: 'POST',
-          body: valores,
+          body: cuerpo,
           token,
         });
         mostrarToast('Especialidad creada correctamente');
@@ -95,24 +114,26 @@ export default function AdminEspecialidades() {
     } catch (err) {
       if (err.status === 409) {
         setErrores({ nombre: err.message });
+      } else if (err.status === 400) {
+        setErrores({ descripcion: err.message });
       } else {
         mostrarToast(err.message, 'error');
       }
     } finally {
       setGuardando(false);
     }
-  };
+  }
 
-  const pedirConfirmacion = (fila) => {
+  function pedirConfirmacion(fila) {
     setConfirmacion(fila);
-  };
+  }
 
-  const handleCambiarEstado = async () => {
+  async function handleCambiarEstado() {
     if (!confirmacion) return;
     const fila = confirmacion;
     setConfirmacion(null);
     try {
-      const token = await obtenerToken();
+      const token = obtenerToken();
       await apiFetch(`/api/especialidades/${fila.id}/estado`, {
         method: 'PATCH',
         body: { activo: !fila.activo },
@@ -123,18 +144,38 @@ export default function AdminEspecialidades() {
     } catch (err) {
       mostrarToast(err.message, 'error');
     }
+  }
+
+  const abrirVer = (fila) => {
+    // Modo solo lectura - solo muestra los datos
+    setSoloLectura(true);
+    setEditando(fila);
+    setErrores({});
+    setModalAbierto(true);
   };
 
   const acciones = [
+    {
+      icono: faEye,
+      titulo: 'Ver',
+      onClick: abrirVer,
+    },
     {
       icono: faEdit,
       titulo: 'Editar',
       onClick: abrirEditar,
     },
     {
-      icono: confirmacion?.activo ? faToggleOff : faToggleOn,
-      titulo: confirmacion?.activo ? 'Desactivar' : 'Activar',
+      icono: faToggleOff,
+      titulo: 'Desactivar',
       onClick: pedirConfirmacion,
+      mostrar: (fila) => fila.activo,
+    },
+    {
+      icono: faToggleOn,
+      titulo: 'Activar',
+      onClick: pedirConfirmacion,
+      mostrar: (fila) => !fila.activo,
     },
   ];
 
@@ -142,7 +183,7 @@ export default function AdminEspecialidades() {
     <div className="admin-especialidades">
       <div className="filtros-barra">
         <h2>Especialidades</h2>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div className="filtros-acciones">
           <label className="form-checkbox-label">
             <input
               type="checkbox"
@@ -165,18 +206,19 @@ export default function AdminEspecialidades() {
         acciones={acciones}
         mensajeVacio="No hay especialidades registradas"
         buscar={true}
-        placeholderBuscar="Buscar por nombre..."
+        placeholderBuscar="Buscar por nombre o descripción..."
       />
 
       {modalAbierto && (
         <FormModal
-          titulo={editando ? 'Editar especialidad' : 'Nueva especialidad'}
+          titulo={editando ? (soloLectura ? 'Ver especialidad' : 'Editar especialidad') : 'Nueva especialidad'}
           campos={camposForm}
-          valoresIniciales={editando ? { nombre: editando.nombre } : {}}
+          valoresIniciales={editando ? { nombre: editando.nombre, descripcion: editando.descripcion || '' } : {}}
           onSubmit={handleSubmit}
-          onCerrar={() => setModalAbierto(false)}
+          onCerrar={() => { setModalAbierto(false); setSoloLectura(false); setEditando(null); }}
           errores={errores}
           guardando={guardando}
+          soloLectura={soloLectura}
         />
       )}
 

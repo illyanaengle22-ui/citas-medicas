@@ -378,13 +378,14 @@ body {
 
 .sidebar-badge {
   margin-left: auto;
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 500;
   background: var(--borde);
   color: var(--texto);
-  padding: 0.2rem 0.5rem;
+  padding: 0.15rem 0.4rem;
   border-radius: var(--radio-pildora);
   opacity: 0.7;
+  white-space: nowrap;
 }
 
 /* ═══════════════════════════════════════════
@@ -734,6 +735,30 @@ body {
   padding: 1.5rem;
 }
 
+.modal-form-body {
+  padding: 1.5rem;
+}
+
+.celda-truncada {
+  display: inline-block;
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+
+.celda-vacia {
+  opacity: 0.4;
+}
+
+.filtros-acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .modal-acciones {
   display: flex;
   justify-content: flex-end;
@@ -845,15 +870,23 @@ body {
 
 .crud-th-acciones,
 .crud-td-acciones {
-  text-align: right;
-}
-
-.crud-td-acciones {
+  text-align: center;
+  vertical-align: middle;
+  width: 1%;
   white-space: nowrap;
 }
 
+.crud-td-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+}
+
 .crud-td-acciones .btn {
-  margin-left: 0.25rem;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 /* ═══════════════════════════════════════════

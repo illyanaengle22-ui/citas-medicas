@@ -70,6 +70,7 @@ El sistema permite gestionar citas médicas: registro y aprobación de usuarios,
 | Código | Regla |
 |---|---|
 | RN-030 | El nombre de una **especialidad es único** y obligatorio. |
+| RN-030b | La descripción es opcional y de máximo 500 caracteres. |
 | RN-031 | Una especialidad desactivada no se ofrece para nuevas asignaciones ni para agendar, pero se conserva en el historial. |
 | RN-032 | Un consultorio requiere **nombre** y **dirección**. |
 | RN-033 | Los consultorios se eliminan con **borrado lógico** (`deleted_at`); nunca se borran físicamente. |

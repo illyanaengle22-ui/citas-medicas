@@ -10,7 +10,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 const items = [
-  { to: '/admin', icono: faHome, texto: 'Dashboard', fin: true },
+  { to: '/admin', icono: faHome, texto: 'Dashboard', fin: true, proximamente: false },
   { to: '/admin/usuarios', icono: faUsers, texto: 'Usuarios' },
   { to: '/admin/medicos', icono: faUserMd, texto: 'Médicos' },
   { to: '/admin/citas', icono: faCalendar, texto: 'Citas' },
@@ -31,7 +31,9 @@ export default function Sidebar() {
           >
             <FontAwesomeIcon icon={item.icono} className="sidebar-icono" />
             <span>{item.texto}</span>
-            {item.proximamente !== false && <span className="sidebar-badge">Próximamente</span>}
+            {item.proximamente !== false && (
+              <span className="sidebar-badge" title="Próximamente">Próx.</span>
+            )}
           </NavLink>
         ))}
       </nav>

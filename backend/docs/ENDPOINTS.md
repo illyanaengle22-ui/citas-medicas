@@ -283,8 +283,8 @@ GET /api/especialidades?todas=true
   "ok": true,
   "mensaje": "Lista de especialidades",
   "data": [
-    { "id": 1, "nombre": "Cardiología", "activo": true },
-    { "id": 2, "nombre": "Neurología", "activo": true }
+    { "id": 1, "nombre": "Cardiología", "descripcion": "Estudio y tratamiento del corazón", "activo": true },
+    { "id": 2, "nombre": "Neurología", "descripcion": null, "activo": true }
   ]
 }
 ```
@@ -301,7 +301,7 @@ GET /api/especialidades/:id
 {
   "ok": true,
   "mensaje": "Especialidad encontrada",
-  "data": { "id": 1, "nombre": "Cardiología", "activo": true }
+  "data": { "id": 1, "nombre": "Cardiología", "descripcion": "Estudio y tratamiento del corazón", "activo": true }
 }
 ```
 
@@ -322,7 +322,7 @@ GET /api/especialidades/:id
 POST /api/especialidades
 Content-Type: application/json
 
-{ "nombre": "Cardiología" }
+{ "nombre": "Cardiología", "descripcion": "Estudio y tratamiento del corazón" }
 ```
 
 **Respuesta 201:**
@@ -330,13 +330,18 @@ Content-Type: application/json
 {
   "ok": true,
   "mensaje": "Especialidad creada correctamente",
-  "data": { "id": 3, "nombre": "Cardiología", "activo": true }
+  "data": { "id": 3, "nombre": "Cardiología", "descripcion": "Estudio y tratamiento del corazón", "activo": true }
 }
 ```
 
 **Respuesta 400 (nombre vacío):**
 ```json
 { "ok": false, "mensaje": "nombre es requerido" }
+```
+
+**Respuesta 400 (descripción demasiado larga, RN-030b):**
+```json
+{ "ok": false, "mensaje": "La descripción no puede superar los 500 caracteres" }
 ```
 
 **Respuesta 409 (duplicado, case-insensitive):**
@@ -346,12 +351,12 @@ Content-Type: application/json
 
 ---
 
-### 4. Actualizar especialidad (solo nombre)
+### 4. Actualizar especialidad (nombre y descripción)
 ```http
 PUT /api/especialidades/:id
 Content-Type: application/json
 
-{ "nombre": "Cardiología Pediátrica" }
+{ "nombre": "Cardiología Pediátrica", "descripcion": "Cardiología para niños" }
 ```
 
 **Respuesta 200:**
@@ -359,13 +364,18 @@ Content-Type: application/json
 {
   "ok": true,
   "mensaje": "Especialidad actualizada correctamente",
-  "data": { "id": 1, "nombre": "Cardiología Pediátrica", "activo": true }
+  "data": { "id": 1, "nombre": "Cardiología Pediátrica", "descripcion": "Cardiología para niños", "activo": true }
 }
 ```
 
 **Respuesta 400 (nombre vacío):**
 ```json
 { "ok": false, "mensaje": "nombre es requerido y no puede estar vacío" }
+```
+
+**Respuesta 400 (descripción demasiado larga, RN-030b):**
+```json
+{ "ok": false, "mensaje": "La descripción no puede superar los 500 caracteres" }
 ```
 
 **Respuesta 404:**
@@ -393,7 +403,7 @@ Content-Type: application/json
 {
   "ok": true,
   "mensaje": "Especialidad desactivada",
-  "data": { "id": 1, "nombre": "Cardiología", "activo": false }
+  "data": { "id": 1, "nombre": "Cardiología", "descripcion": null, "activo": false }
 }
 ```
 

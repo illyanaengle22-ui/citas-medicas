@@ -5,8 +5,8 @@ class CrearEspecialidad {
     this.repo = especialidadRepository;
   }
 
-  async execute(nombre) {
-    return this.repo.crear(nombre);
+  async execute(nombre, descripcion) {
+    return this.repo.crear(nombre, descripcion);
   }
 }
 
