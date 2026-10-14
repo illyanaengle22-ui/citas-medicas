@@ -60,6 +60,9 @@ class PostgresUsuarioRepository extends UsuarioRepository {
   }
 
   async aprobar(id) {
+    // RN-005: solo se puede aprobar una cuenta en estado pendiente y no eliminada
+    // RN-011: al aprobar un usuario con rol paciente, crear fila en pacientes en la misma transacción
+    // RN-112: operaciones multi-tabla en transacción
     const client = await db.getClient();
     try {
       await client.query('BEGIN');

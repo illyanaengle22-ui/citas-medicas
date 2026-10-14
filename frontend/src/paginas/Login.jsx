@@ -75,16 +75,12 @@ export default function Login() {
         </p>
       </div>
 
-      <div className="auth-decor-panel">
-        <svg viewBox="0 0 400 400" className="auth-ilustracion" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="200" cy="200" r="180" fill="#E6F2FB" />
-          <rect x="160" y="120" width="80" height="160" rx="16" fill="#5E9BBA" />
-          <rect x="140" y="150" width="120" height="30" rx="8" fill="#5E9BBA" transform="rotate(90 200 165)" />
-          <circle cx="200" cy="200" r="60" fill="#B8A528" opacity="0.3" />
-          <path d="M180 200 L200 180 L220 200 L200 220 Z" fill="#2A1B4F" />
-          <rect x="170" y="260" width="60" height="8" rx="4" fill="#2A1B4F" opacity="0.2" />
-          <rect x="160" y="280" width="80" height="8" rx="4" fill="#2A1B4F" opacity="0.1" />
-        </svg>
+        <div className="auth-decor-panel">
+        <img
+          src="../public/Online Doctor-pana.png"
+          alt="Ilustración de doctor"
+          className="auth-ilustracion"
+        />
       </div>
     </div>
   );

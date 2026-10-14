@@ -110,6 +110,9 @@ async function estadisticas(req, res) {
 }
 
 async function crear(req, res) {
+  // RN-012: los administradores solo se crean por la vía administrativa
+  // RN-007: el rol asignado debe existir en el catálogo roles
+  // RN-008: las contraseñas se almacenan solo como hash (bcrypt)
   try {
     const { nombre, email, password, rol_id } = req.body;
 

@@ -1,30 +1,31 @@
 'use strict';
 
-const db = require('../../../infrastructure/db');
+const { PostgresEspecialidadRepository, DuplicadoError } = require('../../../infrastructure/adapters/PostgresEspecialidadRepository');
+const CrearEspecialidad = require('../../../application/use-cases/CrearEspecialidad');
+const ActualizarEspecialidad = require('../../../application/use-cases/ActualizarEspecialidad');
+
+const repo = new PostgresEspecialidadRepository();
+module.exports = { listar, obtenerPorId, crear, actualizar, cambiarEstado };
 
 async function listar(req, res) {
   try {
-    const result = await db.query(
-      `SELECT id, nombre, activo FROM especialidades ORDER BY nombre ASC`
-    );
-    return res.json({ ok: true, mensaje: 'Lista de especialidades', data: result.rows });
+    // RN-031: solo el admin puede ver también las inactivas
+    const incluirInactivas = req.query.todas === 'true' && esAdmin(req.usuario);
+    const data = await repo.listar({ incluirInactivas });
+    return res.json({ ok: true, mensaje: 'Lista de especialidades', data });
   } catch (error) {
     console.error('[Especialidades] Error en listar:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al obtener especialidades', error: error.message });
+    return res.status(500).json({ ok: false, mensaje: 'Error al obtener especialidades' });
   }
 }
 
 async function obtenerPorId(req, res) {
-  const { id } = req.params;
   try {
-    const result = await db.query(
-      `SELECT id, nombre, activo FROM especialidades WHERE id = $1`,
-      [id]
-    );
-    if (result.rows.length === 0) {
+    const data = await repo.obtenerPorId(parseInt(req.params.id));
+    if (!data) {
       return res.status(404).json({ ok: false, mensaje: 'Especialidad no encontrada' });
     }
-    return res.json({ ok: true, mensaje: 'Especialidad encontrada', data: result.rows[0] });
+    return res.json({ ok: true, mensaje: 'Especialidad encontrada', data });
   } catch (error) {
     console.error('[Especialidades] Error en obtenerPorId:', error.message);
     return res.status(500).json({ ok: false, mensaje: 'Error al obtener especialidad', error: error.message });
@@ -32,60 +33,69 @@ async function obtenerPorId(req, res) {
 }
 
 async function crear(req, res) {
-  const { nombre } = req.body;
-
-  if (!nombre) {
-    return res.status(400).json({ ok: false, mensaje: 'nombre es requerido' });
-  }
-
   try {
-    const result = await db.query(
-      `INSERT INTO especialidades (nombre) VALUES ($1) RETURNING id, nombre, activo`,
-      [nombre]
-    );
-    return res.status(201).json({ ok: true, mensaje: 'Especialidad creada correctamente', data: result.rows[0] });
+    const { nombre } = req.body;
+
+    if (!nombre) {
+      return res.status(400).json({ ok: false, mensaje: 'nombre es requerido' });
+    }
+
+    const caso = new CrearEspecialidad(repo);
+    const data = await caso.execute(nombre);
+    return res.status(201).json({ ok: true, mensaje: 'Especialidad creada correctamente', data });
   } catch (error) {
+    if (error instanceof DuplicadoError) {
+      return res.status(409).json({ ok: false, mensaje: error.message });
+    }
     console.error('[Especialidades] Error en crear:', error.message);
     return res.status(500).json({ ok: false, mensaje: 'Error al crear especialidad', error: error.message });
   }
 }
 
 async function actualizar(req, res) {
-  const { id } = req.params;
-  const { nombre, activo } = req.body;
-
   try {
-    const result = await db.query(
-      `UPDATE especialidades
-       SET nombre = COALESCE($1, nombre), activo = COALESCE($2, activo)
-       WHERE id = $3
-       RETURNING id, nombre, activo`,
-      [nombre, activo, id]
-    );
-    if (result.rows.length === 0) {
+    const { id } = req.params;
+    const { nombre, activo } = req.body;
+
+    const caso = new ActualizarEspecialidad(repo);
+    const data = await caso.execute(parseInt(id), { nombre, activo });
+
+    if (!data) {
       return res.status(404).json({ ok: false, mensaje: 'Especialidad no encontrada' });
     }
-    return res.json({ ok: true, mensaje: 'Especialidad actualizada correctamente', data: result.rows[0] });
+
+    return res.json({ ok: true, mensaje: 'Especialidad actualizada correctamente', data });
   } catch (error) {
+    if (error instanceof DuplicadoError) {
+      return res.status(409).json({ ok: false, mensaje: error.message });
+    }
     console.error('[Especialidades] Error en actualizar:', error.message);
     return res.status(500).json({ ok: false, mensaje: 'Error al actualizar especialidad', error: error.message });
   }
 }
 
-async function eliminar(req, res) {
-  const { id } = req.params;
+async function cambiarEstado(req, res) {
   try {
-    const result = await db.query(
-      `DELETE FROM especialidades WHERE id = $1 RETURNING id`,
-      [id]
-    );
-    if (result.rows.length === 0) {
+    const id = parseInt(req.params.id, 10);
+    const { activo } = req.body;
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
+    if (typeof activo !== 'boolean') {
+      return res.status(400).json({ ok: false, mensaje: '"activo" debe ser true o false' });
+    }
+    const esp = await repo.cambiarEstado(id, activo);
+    if (!esp) {
       return res.status(404).json({ ok: false, mensaje: 'Especialidad no encontrada' });
     }
-    return res.json({ ok: true, mensaje: 'Especialidad eliminada correctamente' });
+    return res.json({
+      ok: true,
+      mensaje: activo ? 'Especialidad activada' : 'Especialidad desactivada',
+      data: esp
+    });
   } catch (error) {
-    console.error('[Especialidades] Error en eliminar:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al eliminar especialidad', error: error.message });
+    console.error('[Especialidades] Error en cambiarEstado:', error.message);
+    return res.status(500).json({ ok: false, mensaje: 'Error al cambiar el estado' });
   }
 }
 

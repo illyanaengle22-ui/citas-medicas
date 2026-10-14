@@ -72,6 +72,22 @@ async function login(req, res) {
       return res.status(401).json({ ok: false, mensaje: 'Credenciales inválidas' });
     }
 
+    // RN-027: un usuario con cuenta no activa no puede obtener un token
+    // RN-003: un usuario nuevo que se registra por sí mismo queda en estado pendiente
+    if (user.estado_id !== 2) {
+      const estadoResult = await db.query(
+        `SELECT clave FROM estados_cuenta WHERE id = $1`,
+        [user.estado_id]
+      );
+      const estadoClave = estadoResult.rows[0]?.clave || 'inactivo';
+      return res.status(403).json({
+        ok: false,
+        mensaje: estadoClave === 'pendiente'
+          ? 'Tu cuenta está pendiente de aprobación por un administrador.'
+          : 'Tu cuenta ha sido rechazada o suspendida.'
+      });
+    }
+
     await db.query('UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1', [user.id]);
 
     const token = jwt.sign(
