@@ -30,8 +30,8 @@ El sistema permite gestionar citas médicas: registro y aprobación de usuarios,
 | RN-008 | Las contraseñas se almacenan **solo como hash** (bcrypt). Ninguna respuesta de la API incluye `password_hash`. |
 | RN-009 | Cada usuario tiene un `uuid_publico` para exponerse en el exterior; el `id` interno no debe usarse como identificador público. |
 | RN-010 | Se registra la fecha del **último login** en cada inicio de sesión exitoso. |
-| RN-011 | Al aprobar un usuario con rol paciente debe existir su registro en `pacientes`; si no existe, se crea en la misma transacción. 🔶 |
-| RN-012 | Los administradores solo se crean por la vía administrativa (`POST /api/usuarios/admin`), nunca por el registro público. 🔶 |
+| RN-011 | Al aprobar un usuario con rol paciente debe existir su registro en `pacientes`; si no existe, se crea en la misma transacción.  |
+| RN-012 | Los administradores solo se crean por la vía administrativa (`POST /api/usuarios/admin`), nunca por el registro público.  |
 
 ### Estados de cuenta
 
