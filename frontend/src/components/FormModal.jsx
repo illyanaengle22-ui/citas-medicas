@@ -1,7 +1,21 @@
-import { useEffect } from 'react';
-import { faXmark } from '@fortawesome/free-solid-svg-icons';
+import { useEffect, useState, useCallback } from 'react';
+import { faXmark, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
+/**
+ * FormModal — modal genérico de formulario (o vista de solo lectura).
+ *
+ * Props:
+ *  titulo           – string
+ *  campos           – array de definiciones de campo
+ *  valoresIniciales – objeto con los valores precargados
+ *  onSubmit         – función que recibe el objeto de valores
+ *  onCerrar         – función para cerrar el modal
+ *  errores          – objeto { [nombre]: mensajeError }
+ *  guardando        – boolean, deshabilita el botón Guardar
+ *  soloLectura      – boolean, renderiza vista de datos en lugar de formulario
+ *  renderVerUsuario – (opcional) función que devuelve JSX para la vista Ver usuario
+ */
 export default function FormModal({
   titulo,
   campos = [],
@@ -11,133 +25,123 @@ export default function FormModal({
   errores = {},
   guardando = false,
   soloLectura = false,
+  renderVerUsuario,
 }) {
+  const [valores, setValores] = useState(() => construirEstadoInicial(campos, valoresIniciales));
+  const [passwordVisible, setPasswordVisible] = useState({});
+
+  // Reiniciar estado cuando cambien los valores iniciales (usuario diferente).
   useEffect(() => {
-    const handleKey = (e) => {
-      if (e.key === 'Escape') onCerrar();
-    };
+    setValores(construirEstadoInicial(campos, valoresIniciales));
+    setPasswordVisible({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valoresIniciales]);
+
+  const cerrar = useCallback(() => onCerrar(), [onCerrar]);
+
+  // Cerrar con Escape
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === 'Escape') cerrar(); };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [onCerrar]);
+  }, [cerrar]);
 
   const handleSubmit = (e) => {
     if (soloLectura) return;
     e.preventDefault();
-    const valores = {};
-    campos.forEach((campo) => {
-      if (campo.tipo === 'checkbox') {
-        valores[campo.nombre] = e.target[campo.nombre]?.checked ?? false;
-      } else {
-        valores[campo.nombre] = e.target[campo.nombre]?.value ?? '';
-      }
-    });
     onSubmit(valores);
   };
 
-  const renderCampo = (campo) => {
-    const nombre = campo.nombre;
-    const valor = valoresIniciales[nombre] ?? (campo.tipo === 'checkbox' ? false : '');
-    const error = errores[nombre];
-    const comun = {
-      name: nombre,
-      disabled: soloLectura,
-      required: campo.requerido && !soloLectura,
-    };
-
-    switch (campo.tipo) {
-      case 'textarea':
-        return (
-          <textarea
-            className={`input ${error ? 'input-error' : ''}`}
-            {...comun}
-            defaultValue={valor}
-            rows={campo.filas || 3}
-            placeholder={campo.placeholder}
-            readOnly={soloLectura}
-          />
-        );
-
-      case 'select':
-        return (
-          <select
-            className={`input ${error ? 'input-error' : ''}`}
-            {...comun}
-            defaultValue={valor}
-          >
-            {campo.placeholder && <option value="">{campo.placeholder}</option>}
-            {campo.opciones?.map((op) => (
-              <option key={op.valor} value={op.valor}>
-                {op.etiqueta}
-              </option>
-            ))}
-          </select>
-        );
-
-      case 'checkbox':
-        return (
-          <label className="form-checkbox-label">
-            <input
-              type="checkbox"
-              {...comun}
-              defaultChecked={valor}
-            />
-            <span>{campo.etiqueta}</span>
-          </label>
-        );
-
-      default:
-        return (
-          <input
-            type={campo.tipo || 'text'}
-            className={`input ${error ? 'input-error' : ''}`}
-            {...comun}
-            defaultValue={valor}
-            placeholder={campo.placeholder}
-            readOnly={soloLectura}
-          />
-        );
-    }
+  const actualizarValor = (nombre, valor) => {
+    setValores((prev) => ({ ...prev, [nombre]: valor }));
   };
 
+  const togglePassword = (nombre) => {
+    setPasswordVisible((prev) => ({ ...prev, [nombre]: !prev[nombre] }));
+  };
+
+  // ── Vista de solo lectura personalizada ──────────────────────────────────
+  if (soloLectura && renderVerUsuario) {
+    return (
+      <div className="modal-overlay" onClick={cerrar}>
+        <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>{titulo}</h2>
+            <button className="modal-cerrar" onClick={cerrar} aria-label="Cerrar">
+              <FontAwesomeIcon icon={faXmark} />
+            </button>
+          </div>
+          <div className="modal-ver-body">
+            {renderVerUsuario()}
+          </div>
+          <div className="modal-acciones">
+            <button type="button" className="btn btn-primario" onClick={cerrar}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Formulario editable (o solo lectura genérico) ──────────────────────
   return (
-    <div className="modal-overlay" onClick={onCerrar}>
+    <div className="modal-overlay" onClick={cerrar}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{titulo}</h2>
-          <button className="modal-cerrar" onClick={onCerrar} aria-label="Cerrar">
+          <button className="modal-cerrar" onClick={cerrar} aria-label="Cerrar">
             <FontAwesomeIcon icon={faXmark} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="form modal-form-body">
-          {campos.map((campo) => (
-            <div key={campo.nombre} className="form-campo">
-              {campo.tipo !== 'checkbox' && (
-                <label className="form-label">
-                  {campo.etiqueta}
-                  {campo.requerido && !soloLectura && <span className="form-requerido"> *</span>}
-                </label>
-              )}
-              {renderCampo(campo)}
-              {errores[campo.nombre] && (
-                <span className="form-error">{errores[campo.nombre]}</span>
-              )}
-            </div>
-          ))}
+          {campos
+            .filter((campo) => !soloLectura || campo.tipo !== 'password')
+            .map((campo) => (
+              <CampoFormulario
+                key={campo.nombre}
+                campo={campo}
+                valor={valores[campo.nombre] ?? (campo.tipo === 'checkbox' ? false : '')}
+                error={errores[campo.nombre]}
+                soloLectura={soloLectura}
+                passwordVisible={!!passwordVisible[campo.nombre]}
+                onTogglePassword={() => togglePassword(campo.nombre)}
+                onChange={(val) => actualizarValor(campo.nombre, val)}
+              />
+            ))}
+
+          {errores.form && (
+            <span className="form-error form-error-global">{errores.form}</span>
+          )}
 
           <div className="modal-acciones">
             {!soloLectura && (
-              <button type="button" className="btn btn-secundario" onClick={onCerrar} disabled={guardando}>
+              <button
+                type="button"
+                className="btn btn-secundario"
+                onClick={cerrar}
+                disabled={guardando}
+              >
                 Cancelar
               </button>
             )}
             {!soloLectura && (
-              <button type="submit" className="btn btn-primario" disabled={guardando}>
-                {guardando ? 'Guardando...' : 'Guardar'}
+              <button
+                type="submit"
+                className="btn btn-primario"
+                disabled={guardando}
+              >
+                {guardando ? (
+                  <>
+                    <span className="spinner spinner-sm" />
+                    Guardando…
+                  </>
+                ) : 'Guardar'}
               </button>
             )}
             {soloLectura && (
-              <button type="button" className="btn btn-primario" onClick={onCerrar}>
+              <button type="button" className="btn btn-primario" onClick={cerrar}>
                 Cerrar
               </button>
             )}
@@ -146,4 +150,132 @@ export default function FormModal({
       </div>
     </div>
   );
+}
+
+// ── Sub-componente de campo ─────────────────────────────────────────────────
+function CampoFormulario({ campo, valor, error, soloLectura, passwordVisible, onTogglePassword, onChange }) {
+  const comun = {
+    name: campo.nombre,
+    id: `campo-${campo.nombre}`,
+    disabled: soloLectura,
+    required: campo.requerido && !soloLectura,
+    className: `input${error ? ' input-error' : ''}`,
+  };
+
+  let inputEl;
+
+  switch (campo.tipo) {
+    case 'textarea':
+      inputEl = (
+        <textarea
+          {...comun}
+          value={valor}
+          rows={campo.filas || 3}
+          placeholder={campo.placeholder}
+          readOnly={soloLectura}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+      break;
+
+    case 'select':
+      inputEl = (
+        <select
+          {...comun}
+          value={valor}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">{campo.placeholder || 'Selecciona…'}</option>
+          {campo.opciones?.map((op) => (
+            <option key={op.valor} value={op.valor} disabled={op.deshabilitado}>
+              {op.etiqueta}
+            </option>
+          ))}
+        </select>
+      );
+      break;
+
+    case 'checkbox':
+      return (
+        <div className="form-campo">
+          <label className="form-checkbox-label" htmlFor={`campo-${campo.nombre}`}>
+            <input
+              type="checkbox"
+              id={`campo-${campo.nombre}`}
+              name={campo.nombre}
+              checked={!!valor}
+              disabled={soloLectura}
+              onChange={(e) => onChange(e.target.checked)}
+            />
+            <span>{campo.etiqueta}</span>
+          </label>
+          {error && <span className="form-error">{error}</span>}
+        </div>
+      );
+
+    case 'password':
+      inputEl = (
+        <div className="input-password-wrapper">
+          <input
+            {...comun}
+            type={passwordVisible ? 'text' : 'password'}
+            value={valor}
+            placeholder={campo.placeholder}
+            autoComplete="new-password"
+            onChange={(e) => onChange(e.target.value)}
+          />
+          <button
+            type="button"
+            className="input-password-toggle"
+            onClick={onTogglePassword}
+            tabIndex={-1}
+            aria-label={passwordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          >
+            <FontAwesomeIcon icon={passwordVisible ? faEyeSlash : faEye} />
+          </button>
+        </div>
+      );
+      break;
+
+    default:
+      inputEl = (
+        <input
+          {...comun}
+          type={campo.tipo || 'text'}
+          value={valor}
+          placeholder={campo.placeholder}
+          readOnly={soloLectura}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+  }
+
+  return (
+    <div className="form-campo">
+      {campo.tipo !== 'checkbox' && (
+        <label className="form-label" htmlFor={`campo-${campo.nombre}`}>
+          {campo.etiqueta}
+          {campo.requerido && !soloLectura && <span className="form-requerido"> *</span>}
+        </label>
+      )}
+      {inputEl}
+      {campo.ayuda && !error && (
+        <span className="form-ayuda">{campo.ayuda}</span>
+      )}
+      {error && <span className="form-error">{error}</span>}
+    </div>
+  );
+}
+
+// ── Utilidad ───────────────────────────────────────────────────────────────
+function construirEstadoInicial(campos, valoresIniciales) {
+  const estado = {};
+  campos.forEach((campo) => {
+    if (campo.tipo === 'checkbox') {
+      estado[campo.nombre] = valoresIniciales[campo.nombre] ?? false;
+    } else {
+      estado[campo.nombre] = valoresIniciales[campo.nombre] ?? '';
+    }
+  });
+  return estado;
 }

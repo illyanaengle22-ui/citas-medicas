@@ -11,6 +11,7 @@ router.use(authMiddleware, roleMiddleware('admin'));
 router.get('/', ctrl.listar);
 router.get('/pendientes', ctrl.listarPendientes);
 router.get('/stats', ctrl.estadisticas);
+router.get('/:id', ctrl.obtenerDetalle);
 router.post('/', ctrl.crear);
 router.put('/:id/aprobar', ctrl.aprobar);
 router.delete('/:id/negar', ctrl.rechazar);

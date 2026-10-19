@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { faInbox, faEdit, faToggleOn, faToggleOff } from '@fortawesome/free-solid-svg-icons';
+import { faInbox } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 export default function CrudTable({
@@ -33,6 +33,8 @@ export default function CrudTable({
     );
   }
 
+  const hayAcciones = typeof acciones === 'function' || acciones.length > 0;
+
   return (
     <div className="crud-table-container">
       {buscar && (
@@ -60,37 +62,44 @@ export default function CrudTable({
                 {columnas.map((col) => (
                   <th key={col.clave}>{col.titulo}</th>
                 ))}
-                {acciones.length > 0 && <th className="crud-th-acciones">Acciones</th>}
+                {hayAcciones && (
+                  <th className="crud-th-acciones">Acciones</th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {datosFiltrados.map((fila, idx) => (
-                <tr key={fila.id ?? idx}>
-                  {columnas.map((col) => (
-                    <td key={col.clave}>
-                      {col.render ? col.render(fila) : fila[col.clave]}
-                    </td>
-                  ))}
-                  {acciones.length > 0 && (
-                    <td className="crud-td-acciones">
-                      {acciones.map((accion, i) => {
-                        const visible = accion.mostrar ? accion.mostrar(fila) : true;
-                        if (!visible) return null;
-                        return (
+              {datosFiltrados.map((fila, idx) => {
+                const accionesFila = typeof acciones === 'function'
+                  ? acciones(fila)
+                  : acciones;
+                const accionesVisibles = accionesFila.filter(
+                  (a) => !a.mostrar || a.mostrar(fila)
+                );
+                return (
+                  <tr key={fila.id ?? idx}>
+                    {columnas.map((col) => (
+                      <td key={col.clave}>
+                        {col.render ? col.render(fila) : fila[col.clave]}
+                      </td>
+                    ))}
+                    {hayAcciones && (
+                      <td className="crud-td-acciones">
+                        {accionesVisibles.map((accion, i) => (
                           <button
                             key={i}
-                            className={`btn btn-sm ${accion.clase || 'btn-accion'}`}
+                            className={`btn btn-sm btn-icono ${accion.clase || 'btn-accion'}`}
                             onClick={() => accion.onClick(fila)}
                             title={accion.titulo}
+                            aria-label={accion.titulo}
                           >
                             <FontAwesomeIcon icon={accion.icono} />
                           </button>
-                        );
-                      })}
-                    </td>
-                  )}
-                </tr>
-              ))}
+                        ))}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -5,7 +5,7 @@ const UsuarioRepository = require('../../domain/ports/UsuarioRepository');
 const Usuario = require('../../domain/entities/Usuario');
 
 class PostgresUsuarioRepository extends UsuarioRepository {
-  async listar({ rol, estado, page = 1, limit = 10 } = {}) {
+  async listar({ rol, estado, q, page = 1, limit = 10 } = {}) {
     const condiciones = ['deleted_at IS NULL'];
     const parametros = [];
 
@@ -19,11 +19,22 @@ class PostgresUsuarioRepository extends UsuarioRepository {
       condiciones.push(`estado_id = (SELECT id FROM estados_cuenta WHERE clave = $${parametros.length})`);
     }
 
+    if (q) {
+      parametros.push(`%${q}%`);
+      condiciones.push(`(u.nombre ILIKE $${parametros.length} OR u.email ILIKE $${parametros.length})`);
+    }
+
     const where = condiciones.join(' AND ');
     const offset = (page - 1) * limit;
 
+    // Query para obtener total
+    const countSql = `SELECT COUNT(*) FROM usuarios u WHERE ${where}`;
+    const totalResult = await db.query(countSql, parametros);
+    const total = parseInt(totalResult.rows[0].count, 10);
+
+    // Query paginada
     const sql = `
-      SELECT u.id, u.uuid_publico, u.nombre, u.email, u.rol_id, u.estado_id, u.created_at,
+      SELECT u.id, u.uuid_publico, u.nombre, u.email, u.rol_id, u.estado_id, u.created_at, u.ultimo_login,
              r.clave AS rol, e.clave AS estado
       FROM usuarios u
       JOIN roles r ON r.id = u.rol_id
@@ -34,20 +45,26 @@ class PostgresUsuarioRepository extends UsuarioRepository {
     `;
 
     const result = await db.query(sql, [...parametros, limit, offset]);
-    return result.rows.map((row) => ({
-      id: row.id,
-      uuid_publico: row.uuid_publico,
-      nombre: row.nombre,
-      email: row.email,
-      rol: row.rol,
-      estado: row.estado,
-      created_at: row.created_at
-    }));
+    return {
+      data: result.rows.map((row) => ({
+        id: row.id,
+        uuid_publico: row.uuid_publico,
+        nombre: row.nombre,
+        email: row.email,
+        rol: row.rol,
+        estado: row.estado,
+        created_at: row.created_at,
+        ultimo_login: row.ultimo_login
+      })),
+      total,
+      page,
+      limit
+    };
   }
 
   async listarPendientes() {
     const result = await db.query(
-      `SELECT u.id, u.uuid_publico, u.nombre, u.email, u.rol_id, u.estado_id, u.created_at,
+      `SELECT u.id, u.uuid_publico, u.nombre, u.email, u.rol_id, u.estado_id, u.created_at, u.ultimo_login,
               r.clave AS rol, e.clave AS estado
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
@@ -121,22 +138,58 @@ class PostgresUsuarioRepository extends UsuarioRepository {
     return { success: true, mensaje: 'Cuenta rechazada correctamente' };
   }
 
-  async asignarRol(id, rol_id) {
-    const rolExiste = await db.query('SELECT id FROM roles WHERE id = $1', [rol_id]);
+  async cambiarRol(id, nuevoRolId, actorId) {
+    // RN-006: un admin no puede cambiar su propio rol
+    if (parseInt(id) === parseInt(actorId)) {
+      return { success: false, mensaje: 'No puedes cambiar tu propio rol' };
+    }
+
+    // Verificar que el rol existe
+    const rolExiste = await db.query('SELECT id, clave FROM roles WHERE id = $1', [nuevoRolId]);
     if (rolExiste.rows.length === 0) {
       return { success: false, mensaje: 'Rol no encontrado' };
     }
+    const nuevaRolClave = rolExiste.rows[0].clave;
 
-    const result = await db.query(
-      `UPDATE usuarios SET rol_id = $1 WHERE id = $2 AND deleted_at IS NULL RETURNING id`,
-      [rol_id, id]
-    );
-
-    if (result.rows.length === 0) {
+    // Obtener rol actual
+    const usuarioActual = await db.query('SELECT rol_id FROM usuarios WHERE id = $1 AND deleted_at IS NULL', [id]);
+    if (usuarioActual.rows.length === 0) {
       return { success: false, mensaje: 'Usuario no encontrado' };
     }
+    const rolActualId = usuarioActual.rows[0].rol_id;
+    const rolActual = await db.query('SELECT clave FROM roles WHERE id = $1', [rolActualId]);
+    const rolActualClave = rolActual.rows[0]?.clave;
 
-    return { success: true, mensaje: 'Rol actualizado correctamente' };
+    // RN-046 / RN-006: bloquear cambios hacia o desde 'medico'
+    if (nuevaRolClave === 'medico' || rolActualClave === 'medico') {
+      return { success: false, mensaje: 'No se puede cambiar el rol hacia o desde médico. Use el módulo de Médicos.' };
+    }
+
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      await client.query(
+        `UPDATE usuarios SET rol_id = $1 WHERE id = $2 AND deleted_at IS NULL`,
+        [nuevoRolId, id]
+      );
+
+      // Si el nuevo rol es paciente, asegurar fila en pacientes
+      if (nuevaRolClave === 'paciente') {
+        await client.query(
+          `INSERT INTO pacientes (usuario_id) VALUES ($1) ON CONFLICT (usuario_id) DO NOTHING`,
+          [id]
+        );
+      }
+
+      await client.query('COMMIT');
+      return { success: true, mensaje: 'Rol actualizado correctamente' };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async obtenerEstadisticas() {
@@ -165,7 +218,7 @@ class PostgresUsuarioRepository extends UsuarioRepository {
 
   async obtenerPorId(id) {
     const result = await db.query(
-      `SELECT u.id, u.uuid_publico, u.nombre, u.email, u.rol_id, u.estado_id, u.created_at,
+      `SELECT u.id, u.uuid_publico, u.nombre, u.email, u.rol_id, u.estado_id, u.created_at, u.ultimo_login,
               r.clave AS rol, e.clave AS estado
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
@@ -177,42 +230,73 @@ class PostgresUsuarioRepository extends UsuarioRepository {
     if (result.rows.length === 0) return null;
 
     const row = result.rows[0];
-    return new Usuario({
+    return {
       id: row.id,
       uuid_publico: row.uuid_publico,
       nombre: row.nombre,
       email: row.email,
-      rol_id: row.rol_id,
-      estado_id: row.estado_id,
-      created_at: row.created_at
-    });
+      rol: row.rol,
+      estado: row.estado,
+      created_at: row.created_at,
+      ultimo_login: row.ultimo_login
+    };
   }
 
   async crear({ nombre, email, password_hash, rol_id }) {
+    // Solo admin (1) y paciente (3) permitido
+    const rolValido = await db.query('SELECT id, clave FROM roles WHERE id = $1', [rol_id]);
+    if (rolValido.rows.length === 0) {
+      return { success: false, mensaje: 'Rol no encontrado' };
+    }
+    if (!['admin', 'paciente'].includes(rolValido.rows[0].clave)) {
+      return { success: false, mensaje: 'Los médicos se crean desde el módulo Médicos' };
+    }
+
+    const emailNormalizado = email.trim().toLowerCase();
+
+    const client = await db.getClient();
     try {
-      const result = await db.query(
+      await client.query('BEGIN');
+
+      const result = await client.query(
         `INSERT INTO usuarios (nombre, email, password_hash, rol_id, estado_id)
          VALUES ($1, $2, $3, $4, (SELECT id FROM estados_cuenta WHERE clave = 'activo'))
          RETURNING id, uuid_publico, nombre, email, rol_id, estado_id, created_at`,
-        [nombre, email, password_hash, rol_id]
+        [nombre, emailNormalizado, password_hash, rol_id]
       );
-      return { success: true, data: result.rows[0], mensaje: 'Usuario creado correctamente' };
+
+      const usuario = result.rows[0];
+
+      // Si es paciente, crear fila en pacientes
+      if (rolValido.rows[0].clave === 'paciente') {
+        await client.query(
+          `INSERT INTO pacientes (usuario_id) VALUES ($1) ON CONFLICT (usuario_id) DO NOTHING`,
+          [usuario.id]
+        );
+      }
+
+      await client.query('COMMIT');
+      return { success: true, data: usuario, mensaje: 'Usuario creado correctamente' };
     } catch (error) {
+      await client.query('ROLLBACK');
       if (error.code === '23505') {
         return { success: false, mensaje: 'El email ya está registrado' };
       }
       throw error;
+    } finally {
+      client.release();
     }
   }
 
-  async actualizar(id, { nombre, email, rol_id }) {
+  async actualizar(id, { nombre, email, password_hash, rol_id }) {
     const campos = [];
     const valores = [];
     let indice = 1;
 
     if (nombre !== undefined) { campos.push(`nombre = $${indice++}`); valores.push(nombre); }
-    if (email !== undefined) { campos.push(`email = $${indice++}`); valores.push(email); }
-    if (rol_id !== undefined) { campos.push(`rol_id = $${indice++}`); valores.push(rol_id); }
+    if (email !== undefined) { campos.push(`email = $${indice++}`); valores.push(email.trim().toLowerCase()); }
+    if (password_hash !== undefined) { campos.push(`password_hash = $${indice++}`); valores.push(password_hash); }
+    // rol_id no se actualiza aquí (usa cambiarRol)
 
     if (campos.length === 0) {
       return { success: false, mensaje: 'No hay campos para actualizar' };
@@ -240,7 +324,12 @@ class PostgresUsuarioRepository extends UsuarioRepository {
     }
   }
 
-  async eliminar(id) {
+  async eliminar(id, actorId) {
+    // RN-006: un admin no puede eliminarse a sí mismo
+    if (parseInt(id) === parseInt(actorId)) {
+      return { success: false, mensaje: 'No puedes eliminar tu propia cuenta' };
+    }
+
     const result = await db.query(
       `UPDATE usuarios SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
       [id]

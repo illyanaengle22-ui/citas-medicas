@@ -5,96 +5,89 @@ const PostgresUsuarioRepository = require('../../../infrastructure/adapters/Post
 const ListarUsuarios = require('../../../application/use-cases/ListarUsuarios');
 const AprobarUsuario = require('../../../application/use-cases/AprobarUsuario');
 const RechazarUsuario = require('../../../application/use-cases/RechazarUsuario');
-const AsignarRol = require('../../../application/use-cases/AsignarRol');
+const CambiarRol = require('../../../application/use-cases/CambiarRol');
 const ObtenerEstadisticasUsuarios = require('../../../application/use-cases/ObtenerEstadisticasUsuarios');
 const CrearUsuarioAdmin = require('../../../application/use-cases/CrearUsuarioAdmin');
 const ActualizarUsuario = require('../../../application/use-cases/ActualizarUsuario');
 const EliminarUsuario = require('../../../application/use-cases/EliminarUsuario');
+const ObtenerUsuarioPorId = require('../../../application/use-cases/ObtenerUsuarioPorId');
+const validarId = require('../utils/validarId');
 
 const repo = new PostgresUsuarioRepository();
 
+function respuestaError500(res, mensaje, error) {
+  console.error('[Usuarios] Error:', error.message);
+  return res.status(500).json({ ok: false, mensaje });
+}
+
 async function listar(req, res) {
   try {
-    const { rol, estado, page = 1, limit = 10 } = req.query;
+    const { rol, estado, q, page = 1, limit = 10 } = req.query;
     const caso = new ListarUsuarios(repo);
-    const data = await caso.execute({ rol, estado, page: parseInt(page), limit: parseInt(limit) });
+    const data = await caso.execute({ rol, estado, q, page: parseInt(page), limit: parseInt(limit) });
     return res.json({ ok: true, mensaje: 'Lista de usuarios', data });
   } catch (error) {
-    console.error('[Usuarios] Error en listar:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al obtener usuarios', error: error.message });
+    return respuestaError500(res, 'Error al obtener usuarios', error);
   }
 }
 
 async function listarPendientes(req, res) {
   try {
-    const caso = new ListarUsuarios(repo);
-    const data = await caso.execute({});
-    const pendientes = data.filter((u) => u.estado === 'pendiente');
-    return res.json({ ok: true, mensaje: 'Usuarios pendientes', data: pendientes });
+    const result = await repo.listarPendientes();
+    return res.json({ ok: true, mensaje: 'Usuarios pendientes', data: result });
   } catch (error) {
-    console.error('[Usuarios] Error en listarPendientes:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al obtener pendientes', error: error.message });
+    return respuestaError500(res, 'Error al obtener pendientes', error);
+  }
+}
+
+async function obtenerPorId(req, res) {
+  try {
+    const id = validarId(req.params.id, 'integer');
+    if (!id) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
+    const caso = new ObtenerUsuarioPorId(repo);
+    const data = await caso.execute(id);
+    if (!data) {
+      return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado' });
+    }
+    return res.json({ ok: true, mensaje: 'Usuario encontrado', data });
+  } catch (error) {
+    return respuestaError500(res, 'Error al obtener usuario', error);
   }
 }
 
 async function aprobar(req, res) {
   try {
-    const { id } = req.params;
+    const id = validarId(req.params.id, 'integer');
+    if (!id) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
     const caso = new AprobarUsuario(repo);
-    const resultado = await caso.execute(parseInt(id));
-
+    const resultado = await caso.execute(id);
     if (!resultado.success) {
       return res.status(400).json({ ok: false, mensaje: resultado.mensaje });
     }
-
     return res.json({ ok: true, mensaje: resultado.mensaje });
   } catch (error) {
-    console.error('[Usuarios] Error en aprobar:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al aprobar usuario', error: error.message });
+    return respuestaError500(res, 'Error al aprobar usuario', error);
   }
 }
 
 async function rechazar(req, res) {
   try {
-    const { id } = req.params;
+    const id = validarId(req.params.id, 'integer');
+    if (!id) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
     const caso = new RechazarUsuario(repo);
-    const resultado = await caso.execute(parseInt(id));
-
+    const resultado = await caso.execute(id);
     if (!resultado.success) {
       return res.status(400).json({ ok: false, mensaje: resultado.mensaje });
     }
-
     return res.json({ ok: true, mensaje: resultado.mensaje });
   } catch (error) {
-    console.error('[Usuarios] Error en rechazar:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al rechazar usuario', error: error.message });
-  }
-}
-
-async function asignarRol(req, res) {
-  try {
-    const { id } = req.params;
-    const { rol_id } = req.body;
-
-    if (!rol_id) {
-      return res.status(400).json({ ok: false, mensaje: 'rol_id es requerido' });
-    }
-
-    if (parseInt(id) === req.usuario.id) {
-      return res.status(400).json({ ok: false, mensaje: 'No puedes cambiar tu propio rol' });
-    }
-
-    const caso = new AsignarRol(repo);
-    const resultado = await caso.execute(parseInt(id), parseInt(rol_id));
-
-    if (!resultado.success) {
-      return res.status(400).json({ ok: false, mensaje: resultado.mensaje });
-    }
-
-    return res.json({ ok: true, mensaje: resultado.mensaje });
-  } catch (error) {
-    console.error('[Usuarios] Error en asignarRol:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al asignar rol', error: error.message });
+    return respuestaError500(res, 'Error al rechazar usuario', error);
   }
 }
 
@@ -104,15 +97,11 @@ async function estadisticas(req, res) {
     const data = await caso.execute();
     return res.json({ ok: true, mensaje: 'Estadísticas de usuarios', data });
   } catch (error) {
-    console.error('[Usuarios] Error en estadisticas:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al obtener estadísticas', error: error.message });
+    return respuestaError500(res, 'Error al obtener estadísticas', error);
   }
 }
 
 async function crear(req, res) {
-  // RN-012: los administradores solo se crean por la vía administrativa
-  // RN-007: el rol asignado debe existir en el catálogo roles
-  // RN-008: las contraseñas se almacenan solo como hash (bcrypt)
   try {
     const { nombre, email, password, rol_id } = req.body;
 
@@ -120,9 +109,15 @@ async function crear(req, res) {
       return res.status(400).json({ ok: false, mensaje: 'nombre, email, password y rol_id son requeridos' });
     }
 
+    // Validar rol permitido: solo admin (1) y paciente (3)
+    const rolIdNum = parseInt(rol_id, 10);
+    if (isNaN(rolIdNum) || ![1, 3].includes(rolIdNum)) {
+      return res.status(400).json({ ok: false, mensaje: 'Los médicos se crean desde el módulo Médicos' });
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const caso = new CrearUsuarioAdmin(repo);
-    const resultado = await caso.execute({ nombre, email, password_hash: passwordHash, rol_id });
+    const resultado = await caso.execute({ nombre, email, password_hash: passwordHash, rol_id: rolIdNum });
 
     if (!resultado.success) {
       return res.status(409).json({ ok: false, mensaje: resultado.mensaje });
@@ -130,45 +125,117 @@ async function crear(req, res) {
 
     return res.status(201).json({ ok: true, mensaje: resultado.mensaje, data: resultado.data });
   } catch (error) {
-    console.error('[Usuarios] Error en crear:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al crear usuario', error: error.message });
+    return respuestaError500(res, 'Error al crear usuario', error);
   }
 }
 
 async function actualizar(req, res) {
   try {
-    const { id } = req.params;
-    const { nombre, email, rol_id } = req.body;
+    const id = validarId(req.params.id, 'integer');
+    if (!id) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
+
+    const { nombre, email, password, rol_id } = req.body;
+
+    if (!nombre && !email && !password) {
+      return res.status(400).json({ ok: false, mensaje: 'No hay campos para actualizar' });
+    }
 
     const caso = new ActualizarUsuario(repo);
-    const resultado = await caso.execute(parseInt(id), { nombre, email, rol_id });
+    const resultado = await caso.execute(id, { nombre, email, password, rol_id });
 
     if (!resultado.success) {
-      return res.status(400).json({ ok: false, mensaje: resultado.mensaje });
+      let status = 400;
+      if (resultado.mensaje.includes('ya está registrado')) status = 409;
+      else if (resultado.mensaje.includes('no encontrado') || resultado.mensaje.includes('no existe')) status = 404;
+      return res.status(status).json({ ok: false, mensaje: resultado.mensaje });
     }
 
     return res.json({ ok: true, mensaje: resultado.mensaje, data: resultado.data });
   } catch (error) {
-    console.error('[Usuarios] Error en actualizar:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al actualizar usuario', error: error.message });
+    return respuestaError500(res, 'Error al actualizar usuario', error);
+  }
+}
+
+async function asignarRol(req, res) {
+  try {
+    const id = validarId(req.params.id, 'integer');
+    if (!id) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
+
+    const { rol_id } = req.body;
+
+    if (!rol_id) {
+      return res.status(400).json({ ok: false, mensaje: 'rol_id es requerido' });
+    }
+
+    const caso = new CambiarRol(repo);
+    const resultado = await caso.execute(id, parseInt(rol_id, 10), req.usuario.id);
+
+    if (!resultado.success) {
+      let status = 400;
+      if (resultado.mensaje.includes('ya está registrado') || resultado.mensaje.includes('médico') || resultado.mensaje.includes('médico')) status = 409;
+      else if (resultado.mensaje.includes('no encontrado') || resultado.mensaje.includes('no existe') || resultado.mensaje.includes('propio rol')) status = 400;
+      return res.status(status).json({ ok: false, mensaje: resultado.mensaje });
+    }
+
+    return res.json({ ok: true, mensaje: resultado.mensaje });
+  } catch (error) {
+    return respuestaError500(res, 'Error al cambiar rol', error);
   }
 }
 
 async function eliminar(req, res) {
   try {
-    const { id } = req.params;
+    const id = validarId(req.params.id, 'integer');
+    if (!id) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
+
     const caso = new EliminarUsuario(repo);
-    const resultado = await caso.execute(parseInt(id), req.usuario.id);
+    const resultado = await caso.execute(id, req.usuario.id);
 
     if (!resultado.success) {
-      return res.status(400).json({ ok: false, mensaje: resultado.mensaje });
+      let status = 400;
+      if (resultado.mensaje.includes('no encontrado') || resultado.mensaje.includes('no existe')) status = 404;
+      return res.status(status).json({ ok: false, mensaje: resultado.mensaje });
     }
 
     return res.json({ ok: true, mensaje: resultado.mensaje });
   } catch (error) {
-    console.error('[Usuarios] Error en eliminar:', error.message);
-    return res.status(500).json({ ok: false, mensaje: 'Error al eliminar usuario', error: error.message });
+    return respuestaError500(res, 'Error al eliminar usuario', error);
   }
 }
 
-module.exports = { listar, listarPendientes, aprobar, rechazar, asignarRol, estadisticas, crear, actualizar, eliminar };
+async function obtenerDetalle(req, res) {
+  try {
+    const id = validarId(req.params.id, 'integer');
+    if (!id) {
+      return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
+    }
+    const caso = new ObtenerUsuarioPorId(repo);
+    const data = await caso.execute(id);
+    if (!data) {
+      return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado' });
+    }
+    return res.json({ ok: true, mensaje: 'Usuario encontrado', data });
+  } catch (error) {
+    return respuestaError500(res, 'Error al obtener usuario', error);
+  }
+}
+
+module.exports = { 
+  listar, 
+  listarPendientes, 
+  obtenerPorId, 
+  aprobar, 
+  rechazar, 
+  asignarRol, 
+  estadisticas, 
+  crear, 
+  actualizar, 
+  eliminar,
+  obtenerDetalle
+};

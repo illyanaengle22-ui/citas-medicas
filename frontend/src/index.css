@@ -129,15 +129,18 @@ body {
 
 .input {
   width: 100%;
-  padding: 1rem 1.25rem 1rem 3rem;
+  padding: 0.875rem 1.25rem;
   border: 2px solid var(--borde);
   border-radius: var(--radio-pildora);
   font-size: 1rem;
   font-family: inherit;
   color: var(--texto);
   background: #fff;
+  text-align: left;
   transition: border-color var(--transicion), box-shadow var(--transicion);
   outline: none;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .input::placeholder {
@@ -148,6 +151,26 @@ body {
 .input:focus {
   border-color: var(--primario);
   box-shadow: 0 0 0 4px rgba(94, 155, 186, 0.15);
+}
+
+.input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--fondo);
+}
+
+/* Inputs con ícono a la izquierda (solo login/register) */
+.input-grupo .input {
+  padding-left: 3rem;
+}
+
+/* Select: arrow custom + padding-right para no chocar con la flecha */
+select.input {
+  padding-right: 2.5rem;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232A1B4F' opacity='0.5' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
 }
 
 /* ═══════════════════════════════════════════
@@ -692,18 +715,22 @@ body {
   background: #fff;
   border-radius: var(--radio);
   box-shadow: var(--sombra-hover);
-  max-width: 480px;
-  width: 100%;
+  max-width: 520px;
+  width: 92vw;
   max-height: 90vh;
   overflow-y: auto;
   animation: slideUp 200ms ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.5rem 1.5rem 0;
+  padding: 1.5rem 1.75rem 1rem;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--borde);
 }
 
 .modal-header h2 {
@@ -719,24 +746,79 @@ body {
   border-radius: 50%;
   background: transparent;
   color: var(--texto);
+  opacity: 0.5;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all var(--transicion);
+  flex-shrink: 0;
 }
 
 .modal-cerrar:hover {
-  background: var(--fondo);
+  background: #FDF2F2;
   color: var(--error);
+  opacity: 1;
 }
 
 .modal-body {
-  padding: 1.5rem;
+  padding: 1.5rem 1.75rem;
 }
 
 .modal-form-body {
-  padding: 1.5rem;
+  padding: 1.25rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Vista "Ver usuario" – lista de datos */
+.modal-ver-body {
+  padding: 1.25rem 1.75rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ver-usuario-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ver-usuario-fila {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--borde);
+}
+
+.ver-usuario-fila:last-child {
+  border-bottom: none;
+}
+
+.ver-usuario-fila dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--texto);
+  opacity: 0.5;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ver-usuario-fila dd {
+  font-size: 0.95rem;
+  color: var(--texto);
+  font-weight: 500;
+}
+
+.ver-usuario-uuid {
+  font-size: 0.8rem;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+  opacity: 0.7;
 }
 
 .celda-truncada {
@@ -762,8 +844,15 @@ body {
 .modal-acciones {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 0.75rem;
-  padding: 0 1.5rem 1.5rem;
+  padding: 1rem 1.75rem 1.5rem;
+  flex-shrink: 0;
+  border-top: 1px solid var(--borde);
+}
+
+.modal-acciones .btn {
+  min-height: 44px;
 }
 
 .confirmacion-mensaje {
@@ -780,13 +869,14 @@ body {
 .form-campo {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .form-label {
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: var(--texto);
+  opacity: 0.8;
 }
 
 .form-requerido {
@@ -796,6 +886,51 @@ body {
 .form-error {
   font-size: 0.8rem;
   color: var(--error);
+  font-weight: 500;
+}
+
+.form-error-global {
+  background: #FDF2F2;
+  border: 1px solid #F5C6C6;
+  border-radius: var(--radio);
+  padding: 0.6rem 1rem;
+  margin-top: 0.25rem;
+}
+
+.form-ayuda {
+  font-size: 0.78rem;
+  color: var(--texto);
+  opacity: 0.55;
+  line-height: 1.4;
+}
+
+/* Campo contraseña con botón ojo */
+.input-password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-password-wrapper .input {
+  padding-right: 3rem;
+}
+
+.input-password-toggle {
+  position: absolute;
+  right: 0.875rem;
+  background: none;
+  border: none;
+  color: var(--texto);
+  opacity: 0.45;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  transition: opacity var(--transicion);
+}
+
+.input-password-toggle:hover {
+  opacity: 0.9;
 }
 
 .input-error {
@@ -868,25 +1003,37 @@ body {
   background: var(--fondo);
 }
 
-.crud-th-acciones,
-.crud-td-acciones {
-  text-align: center;
+.crud-th-acciones {
+  text-align: right;
   vertical-align: middle;
   width: 1%;
   white-space: nowrap;
+  padding-right: 1.25rem;
 }
 
 .crud-td-acciones {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.5rem;
+  text-align: right;
+  vertical-align: middle;
+  width: 1%;
+  white-space: nowrap;
+  padding-right: 0.75rem;
 }
 
-.crud-td-acciones .btn {
-  margin: 0;
+/* Botones de acción: cuadrados uniformes */
+.btn-icono {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  margin-left: 0.25rem;
+}
+
+.crud-td-acciones .btn-icono:first-child {
+  margin-left: 0;
 }
 
 /* ═══════════════════════════════════════════
@@ -1029,6 +1176,230 @@ body {
    RESPONSIVE
    ═══════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════
+   PÁGINA DE USUARIOS
+   ═══════════════════════════════════════════ */
+
+/* Pestañas */
+.pestanas-bar {
+  display: inline-flex;
+  gap: 0.5rem;
+  background: #fff;
+  padding: 0.35rem;
+  border-radius: var(--radio-pildora);
+  border: 1px solid var(--borde);
+  box-shadow: var(--sombra-suave);
+}
+
+.pestanas-bar .btn {
+  border-radius: var(--radio-pildora);
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+}
+
+/* Celda de usuario (avatar + nombre) */
+.usuario-celda {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.usuario-celda .avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.usuario-celda span {
+  font-weight: 500;
+  color: var(--texto);
+}
+
+/* Badges de rol */
+.badge-info {
+  background: var(--suave);
+  color: var(--primario);
+}
+
+.badge-admin {
+  background: #FDF8E6;
+  color: var(--acento);
+}
+
+.badge-medico {
+  background: #E6F7EF;
+  color: var(--exito);
+}
+
+.badge-paciente {
+  background: var(--suave);
+  color: var(--primario);
+}
+
+/* Botones de acción de usuarios */
+.crud-td-acciones .btn-ver {
+  background: var(--suave);
+  color: var(--primario);
+}
+
+.crud-td-acciones .btn-ver:hover {
+  background: var(--primario);
+  color: #fff;
+}
+
+.crud-td-acciones .btn-editar {
+  background: #FDF8E6;
+  color: var(--acento);
+}
+
+.crud-td-acciones .btn-editar:hover {
+  background: var(--acento);
+  color: #fff;
+}
+
+.crud-td-acciones .btn-eliminar {
+  background: #FDF2F2;
+  color: var(--error);
+}
+
+.crud-td-acciones .btn-eliminar:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+.crud-td-acciones .btn-aprobar {
+  background: #E6F7EF;
+  color: var(--exito);
+}
+
+.crud-td-acciones .btn-aprobar:hover {
+  background: var(--exito);
+  color: #fff;
+}
+
+.crud-td-acciones .btn-rechazar {
+  background: #FDF2F2;
+  color: var(--error);
+}
+
+.crud-td-acciones .btn-rechazar:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+/* Paginacion */
+.paginacion {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: #fff;
+  border-radius: var(--radio);
+  border: 1px solid var(--borde);
+  box-shadow: var(--sombra-suave);
+}
+
+.paginacion span {
+  font-size: 0.9rem;
+  color: var(--texto);
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+.paginacion select {
+  width: auto;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+/* Filtros de usuarios - selects más compactos */
+.admin-usuarios .input[type="text"] {
+  border-radius: var(--radio-pildora);
+}
+
+.admin-usuarios select.input {
+  border-radius: var(--radio-pildora);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232A1B4F' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+}
+
+.admin-usuarios .filtros-acciones {
+  gap: 0.5rem;
+}
+
+/* Mejorar tabla de usuarios */
+.admin-usuarios .crud-table td {
+  padding: 1rem 1.25rem;
+}
+
+.admin-usuarios .crud-table th {
+  padding: 0.75rem 1.25rem;
+}
+
+.admin-usuarios .crud-table tbody tr {
+  transition: background var(--transicion);
+}
+
+.admin-usuarios .crud-table tbody tr:hover {
+  background: #F0F7FC;
+}
+
+.admin-usuarios .crud-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════ */
+
+/* ── Responsive 1366px ── */
+@media (max-width: 1366px) {
+  .crud-table-container {
+    overflow-x: auto;
+  }
+  .filtros-controles .input[type="text"] {
+    width: 180px;
+  }
+  .filtros-controles select.input {
+    min-width: 130px;
+  }
+}
+
+/* ── Responsive 1200px ── */
+@media (max-width: 1200px) {
+  .filtros-barra {
+    flex-wrap: wrap;
+  }
+  .filtros-controles {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+  .btn-nuevo-container {
+    width: auto;
+    margin-left: auto;
+  }
+}
+
+/* ── Responsive 1024px ── */
+@media (max-width: 1024px) {
+  .dashboard-main {
+    padding: 1.5rem;
+  }
+  .tarjetas-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Responsive 768px ── */
 @media (max-width: 768px) {
   .auth-decor-panel {
     display: none;
@@ -1053,7 +1424,7 @@ body {
   }
 
   .dashboard-main {
-    padding: 1.5rem;
+    padding: 1rem;
   }
 
   .topbar {
@@ -1069,11 +1440,15 @@ body {
   }
 
   .modal-overlay {
-    padding: 1rem;
+    padding: 0.75rem;
+    align-items: flex-end;
   }
 
   .modal {
-    max-width: 100%;
+    width: 100vw;
+    max-width: 100vw;
+    border-radius: var(--radio) var(--radio) 0 0;
+    max-height: 95vh;
   }
 
   .filtros-barra {
@@ -1081,7 +1456,97 @@ body {
     align-items: stretch;
   }
 
-  .filtros-barra .btn {
+  .pestanas-bar {
     width: 100%;
   }
+
+  .pestanas-bar .btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .paginacion {
+    flex-wrap: wrap;
+  }
+
+  .usuario-celda {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .tarjetas-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Responsive 390px (móvil pequeño) ── */
+@media (max-width: 390px) {
+  .modal-header h2 {
+    font-size: 1.05rem;
+  }
+  .modal-form-body,
+  .modal-ver-body {
+    padding: 1rem 1.25rem;
+  }
+  .modal-acciones {
+    padding: 0.75rem 1.25rem 1.25rem;
+  }
+  .filtros-controles {
+    flex-direction: column;
+  }
+  .filtros-controles .input,
+  .filtros-controles select.input {
+    width: 100%;
+  }
+}
+/* ─── filtros-barra canónico ─── */
+.filtros-barra {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: nowrap;
+}
+
+.filtros-controles {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.filtros-controles .input[type="text"] {
+  width: 220px;
+}
+
+.filtros-controles select.input {
+  min-width: 140px;
+}
+
+.btn-nuevo-container {
+  width: 160px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ─── tabla canónica ─── */
+.crud-table td,
+.crud-table th {
+  vertical-align: middle;
+}
+
+.crud-table td {
+  padding: 1rem 1.25rem;
+}
+
+.crud-table th {
+  padding: 0.75rem 1.25rem;
+}
+
+/* spinner pequeño dentro del botón Guardar */
+.spinner-sm {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
 }
