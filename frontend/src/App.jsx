@@ -7,6 +7,7 @@ import Register from './paginas/Register';
 import DashboardHome from './paginas/DashboardHome';
 import AdminEspecialidades from './paginas/admin/AdminEspecialidades';
 import AdminUsuarios from './paginas/admin/AdminUsuarios';
+import AdminConsultorios from './paginas/admin/AdminConsultorios';
 
 function RedireccionRaiz() {
   const { user, token } = useAuth();
@@ -35,6 +36,7 @@ export default function App() {
             <Route index element={<DashboardHome />} />
             <Route path="especialidades" element={<AdminEspecialidades />} />
             <Route path="usuarios" element={<AdminUsuarios />} />
+            <Route path="consultorios" element={<AdminConsultorios />} />
           </Route>
         </Routes>
       </BrowserRouter>

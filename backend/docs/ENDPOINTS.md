@@ -757,3 +757,250 @@ DELETE /api/usuarios/:id/negar
 | 404 | Usuario no encontrado |
 | 409 | Email duplicado (case-insensitive), cambio de rol a/desde médico |
 | 500 | Error interno del servidor |
+
+---
+
+# API Endpoints - Módulo de Consultorios
+
+## Base URL
+```
+http://localhost:4000/api/consultorios
+```
+
+## Autenticación (RN-034)
+- **GET**: cualquier usuario autenticado (requiere `Authorization: Bearer <token>`)
+- **POST, PUT, PATCH, DELETE**: solo administradores (rol `admin`)
+
+> **Nota de tipos:** `consultorios.id` es `BIGINT`, por lo que se devuelve como **string** en JSON (igual que `usuarios.id`). Todos los `id` de este módulo son strings de dígitos.
+
+---
+
+## Endpoints
+
+### 1. Listar consultorios
+```http
+GET /api/consultorios
+GET /api/consultorios?todos=true&q=centro
+```
+
+**Parámetros query opcionales:**
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `todos` | string | Si es `true` y el usuario es admin, incluye consultorios inactivos. Un no-admin lo ignora |
+| `q` | string | Busca en `nombre` y `direccion` (case-insensitive) |
+
+Por defecto devuelve solo consultorios **activos y no eliminados**, ordenados por nombre.
+
+**Respuesta 200:**
+```json
+{
+  "ok": true,
+  "mensaje": "Lista de consultorios",
+  "data": [
+    {
+      "id": "1",
+      "nombre": "Consultorio Central",
+      "direccion": "Av. Principal 123",
+      "telefono": "5551234567",
+      "activo": true,
+      "created_at": "2026-10-10T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### 2. Obtener consultorio por ID
+```http
+GET /api/consultorios/:id
+```
+
+**Respuesta 200:**
+```json
+{
+  "ok": true,
+  "mensaje": "Consultorio encontrado",
+  "data": {
+    "id": "1",
+    "nombre": "Consultorio Central",
+    "direccion": "Av. Principal 123",
+    "telefono": "5551234567",
+    "activo": true,
+    "created_at": "2026-10-10T10:00:00Z"
+  }
+}
+```
+
+**Respuesta 400 (ID inválido):**
+```json
+{ "ok": false, "mensaje": "ID inválido" }
+```
+
+**Respuesta 404:**
+```json
+{ "ok": false, "mensaje": "Consultorio no encontrado" }
+```
+
+---
+
+### 3. Crear consultorio
+```http
+POST /api/consultorios
+Content-Type: application/json
+
+{
+  "nombre": "Consultorio Central",
+  "direccion": "Av. Principal 123",
+  "telefono": "555-123-4567"
+}
+```
+
+**Reglas (RN-032):**
+- `nombre` y `direccion` son **obligatorios**; se recortan y se colapsan espacios dobles.
+- `telefono` es opcional. Se guardan **solo los dígitos** (se quitan guiones, espacios y paréntesis) y debe tener **entre 7 y 15 dígitos**.
+- El nombre no puede repetirse entre consultorios no eliminados (comparación sin mayúsculas).
+
+**Respuesta 201:**
+```json
+{
+  "ok": true,
+  "mensaje": "Consultorio creado correctamente",
+  "data": {
+    "id": "2",
+    "nombre": "Consultorio Central",
+    "direccion": "Av. Principal 123",
+    "telefono": "5551234567",
+    "activo": true,
+    "created_at": "2026-10-10T10:00:00Z"
+  }
+}
+```
+
+**Respuesta 400 (campos obligatorios):**
+```json
+{ "ok": false, "mensaje": "El campo nombre es requerido" }
+{ "ok": false, "mensaje": "El campo direccion es requerido" }
+```
+
+**Respuesta 400 (teléfono inválido):**
+```json
+{ "ok": false, "mensaje": "El teléfono debe tener entre 7 y 15 dígitos" }
+```
+
+**Respuesta 409 (nombre duplicado):**
+```json
+{ "ok": false, "mensaje": "Ya existe un consultorio con ese nombre" }
+```
+
+---
+
+### 4. Actualizar consultorio
+```http
+PUT /api/consultorios/:id
+Content-Type: application/json
+
+{
+  "nombre": "Consultorio Central Renombrado",
+  "direccion": "Av. Principal 456",
+  "telefono": "5559876543"
+}
+```
+
+Mismos campos y validaciones que la creación (`nombre` y `direccion` obligatorios). Un `telefono` vacío se guarda como `null`.
+
+**Respuesta 200:**
+```json
+{
+  "ok": true,
+  "mensaje": "Consultorio actualizado correctamente",
+  "data": {
+    "id": "2",
+    "nombre": "Consultorio Central Renombrado",
+    "direccion": "Av. Principal 456",
+    "telefono": "5559876543",
+    "activo": true,
+    "created_at": "2026-10-10T10:00:00Z"
+  }
+}
+```
+
+**Respuesta 400 / 404 / 409:** iguales que en la creación.
+
+---
+
+### 5. Cambiar estado (activar/desactivar)
+```http
+PATCH /api/consultorios/:id/estado
+Content-Type: application/json
+
+{ "activo": false }
+```
+
+**Respuesta 200:**
+```json
+{
+  "ok": true,
+  "mensaje": "Consultorio desactivado",
+  "data": {
+    "id": "2",
+    "nombre": "Consultorio Central",
+    "direccion": "Av. Principal 123",
+    "telefono": "5551234567",
+    "activo": false,
+    "created_at": "2026-10-10T10:00:00Z"
+  }
+}
+```
+
+**Respuesta 400 (activo no booleano):**
+```json
+{ "ok": false, "mensaje": "\"activo\" debe ser true o false" }
+```
+
+**Respuesta 404:**
+```json
+{ "ok": false, "mensaje": "Consultorio no encontrado" }
+```
+
+---
+
+### 6. Eliminar consultorio (soft delete)
+```http
+DELETE /api/consultorios/:id
+```
+
+**RN-033:** borrado lógico (`deleted_at = now()`); nunca se borra físicamente. El nombre queda libre para reutilizarse.
+
+**Respuesta 200:**
+```json
+{
+  "ok": true,
+  "mensaje": "Consultorio eliminado correctamente",
+  "data": { "id": "2" }
+}
+```
+
+**Respuesta 409 (tiene citas futuras vigentes):**
+```json
+{ "ok": false, "mensaje": "El consultorio tiene citas pendientes" }
+```
+
+**Respuesta 404:**
+```json
+{ "ok": false, "mensaje": "Consultorio no encontrado" }
+```
+
+---
+
+## Índice único recomendado (RN-114)
+
+Actualmente la tabla `consultorios` **no** tiene índice único parcial para el nombre. Para reforzar la unicidad en la base:
+
+```sql
+CREATE UNIQUE INDEX ux_consultorios_nombre_activo
+  ON consultorios (lower(nombre))
+  WHERE deleted_at IS NULL;
+```
+
+> Avisar al compañero antes de aplicar cualquier `ALTER` (RN-114). El backend ya valida la unicidad sin mayúsculas, por lo que el sistema funciona correctamente aunque el índice aún no exista.

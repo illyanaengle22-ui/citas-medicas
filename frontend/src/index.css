@@ -1357,6 +1357,16 @@ select.input {
 }
 
 /* ═══════════════════════════════════════════
+   PÁGINA DE CONSULTORIOS
+   ═══════════════════════════════════════════ */
+
+.celda-telefono {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* ═══════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════ */
 
@@ -1526,6 +1536,11 @@ select.input {
 
 .btn-nuevo-container {
   width: 160px;
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-nuevo-container-consultorio {
+  width: 260px;
   display: flex;
   justify-content: flex-end;
 }

@@ -14,7 +14,7 @@ const items = [
   { to: '/admin/usuarios', icono: faUsers, texto: 'Usuarios', proximamente: false },
   { to: '/admin/medicos', icono: faUserMd, texto: 'Médicos' },
   { to: '/admin/citas', icono: faCalendar, texto: 'Citas' },
-  { to: '/admin/consultorios', icono: faBuilding, texto: 'Consultorios' },
+  { to: '/admin/consultorios', icono: faBuilding, texto: 'Consultorios', proximamente: false },
   { to: '/admin/especialidades', icono: faStethoscope, texto: 'Especialidades', proximamente: false },
 ];
 

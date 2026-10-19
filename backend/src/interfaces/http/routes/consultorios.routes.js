@@ -10,9 +10,10 @@ const roleMiddleware = require('../middlewares/roleMiddleware');
 router.get('/', authMiddleware, ctrl.listar);
 router.get('/:id', authMiddleware, ctrl.obtenerPorId);
 
-// RN-034: crear, editar o eliminar es solo de administradores
+// RN-034: crear, editar, cambiar estado o eliminar es solo de administradores
 router.post('/', authMiddleware, roleMiddleware('admin'), ctrl.crear);
 router.put('/:id', authMiddleware, roleMiddleware('admin'), ctrl.actualizar);
+router.patch('/:id/estado', authMiddleware, roleMiddleware('admin'), ctrl.cambiarEstado);
 router.delete('/:id', authMiddleware, roleMiddleware('admin'), ctrl.eliminar);
 
 module.exports = router;
