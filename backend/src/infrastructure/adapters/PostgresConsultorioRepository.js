@@ -171,11 +171,13 @@ class PostgresConsultorioRepository extends ConsultorioRepository {
         return null;
       }
 
-      // Citas futuras vigentes: pendiente (1), confirmada (2), reagendada (3).
+      // Citas futuras vigentes: pendiente, confirmada, reagendada (RN-113: por clave, no por id fijo).
       const citas = await client.query(
         `SELECT 1 FROM citas
          WHERE consultorio_id = $1
-           AND estado_id IN (1, 2, 3)
+           AND estado_id IN (
+             SELECT id FROM estados_cita WHERE clave IN ('pendiente','confirmada','reagendada')
+           )
            AND fecha_hora > now()
          LIMIT 1`,
         [id]

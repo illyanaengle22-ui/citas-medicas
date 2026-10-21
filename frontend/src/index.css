@@ -318,6 +318,7 @@ select.input {
 
 .dashboard-contenido {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   margin-left: 240px;
@@ -325,6 +326,7 @@ select.input {
 
 .dashboard-main {
   flex: 1;
+  min-width: 0;
   padding: 2.5rem;
   overflow-y: auto;
 }
@@ -1564,4 +1566,238 @@ select.input {
   width: 14px;
   height: 14px;
   border-width: 2px;
+}
+
+/* ═══════════════════════════════════════════
+   PÁGINA DE MÉDICOS
+   ═══════════════════════════════════════════ */
+
+.admin-medicos .filtros-barra,
+.admin-medicos .filtros-controles {
+  flex-wrap: wrap;
+}
+
+.admin-medicos .filtros-controles {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.admin-medicos .filtros-controles .form-checkbox-label,
+.admin-medicos .btn-nuevo-container {
+  flex-shrink: 0;
+}
+
+.medico-celda span {
+  display: block;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--texto);
+}
+
+.celda-cedula {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* Insignias de especialidades: máximo 2 visibles + "+N" */
+.celda-insignias {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 280px;
+}
+
+.celda-insignias .badge {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Insignias completas en la vista "Ver médico" */
+.ver-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.ver-badges .badge {
+  white-space: normal;
+}
+
+/* ═══════════════════════════════════════════
+   CAMPO MULTISELECCIÓN (FormModal)
+   ═══════════════════════════════════════════ */
+
+.multi-select {
+  border: 2px solid var(--borde);
+  border-radius: var(--radio);
+  background: #fff;
+  overflow: hidden;
+  transition: border-color var(--transicion), box-shadow var(--transicion);
+}
+
+.multi-select:focus-within {
+  border-color: var(--primario);
+  box-shadow: 0 0 0 4px rgba(94, 155, 186, 0.15);
+}
+
+.multi-select-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--fondo);
+  border-bottom: 1px solid var(--borde);
+}
+
+.multi-select-buscar {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.9rem;
+  border-width: 1px;
+}
+
+.multi-select-contador {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--texto);
+  opacity: 0.6;
+  white-space: nowrap;
+  padding-right: 0.35rem;
+}
+
+.multi-select-lista {
+  max-height: 170px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+}
+
+.multi-select-opcion {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--texto);
+  transition: background var(--transicion);
+}
+
+.multi-select-opcion:hover {
+  background: var(--fondo);
+}
+
+.multi-select-opcion.seleccionada {
+  background: var(--suave);
+  color: var(--primario);
+  font-weight: 500;
+}
+
+.multi-select-opcion input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primario);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.multi-select-vacio {
+  padding: 0.9rem 0.6rem;
+  font-size: 0.85rem;
+  color: var(--texto);
+  opacity: 0.55;
+}
+
+.multi-select-solo-lectura {
+  font-size: 0.95rem;
+  color: var(--texto);
+}
+
+/* ── Responsive 1366px ── */
+@media (max-width: 1366px) {
+  .admin-medicos .filtros-controles .input[type="text"] {
+    width: 150px;
+  }
+
+  .admin-medicos .filtros-controles select.input {
+    min-width: 150px;
+    max-width: 210px;
+  }
+
+  .admin-medicos .btn-nuevo-container {
+    width: auto;
+  }
+
+  .admin-medicos .crud-table td,
+  .admin-medicos .crud-table th {
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+  }
+
+  .admin-medicos .celda-truncada {
+    max-width: 170px;
+  }
+
+  .admin-medicos .medico-celda span {
+    max-width: 150px;
+  }
+
+  .admin-medicos .celda-insignias {
+    max-width: 180px;
+  }
+
+  .admin-medicos .celda-insignias .badge {
+    max-width: 105px;
+  }
+}
+
+/* ── Responsive 390px ── */
+@media (max-width: 390px) {
+  .admin-medicos .filtros-controles {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .admin-medicos .filtros-controles .input,
+  .admin-medicos .filtros-controles select.input {
+    width: 100%;
+    max-width: none;
+  }
+
+  .admin-medicos .btn-nuevo-container {
+    width: 100%;
+  }
+
+  .admin-medicos .btn-nuevo-container .btn {
+    width: 100%;
+  }
+
+  .admin-medicos .usuario-celda {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .celda-insignias {
+    max-width: 180px;
+  }
+
+  .multi-select-cabecera {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .multi-select-contador {
+    padding: 0.25rem 0.25rem 0;
+  }
 }

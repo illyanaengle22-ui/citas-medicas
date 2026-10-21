@@ -12,7 +12,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 const items = [
   { to: '/admin', icono: faHome, texto: 'Dashboard', fin: true, proximamente: false },
   { to: '/admin/usuarios', icono: faUsers, texto: 'Usuarios', proximamente: false },
-  { to: '/admin/medicos', icono: faUserMd, texto: 'Médicos' },
+  { to: '/admin/medicos', icono: faUserMd, texto: 'Médicos', proximamente: false },
   { to: '/admin/citas', icono: faCalendar, texto: 'Citas' },
   { to: '/admin/consultorios', icono: faBuilding, texto: 'Consultorios', proximamente: false },
   { to: '/admin/especialidades', icono: faStethoscope, texto: 'Especialidades', proximamente: false },

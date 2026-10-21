@@ -8,6 +8,7 @@ import DashboardHome from './paginas/DashboardHome';
 import AdminEspecialidades from './paginas/admin/AdminEspecialidades';
 import AdminUsuarios from './paginas/admin/AdminUsuarios';
 import AdminConsultorios from './paginas/admin/AdminConsultorios';
+import AdminMedicos from './paginas/admin/AdminMedicos';
 
 function RedireccionRaiz() {
   const { user, token } = useAuth();
@@ -37,6 +38,7 @@ export default function App() {
             <Route path="especialidades" element={<AdminEspecialidades />} />
             <Route path="usuarios" element={<AdminUsuarios />} />
             <Route path="consultorios" element={<AdminConsultorios />} />
+            <Route path="medicos" element={<AdminMedicos />} />
           </Route>
         </Routes>
       </BrowserRouter>
