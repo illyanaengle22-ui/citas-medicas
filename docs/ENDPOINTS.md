@@ -193,16 +193,25 @@ Todos los campos son opcionales (al menos uno requerido).
 ## Pacientes
 
 > Todos requieren token JWT.
+> `pacientes.id` y `pacientes.usuario_id` son **BIGINT** (se reciben como string en JSON).
 
-| Método | Ruta | Rol mínimo | Descripción |
-|--------|------|-----------|-------------|
+| Método | Ruta | Rol permitido | Descripción |
+|--------|------|---------------|-------------|
 | GET    | `/api/pacientes` | admin | Listar pacientes |
-| GET    | `/api/pacientes/:id` | admin | Obtener paciente por id |
+| GET    | `/api/pacientes/:id` | admin o el propio paciente | Obtener paciente por id |
 | POST   | `/api/pacientes` | admin | Crear registro de paciente |
 | PUT    | `/api/pacientes/:id` | admin | Actualizar datos del paciente |
-| DELETE | `/api/pacientes/:id` | admin | Soft delete |
+| DELETE | `/api/pacientes/:id` | admin | Soft delete del paciente y de su usuario |
 
-> ⚠️ **Pendiente de mejora:** `PacientesController` no tiene `roleMiddleware` ni `validarId`. Ver sección de auditoría.
+#### Reglas de acceso y validación
+
+- **RN-053:** en `GET /api/pacientes/:id`, un paciente solo puede consultar el registro cuyo `usuario_id` coincide con el `id` de su token. Si intenta ver el registro de otro paciente → **403**.
+- **Médicos:** el acceso de un médico a "sus pacientes" todavía no está implementado porque la relación médico–paciente se define a través de las citas. Hasta que exista esa lógica, `GET /api/pacientes/:id` responde **403** a un token de médico.
+- **IDs:** se valida el tipo real `BIGINT`. Un id inválido o fuera de rango → **400**; un id válido que no existe o está eliminado → **404**.
+- **Listado y detalle:** los `SELECT` que unen `pacientes` con `usuarios` filtran `p.deleted_at IS NULL` y `u.deleted_at IS NULL`.
+- **Eliminación:** hace soft delete de `pacientes` y de su `usuarios` en una sola transacción. Si el paciente tiene citas futuras vigentes (`pendiente`, `confirmada` o `reagendada`, resueltas por clave) → **409**.
+- Tras eliminar el paciente, su usuario queda con `deleted_at`, por lo que ya no puede iniciar sesión y su email vuelve a quedar disponible.
+- Los errores `500` registran el detalle solo en `console.error`; la respuesta al cliente es genérica y nunca incluye `error.message`.
 
 ---
 
