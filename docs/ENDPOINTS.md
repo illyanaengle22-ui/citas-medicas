@@ -1,6 +1,6 @@
 # ENDPOINTS.md — Sistema de Citas Médicas
 
-> Última actualización: 2026-10-21
+> Última actualización: 2026-10-22
 > Convenciones generales (RN-120 a RN-122):
 > - Toda respuesta: `{ "ok": boolean, "mensaje": string, "data": any }`
 > - Todos los endpoints cuelgan de `/api/`
@@ -217,9 +217,140 @@ Todos los campos son opcionales (al menos uno requerido).
 
 ## Dashboard
 
-| Método | Ruta | Rol mínimo | Descripción |
-|--------|------|-----------|-------------|
-| GET    | `/api/dashboard` | admin | Estadísticas generales |
+### `GET /api/dashboard/admin`
+
+Resumen consolidado para el dashboard del administrador. Es una consulta de
+solo lectura y requiere rol **admin**.
+
+- **Acceso:** `Authorization: Bearer <JWT>` con `rol_id = 1` (clave `admin`).
+- **Query params opcionales:**
+  - `fecha_inicio`: fecha inicial inclusiva en formato `YYYY-MM-DD`.
+  - `fecha_fin`: fecha final inclusiva en formato `YYYY-MM-DD`.
+- **Valores por defecto:** si no se envían, se usan los últimos **30 días**
+  (desde `hoy - 29 días` hasta `hoy`). Si solo se envía `fecha_fin`, el rango
+  son los 30 días que terminan en esa fecha; si solo se envía `fecha_inicio`,
+  el rango termina hoy.
+- **Agrupación de `registrosPorMes`:** hasta 60 días se agrupa por día
+  (`DATE(created_at)`); con más de 60 días se agrupa por mes
+  (`DATE_TRUNC('month', created_at)`).
+- **Límites:** el rango no puede superar los 366 días ni tener
+  `fecha_inicio > fecha_fin`.
+- **Respuestas:** `200` con el resumen · `400` con parámetros inválidos ·
+  `401` sin token o token inválido · `403` con un rol distinto de admin ·
+  `500` con mensaje genérico.
+- **Formato:** `{ ok: true, mensaje: "Resumen del dashboard administrativo", data: { ... } }`.
+
+Ejemplo con `?fecha_inicio=2026-10-16&fecha_fin=2026-10-22`:
+
+```json
+{
+  "ok": true,
+  "mensaje": "Resumen del dashboard administrativo",
+  "data": {
+    "rango": {
+      "fechaInicio": "2026-10-16",
+      "fechaFin": "2026-10-22",
+      "dias": 7,
+      "agrupacionRegistros": "dia"
+    },
+    "totales": {
+      "usuarios": 89,
+      "pendientes": 5,
+      "medicosActivos": 1,
+      "pacientes": 41,
+      "consultoriosActivos": 1,
+      "especialidadesActivas": 1,
+      "citasHoy": 0,
+      "citasMes": 0,
+      "citasRango": 0
+    },
+    "usuariosPorRol": [
+      { "rol": "admin", "total": 23 },
+      { "rol": "medico", "total": 5 },
+      { "rol": "paciente", "total": 61 }
+    ],
+    "usuariosPorEstado": [
+      { "estado": "pendiente", "total": 5 },
+      { "estado": "activo", "total": 79 },
+      { "estado": "rechazado", "total": 5 }
+    ],
+    "registrosPorMes": [
+      { "fecha": "2026-10-16", "etiqueta": "16 de Octubre", "total": 0 },
+      { "fecha": "2026-10-17", "etiqueta": "17 de Octubre", "total": 0 }
+    ],
+    "medicosPorEspecialidad": [
+      { "especialidad": "Cardiología", "total": 1 }
+    ],
+    "medicosPorConsultorio": [
+      { "consultorio": "Consultorio Central", "total": 1 }
+    ],
+    "citasPorEstado": [
+      { "estado": "pendiente", "total": 0 },
+      { "estado": "confirmada", "total": 0 },
+      { "estado": "reagendada", "total": 0 },
+      { "estado": "cancelada", "total": 0 },
+      { "estado": "completada", "total": 0 },
+      { "estado": "no_asistio", "total": 0 }
+    ],
+    "citasPorDia": [
+      { "fecha": "2026-10-16", "etiqueta": "16 de Octubre", "total": 0 },
+      { "fecha": "2026-10-17", "etiqueta": "17 de Octubre", "total": 0 }
+    ],
+    "porcentajes": {
+      "cuentasPendientes": 5.6,
+      "citasConfirmadas": 0
+    },
+    "duracionPromedioCitas": 0,
+    "duracionPromedioTexto": "0 h 0 min"
+  }
+}
+```
+
+> El ejemplo de `registrosPorMes` y `citasPorDia` está abreviado: la respuesta
+> real incluye un elemento por cada día del rango solicitado.
+
+#### Detalle de los campos
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `rango.fechaInicio` | string | Fecha inicial aplicada (`YYYY-MM-DD`) |
+| `rango.fechaFin` | string | Fecha final aplicada (`YYYY-MM-DD`) |
+| `rango.dias` | number | Días incluidos en el rango; máximo 366 |
+| `rango.agrupacionRegistros` | string | `"dia"` si el rango tiene 60 días o menos; `"mes"` si tiene más |
+| `totales.usuarios` | number | Usuarios con `deleted_at IS NULL` |
+| `totales.pendientes` | number | Usuarios no eliminados con estado `pendiente` (por clave) |
+| `totales.medicosActivos` | number | Médicos activos, no eliminados, con usuario no eliminado |
+| `totales.pacientes` | number | Registros de paciente no eliminados con usuario no eliminado |
+| `totales.consultoriosActivos` | number | Consultorios activos y no eliminados |
+| `totales.especialidadesActivas` | number | Especialidades con `activo = true` |
+| `totales.citasHoy` | number | Citas de hoy que además caen dentro del rango solicitado |
+| `totales.citasMes` | number | Citas del mes actual que además caen dentro del rango solicitado |
+| `totales.citasRango` | number | Citas con `fecha_hora` dentro del rango solicitado |
+| `usuariosPorRol` | array | Todos los roles del catálogo, incluidos los que tengan cero |
+| `usuariosPorEstado` | array | Todos los estados de cuenta, incluidos los que tengan cero |
+| `registrosPorMes` | array | Altas de usuarios dentro del rango; usa `usuarios.created_at` y no deja huecos |
+| `registrosPorMes[].fecha` | string | Presente solo cuando la agrupación es diaria (`YYYY-MM-DD`) |
+| `registrosPorMes[].mes` | string | Presente solo cuando la agrupación es mensual (`YYYY-MM`) |
+| `medicosPorEspecialidad` | array | Hasta 8 especialidades activas con médicos activos; orden descendente |
+| `medicosPorConsultorio` | array | Consultorios activos con médicos activos; orden descendente |
+| `citasPorEstado` | array | Todos los estados de cita del catálogo, incluidos los que tengan cero; cuenta solo las citas del rango |
+| `citasPorDia` | array | Un elemento por cada día del rango, en orden y sin huecos |
+| `porcentajes.cuentasPendientes` | number | Porcentaje de usuarios pendientes, redondeado a 1 decimal |
+| `porcentajes.citasConfirmadas` | number | Porcentaje de citas confirmadas dentro del rango, redondeado a 1 decimal; 0 si no hay citas |
+| `duracionPromedioCitas` | number | Promedio entero de `citas.duracion_minutos` en el rango; 0 si no hay citas |
+| `duracionPromedioTexto` | string | Duración legible con formato `"X h Y min"`; `"0 h 0 min"` si no hay citas |
+
+#### Reglas de cálculo
+
+- El rango se interpreta como días completos: `fecha_hora >= fecha_inicio` y
+  `fecha_hora < fecha_fin + INTERVAL '1 day'`.
+- Las fechas inválidas, invertidas o con más de 366 días devuelven `400` con
+  `{ ok: false, mensaje }`.
+- Los porcentajes usan `NULLIF` para evitar divisiones entre cero y `ROUND(..., 1)` para dejar un decimal.
+- La duración usa `ROUND`, `TRUNC` y `MOD`; el texto se construye con `CONCAT`.
+- Las consultas de usuarios, médicos, pacientes y consultorios respetan `deleted_at`; `citas` y `especialidades` no tienen borrado lógico, por lo que se filtran por sus columnas de estado cuando aplica.
+- Las 10 consultas se ejecutan en paralelo con `Promise.all` desde el caso de uso `ObtenerResumenAdmin`.
+- **Endpoint retirado:** `GET /api/dashboard/stats`. Respondía sin token y con la forma antigua `{ ok, stats }`; se eliminó de `dashboard.routes.js` y ya no existe. Su reemplazo es `GET /api/dashboard/admin`, que exige rol admin y devuelve `{ ok, mensaje, data }`.
 
 ---
 

@@ -2,8 +2,10 @@
 
 const express = require('express');
 const router = express.Router();
-const { obtenerEstadisticas } = require('../controllers/DashboardController');
+const { obtenerResumenAdmin } = require('../controllers/DashboardController');
+const authMiddleware = require('../middlewares/authMiddleware');
+const roleMiddleware = require('../middlewares/roleMiddleware');
 
-router.get('/stats', obtenerEstadisticas);
+router.get('/admin', authMiddleware, roleMiddleware('admin'), obtenerResumenAdmin);
 
 module.exports = router;

@@ -15,7 +15,8 @@
     "@fortawesome/react-fontawesome": "^3.5.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.4"
+    "react-router-dom": "^7.18.4",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",

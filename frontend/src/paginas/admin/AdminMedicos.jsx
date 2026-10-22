@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   faPlus, faEdit, faTrash, faEye, faToggleOn, faToggleOff,
 } from '@fortawesome/free-solid-svg-icons';
@@ -182,6 +182,9 @@ export default function AdminMedicos() {
   const [toast, setToast] = useState(null);
   const [soloLectura, setSoloLectura] = useState(false);
 
+  // Evita que una respuesta lenta de un médico sobrescriba el modal de otro.
+  const solicitudDetalleRef = useRef(0);
+
   // ── Toast ──────────────────────────────────────────────────────────────────
   function mostrarToast(mensaje, tipo = 'exito') {
     setToast({ mensaje, tipo });
@@ -275,7 +278,28 @@ export default function AdminMedicos() {
   }, [consultorios, editando]);
 
   // ── Apertura de modales ────────────────────────────────────────────────────
+  // Ver y Editar cargan el detalle de GET /api/medicos/:id para mostrar
+  // exactamente las especialidades y consultorios de ESE médico, no una copia
+  // potencialmente desactualizada del listado.
+  async function abrirDetalle(fila, lectura) {
+    const solicitud = ++solicitudDetalleRef.current;
+    setErrores({});
+    try {
+      const token = obtenerToken();
+      const detalle = await apiFetch(`/api/medicos/${fila.id}`, { token });
+      if (solicitud !== solicitudDetalleRef.current) return;
+
+      setEditando(detalle);
+      setSoloLectura(lectura);
+      setModalAbierto(true);
+    } catch (err) {
+      if (solicitud !== solicitudDetalleRef.current) return;
+      mostrarToast(err.message, 'error');
+    }
+  }
+
   function abrirNueva() {
+    solicitudDetalleRef.current += 1;
     setEditando(null);
     setSoloLectura(false);
     setErrores({});
@@ -283,20 +307,15 @@ export default function AdminMedicos() {
   }
 
   function abrirEditar(fila) {
-    setEditando(fila);
-    setSoloLectura(false);
-    setErrores({});
-    setModalAbierto(true);
+    abrirDetalle(fila, false);
   }
 
   function abrirVer(fila) {
-    setEditando(fila);
-    setSoloLectura(true);
-    setErrores({});
-    setModalAbierto(true);
+    abrirDetalle(fila, true);
   }
 
   function cerrarModal() {
+    solicitudDetalleRef.current += 1;
     setModalAbierto(false);
     setSoloLectura(false);
     setEditando(null);
@@ -304,6 +323,9 @@ export default function AdminMedicos() {
   }
 
   // ── Campos del formulario ──────────────────────────────────────────────────
+  const hayEspecialidadesActivas = especialidades.length > 0;
+  const hayConsultoriosActivos = consultorios.length > 0;
+
   const campos = useMemo(() => [
     {
       nombre: 'nombre', etiqueta: 'Nombre', tipo: 'text', requerido: true,
@@ -337,16 +359,33 @@ export default function AdminMedicos() {
       opciones: opcionesEspecialidades,
       cargando: cargandoCatalogos,
       placeholder: 'Buscar especialidad…',
-      ayuda: 'Solo se muestran especialidades activas.',
+      ayuda: 'Se muestran las especialidades activas y las ya asignadas.',
+      aviso: !cargandoCatalogos && !hayEspecialidadesActivas
+        ? {
+            mensaje: 'No hay especialidades activas. Crea o activa una para poder asignarla.',
+            enlace: '/admin/especialidades',
+            textoEnlace: 'Ir a Especialidades',
+          }
+        : null,
     },
     {
       nombre: 'consultorios', etiqueta: 'Consultorios', tipo: 'multiselect',
       opciones: opcionesConsultorios,
       cargando: cargandoCatalogos,
       placeholder: 'Buscar consultorio…',
-      ayuda: 'Solo se muestran consultorios activos.',
+      ayuda: 'Se muestran los consultorios activos y los ya asignados.',
+      aviso: !cargandoCatalogos && !hayConsultoriosActivos
+        ? {
+            mensaje: 'No hay consultorios activos. Crea o activa uno para poder asignarlo.',
+            enlace: '/admin/consultorios',
+            textoEnlace: 'Ir a Consultorios',
+          }
+        : null,
     },
-  ], [editando, opcionesEspecialidades, opcionesConsultorios, cargandoCatalogos]);
+  ], [
+    editando, opcionesEspecialidades, opcionesConsultorios, cargandoCatalogos,
+    hayEspecialidadesActivas, hayConsultoriosActivos,
+  ]);
 
   // Se memoiza para que el modal no reinicie los campos en cada render del
   // padre (por ejemplo, al mostrar un error del backend después de Guardar).
@@ -606,7 +645,7 @@ export default function AdminMedicos() {
           >
             <option value="">Especialidad: todas</option>
             {especialidades.map((esp) => (
-              <option key={esp.id} value={esp.id}>{esp.nombre}</option>
+              <option key={esp.id} value={String(esp.id)}>{esp.nombre}</option>
             ))}
           </select>
 
@@ -618,7 +657,7 @@ export default function AdminMedicos() {
           >
             <option value="">Consultorio: todos</option>
             {consultorios.map((con) => (
-              <option key={con.id} value={con.id}>{con.nombre}</option>
+              <option key={con.id} value={String(con.id)}>{con.nombre}</option>
             ))}
           </select>
 

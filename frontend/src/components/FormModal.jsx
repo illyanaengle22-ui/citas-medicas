@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { faXmark, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import MultiSelect from './MultiSelect';
 
 /**
  * FormModal — modal genérico de formulario (o vista de solo lectura).
@@ -215,11 +216,17 @@ function CampoFormulario({ campo, valor, error, soloLectura, passwordVisible, on
 
     case 'multiselect':
       inputEl = (
-        <CampoMultiSelect
-          campo={campo}
+        <MultiSelect
+          id={`campo-${campo.nombre}`}
+          etiqueta={campo.etiqueta}
+          opciones={campo.opciones || []}
           valor={valor}
-          soloLectura={soloLectura}
           onChange={onChange}
+          soloLectura={soloLectura}
+          cargando={campo.cargando}
+          placeholder={campo.placeholder}
+          aviso={campo.aviso}
+          mensajeVacio={campo.mensajeVacio}
         />
       );
       break;
@@ -274,92 +281,6 @@ function CampoFormulario({ campo, valor, error, soloLectura, passwordVisible, on
         <span className="form-ayuda">{campo.ayuda}</span>
       )}
       {error && <span className="form-error">{error}</span>}
-    </div>
-  );
-}
-
-// ── Campo de selección múltiple reutilizable ──────────────────────────────
-// Se usa para especialidades/consultorios, pero sirve para cualquier campo
-// que reciba un arreglo de ids. Incluye buscador y cuadro con scroll.
-function CampoMultiSelect({ campo, valor, soloLectura, onChange }) {
-  const [filtro, setFiltro] = useState('');
-  const opciones = campo.opciones || [];
-  const seleccionados = Array.isArray(valor) ? valor.map(String) : [];
-
-  const termino = filtro.trim().toLowerCase();
-  const visibles = termino === ''
-    ? opciones
-    : opciones.filter((op) => String(op.etiqueta).toLowerCase().includes(termino));
-
-  function alternar(valorOpcion) {
-    const siguiente = new Set(seleccionados);
-    if (siguiente.has(valorOpcion)) siguiente.delete(valorOpcion);
-    else siguiente.add(valorOpcion);
-
-    // Conservar el orden de las opciones para que el resultado sea estable.
-    const orden = new Map(opciones.map((op, i) => [String(op.valor), i]));
-    onChange(
-      [...siguiente].sort(
-        (a, b) => (orden.get(a) ?? Number.MAX_SAFE_INTEGER) - (orden.get(b) ?? Number.MAX_SAFE_INTEGER)
-      )
-    );
-  }
-
-  if (soloLectura) {
-    const etiquetas = opciones
-      .filter((op) => seleccionados.includes(String(op.valor)))
-      .map((op) => op.etiqueta);
-    return (
-      <div className="multi-select-solo-lectura">
-        {etiquetas.length > 0 ? etiquetas.join(', ') : '—'}
-      </div>
-    );
-  }
-
-  return (
-    <div className="multi-select">
-      <div className="multi-select-cabecera">
-        <input
-          type="text"
-          id={`campo-${campo.nombre}-buscar`}
-          className="input multi-select-buscar"
-          placeholder={campo.placeholder || 'Buscar…'}
-          value={filtro}
-          onChange={(e) => setFiltro(e.target.value)}
-          aria-label={`Buscar en ${campo.etiqueta || campo.nombre}`}
-        />
-        <span className="multi-select-contador">
-          {seleccionados.length} seleccionada{seleccionados.length === 1 ? '' : 's'}
-        </span>
-      </div>
-
-      <div className="multi-select-lista" role="group" aria-label={campo.etiqueta || campo.nombre}>
-        {campo.cargando ? (
-          <span className="multi-select-vacio">Cargando opciones…</span>
-        ) : visibles.length === 0 ? (
-          <span className="multi-select-vacio">
-            {opciones.length === 0 ? 'No hay opciones disponibles' : 'Sin resultados'}
-          </span>
-        ) : (
-          visibles.map((op) => {
-            const valorOpcion = String(op.valor);
-            const marcada = seleccionados.includes(valorOpcion);
-            return (
-              <label
-                key={valorOpcion}
-                className={`multi-select-opcion${marcada ? ' seleccionada' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={marcada}
-                  onChange={() => alternar(valorOpcion)}
-                />
-                <span>{op.etiqueta}</span>
-              </label>
-            );
-          })
-        )}
-      </div>
     </div>
   );
 }
