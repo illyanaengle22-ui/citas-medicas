@@ -20,7 +20,11 @@ async function apiFetch(path, { method = 'GET', body, token } = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  if (res.status === 401) {
+  // Solo redirigir cuando falla una petición autenticada. Un 401 en el
+  // login es "credenciales inválidas" y debe mostrarse en el formulario,
+  // no recargar la página como si la sesión hubiera expirado.
+  const esRutaAuth = path === '/api/auth/login' || path === '/api/auth/registrar';
+  if (res.status === 401 && token && !esRutaAuth) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.location.href = '/login';

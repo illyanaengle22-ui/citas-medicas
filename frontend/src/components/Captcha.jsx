@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react';
 import { obtenerCaptcha } from '../services/api';
 import { faRefresh } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
-export default function Captcha({ onCambio }) {
+export default forwardRef(function Captcha({ onCambio }, ref) {
   const [captchaId, setCaptchaId] = useState('');
   const [svg, setSvg] = useState('');
   const [texto, setTexto] = useState('');
@@ -33,6 +33,14 @@ export default function Captcha({ onCambio }) {
   useEffect(() => {
     cargar();
   }, [cargar]);   // ← ahora cargar es estable, solo se ejecuta 1 vez
+
+  useImperativeHandle(ref, () => ({
+    refrescar() {
+      setTexto('');
+      onCambioRef.current?.('', '');
+      cargar();
+    },
+  }), [cargar]);
 
   const handleTextoChange = (valor) => {
     setTexto(valor);
@@ -64,7 +72,8 @@ export default function Captcha({ onCambio }) {
         value={texto}
         onChange={(e) => handleTextoChange(e.target.value)}
         autoComplete="off"
+        disabled={cargando}
       />
     </div>
   );
-}
+});
