@@ -40,6 +40,38 @@ class DashboardRepository {
   async obtenerDuracionPromedio() {
     throw new Error('Método no implementado');
   }
+
+  async obtenerTotalesMedico() {
+    throw new Error('Método no implementado');
+  }
+
+  async obtenerProximasCitasMedico() {
+    throw new Error('Método no implementado');
+  }
+
+  async obtenerAgendaHoyMedico() {
+    throw new Error('Método no implementado');
+  }
+
+  async obtenerCitasSemanaMedico() {
+    throw new Error('Método no implementado');
+  }
+
+  async obtenerTotalesPaciente() {
+    throw new Error('Método no implementado');
+  }
+
+  async obtenerProximasCitasPaciente() {
+    throw new Error('Método no implementado');
+  }
+
+  async obtenerMedicoPrincipalPaciente() {
+    throw new Error('Método no implementado');
+  }
+
+  async obtenerHistorialCitasPaciente() {
+    throw new Error('Método no implementado');
+  }
 }
 
 module.exports = DashboardRepository;

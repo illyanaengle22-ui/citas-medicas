@@ -547,6 +547,19 @@ select.input {
   opacity: 0.6;
 }
 
+.tarjeta-stat-detalle {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--texto);
+  opacity: 0.55;
+}
+
+.tarjeta-stat-valor--compacto {
+  font-size: 1.05rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
 /* ═══════════════════════════════════════════
    PANELES
    ═══════════════════════════════════════════ */
@@ -555,6 +568,138 @@ select.input {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 1.5rem;
+}
+
+.dashboard-paneles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.panel-grafica {
+  padding: 0.75rem 1rem 1rem;
+}
+
+.panel-cuerpo {
+  padding: 1.25rem 1.5rem;
+}
+
+.panel .crud-table th:first-child,
+.panel .crud-table td:first-child {
+  padding-left: 1.5rem;
+}
+
+.panel .crud-table th:last-child,
+.panel .crud-table td:last-child {
+  padding-right: 1.5rem;
+}
+
+.panel-proxima {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.proxima-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.proxima-fecha {
+  font-size: 0.85rem;
+  color: var(--texto);
+  opacity: 0.6;
+}
+
+.proxima-hora {
+  margin-top: 0.1rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--texto);
+}
+
+.dashboard-acciones-grandes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.dash-admin .tarjetas-stats {
+  margin-bottom: 0;
+}
+
+.dashboard-acciones-grandes .btn {
+  flex: 0 1 auto;
+  padding: 0.8rem 1.3rem;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.panel-vacio--compacto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  min-height: 170px;
+}
+
+.panel-vacio-icono {
+  color: var(--primario);
+  font-size: 1.6rem;
+  opacity: 0.45;
+}
+
+.panel-vacia-paciente {
+  padding: 2rem 1.75rem;
+  background: linear-gradient(135deg, #fff 0%, #f7fbfd 100%);
+}
+
+.panel-vacia-paciente-contenido {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.panel-vacia-paciente-icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--suave);
+  color: var(--primario);
+  font-size: 1.75rem;
+}
+
+.panel-vacia-paciente-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-vacia-paciente-texto h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.panel-vacia-paciente-texto p {
+  margin-top: 0.25rem;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--texto);
+  opacity: 0.6;
+}
+
+.panel-vacia-paciente .dashboard-acciones-grandes {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  margin-top: 0;
 }
 
 .panel {
@@ -2425,6 +2570,20 @@ select.input {
     justify-content: space-between;
   }
 
+  .dashboard-paneles {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-vacia-paciente-contenido {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .panel-vacia-paciente .dashboard-acciones-grandes {
+    justify-content: center;
+    width: 100%;
+  }
+
   .dash-admin-titulo {
     font-size: 1.55rem;
   }
@@ -2536,6 +2695,11 @@ select.input {
   .dash-admin-actualizado {
     white-space: normal;
     text-align: center;
+  }
+
+  .dashboard-acciones-grandes .btn {
+    flex: 1 1 100%;
+    width: 100%;
   }
 
   .dash-btn-actualizar {

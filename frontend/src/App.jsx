@@ -9,6 +9,8 @@ import AdminEspecialidades from './paginas/admin/AdminEspecialidades';
 import AdminUsuarios from './paginas/admin/AdminUsuarios';
 import AdminConsultorios from './paginas/admin/AdminConsultorios';
 import AdminMedicos from './paginas/admin/AdminMedicos';
+import DashboardMedico from './paginas/medico/DashboardMedico';
+import DashboardPaciente from './paginas/paciente/DashboardPaciente';
 
 function RedireccionRaiz() {
   const { user, token } = useAuth();
@@ -39,6 +41,20 @@ export default function App() {
             <Route path="usuarios" element={<AdminUsuarios />} />
             <Route path="consultorios" element={<AdminConsultorios />} />
             <Route path="medicos" element={<AdminMedicos />} />
+          </Route>
+          <Route path="/medico" element={
+            <RutaProtegida roles={[2]}>
+              <DashboardLayout />
+            </RutaProtegida>
+          }>
+            <Route index element={<DashboardMedico />} />
+          </Route>
+          <Route path="/paciente" element={
+            <RutaProtegida roles={[3]}>
+              <DashboardLayout />
+            </RutaProtegida>
+          }>
+            <Route index element={<DashboardPaciente />} />
           </Route>
         </Routes>
       </BrowserRouter>

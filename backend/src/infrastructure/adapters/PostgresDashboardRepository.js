@@ -257,6 +257,256 @@ class PostgresDashboardRepository extends DashboardRepository {
     `, [fechaInicio, fechaFin]);
     return result.rows[0];
   }
+
+  // ── Dashboard del médico ────────────────────────────────────────────────
+
+  async obtenerTotalesMedico(usuarioId) {
+    const result = await db.query(`
+      SELECT
+        (SELECT COUNT(*)::int
+           FROM citas c
+           JOIN medicos m ON m.id = c.medico_id
+          WHERE m.usuario_id = $1
+            AND m.deleted_at IS NULL
+            AND c.fecha_hora >= CURRENT_DATE
+            AND c.fecha_hora < CURRENT_DATE + INTERVAL '1 day') AS "citasHoy",
+        (SELECT COUNT(DISTINCT c.paciente_id)::int
+           FROM citas c
+           JOIN medicos m ON m.id = c.medico_id
+           JOIN estados_cita ec ON ec.id = c.estado_id
+          WHERE m.usuario_id = $1
+            AND m.deleted_at IS NULL
+            AND ec.clave = 'completada') AS "pacientesAtendidos"
+    `, [usuarioId]);
+    return result.rows[0];
+  }
+
+  async obtenerProximasCitasMedico(usuarioId) {
+    const result = await db.query(`
+      SELECT
+        c.id,
+        c.fecha_hora AS "fechaHora",
+        to_char(c.fecha_hora, 'YYYY-MM-DD') AS fecha,
+        to_char(c.fecha_hora, 'HH24:MI') AS hora,
+        c.duracion_minutos AS "duracionMinutos",
+        c.motivo,
+        ec.clave AS estado,
+        up.nombre AS paciente
+      FROM citas c
+      JOIN medicos m
+        ON m.id = c.medico_id
+       AND m.usuario_id = $1
+       AND m.deleted_at IS NULL
+      JOIN pacientes p ON p.id = c.paciente_id
+      JOIN usuarios up
+        ON up.id = p.usuario_id
+       AND up.deleted_at IS NULL
+      JOIN estados_cita ec ON ec.id = c.estado_id
+      WHERE c.fecha_hora >= now()
+        AND ec.clave IN ('pendiente', 'confirmada', 'reagendada')
+      ORDER BY c.fecha_hora ASC
+      LIMIT 5
+    `, [usuarioId]);
+    return result.rows;
+  }
+
+  async obtenerAgendaHoyMedico(usuarioId) {
+    const result = await db.query(`
+      SELECT
+        c.id,
+        c.fecha_hora AS "fechaHora",
+        to_char(c.fecha_hora, 'HH24:MI') AS hora,
+        c.duracion_minutos AS "duracionMinutos",
+        c.motivo,
+        ec.clave AS estado,
+        up.nombre AS paciente
+      FROM citas c
+      JOIN medicos m
+        ON m.id = c.medico_id
+       AND m.usuario_id = $1
+       AND m.deleted_at IS NULL
+      JOIN pacientes p ON p.id = c.paciente_id
+      JOIN usuarios up
+        ON up.id = p.usuario_id
+       AND up.deleted_at IS NULL
+      JOIN estados_cita ec ON ec.id = c.estado_id
+      WHERE c.fecha_hora >= CURRENT_DATE
+        AND c.fecha_hora < CURRENT_DATE + INTERVAL '1 day'
+      ORDER BY c.fecha_hora ASC
+    `, [usuarioId]);
+    return result.rows;
+  }
+
+  async obtenerCitasSemanaMedico(usuarioId) {
+    const result = await db.query(`
+      WITH dias AS (
+        SELECT generate_series(
+          date_trunc('week', CURRENT_DATE)::date,
+          (date_trunc('week', CURRENT_DATE) + INTERVAL '6 days')::date,
+          INTERVAL '1 day'
+        )::date AS dia
+      )
+      SELECT
+        to_char(d.dia, 'YYYY-MM-DD') AS fecha,
+        trim(to_char(d.dia, 'TMDy DD')) AS etiqueta,
+        COUNT(c.id)::int AS total
+      FROM dias d
+      LEFT JOIN medicos m
+        ON m.usuario_id = $1
+       AND m.deleted_at IS NULL
+      LEFT JOIN citas c
+        ON c.medico_id = m.id
+       AND c.fecha_hora >= d.dia
+       AND c.fecha_hora < d.dia + INTERVAL '1 day'
+       AND c.estado_id IN (1, 2, 3, 5)
+      GROUP BY d.dia
+      ORDER BY d.dia
+    `, [usuarioId]);
+    return result.rows;
+  }
+
+  // ── Dashboard del paciente ──────────────────────────────────────────────
+
+  async obtenerTotalesPaciente(usuarioId) {
+    const result = await db.query(`
+      SELECT
+        (SELECT COUNT(*)::int
+           FROM citas c
+           JOIN pacientes p ON p.id = c.paciente_id
+           JOIN estados_cita ec ON ec.id = c.estado_id
+          WHERE p.usuario_id = $1
+            AND p.deleted_at IS NULL
+            AND c.fecha_hora >= now()
+            AND ec.clave IN ('pendiente', 'confirmada', 'reagendada')) AS "citasProgramadas",
+        (SELECT COUNT(*)::int
+           FROM citas c
+           JOIN pacientes p ON p.id = c.paciente_id
+           JOIN estados_cita ec ON ec.id = c.estado_id
+          WHERE p.usuario_id = $1
+            AND p.deleted_at IS NULL
+            AND ec.clave = 'completada') AS "citasCompletadas"
+    `, [usuarioId]);
+    return result.rows[0];
+  }
+
+  async obtenerProximasCitasPaciente(usuarioId) {
+    const result = await db.query(`
+      SELECT
+        c.id,
+        c.fecha_hora AS "fechaHora",
+        to_char(c.fecha_hora, 'YYYY-MM-DD') AS fecha,
+        to_char(c.fecha_hora, 'HH24:MI') AS hora,
+        c.duracion_minutos AS "duracionMinutos",
+        c.motivo,
+        ec.clave AS estado,
+        um.nombre AS medico,
+        e.nombre AS especialidad,
+        co.nombre AS consultorio
+      FROM citas c
+      JOIN pacientes p
+        ON p.id = c.paciente_id
+       AND p.usuario_id = $1
+       AND p.deleted_at IS NULL
+      JOIN medicos m
+        ON m.id = c.medico_id
+       AND m.deleted_at IS NULL
+      JOIN usuarios um
+        ON um.id = m.usuario_id
+       AND um.deleted_at IS NULL
+      JOIN estados_cita ec ON ec.id = c.estado_id
+      JOIN consultorios co ON co.id = c.consultorio_id
+      LEFT JOIN LATERAL (
+        SELECT esp.nombre
+          FROM medico_especialidades me
+          JOIN especialidades esp ON esp.id = me.especialidad_id
+         WHERE me.medico_id = m.id
+           AND esp.activo = TRUE
+         ORDER BY esp.nombre ASC
+         LIMIT 1
+      ) e ON TRUE
+      WHERE c.fecha_hora >= now()
+        AND ec.clave IN ('pendiente', 'confirmada', 'reagendada')
+      ORDER BY c.fecha_hora ASC
+      LIMIT 5
+    `, [usuarioId]);
+    return result.rows;
+  }
+
+  async obtenerMedicoPrincipalPaciente(usuarioId) {
+    const result = await db.query(`
+      SELECT
+        um.nombre AS medico,
+        e.nombre AS especialidad,
+        COUNT(*)::int AS total
+      FROM citas c
+      JOIN pacientes p
+        ON p.id = c.paciente_id
+       AND p.usuario_id = $1
+       AND p.deleted_at IS NULL
+      JOIN medicos m
+        ON m.id = c.medico_id
+       AND m.deleted_at IS NULL
+      JOIN usuarios um
+        ON um.id = m.usuario_id
+       AND um.deleted_at IS NULL
+      LEFT JOIN LATERAL (
+        SELECT esp.nombre
+          FROM medico_especialidades me
+          JOIN especialidades esp ON esp.id = me.especialidad_id
+         WHERE me.medico_id = m.id
+           AND esp.activo = TRUE
+         ORDER BY esp.nombre ASC
+         LIMIT 1
+      ) e ON TRUE
+      GROUP BY m.id, um.nombre, e.nombre
+      ORDER BY total DESC, um.nombre ASC
+      LIMIT 1
+    `, [usuarioId]);
+    return result.rows[0] ?? null;
+  }
+
+  async obtenerHistorialCitasPaciente(usuarioId) {
+    const result = await db.query(`
+      SELECT
+        c.id,
+        c.fecha_hora AS "fechaHora",
+        to_char(c.fecha_hora, 'YYYY-MM-DD') AS fecha,
+        to_char(c.fecha_hora, 'HH24:MI') AS hora,
+        c.duracion_minutos AS "duracionMinutos",
+        c.motivo,
+        ec.clave AS estado,
+        um.nombre AS medico,
+        e.nombre AS especialidad,
+        co.nombre AS consultorio
+      FROM citas c
+      JOIN pacientes p
+        ON p.id = c.paciente_id
+       AND p.usuario_id = $1
+       AND p.deleted_at IS NULL
+      JOIN medicos m
+        ON m.id = c.medico_id
+       AND m.deleted_at IS NULL
+      JOIN usuarios um
+        ON um.id = m.usuario_id
+       AND um.deleted_at IS NULL
+      JOIN estados_cita ec ON ec.id = c.estado_id
+      JOIN consultorios co ON co.id = c.consultorio_id
+      LEFT JOIN LATERAL (
+        SELECT esp.nombre
+          FROM medico_especialidades me
+          JOIN especialidades esp ON esp.id = me.especialidad_id
+         WHERE me.medico_id = m.id
+           AND esp.activo = TRUE
+         ORDER BY esp.nombre ASC
+         LIMIT 1
+      ) e ON TRUE
+      WHERE (c.fecha_hora < now()
+         OR ec.clave IN ('completada', 'cancelada', 'no_asistio'))
+      ORDER BY c.fecha_hora DESC
+      LIMIT 20
+    `, [usuarioId]);
+    return result.rows;
+  }
 }
 
 module.exports = PostgresDashboardRepository;

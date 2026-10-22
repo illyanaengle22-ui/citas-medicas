@@ -354,6 +354,115 @@ Ejemplo con `?fecha_inicio=2026-10-16&fecha_fin=2026-10-22`:
 
 ---
 
+## Dashboard del médico
+
+### `GET /api/dashboard/medico`
+
+Resumen de solo lectura para el usuario autenticado con rol **médico**.
+El usuario se obtiene del JWT (`req.usuario.id`) y se cruza con `medicos.usuario_id`.
+
+- **Acceso:** `Authorization: Bearer <JWT>` con clave de rol `medico`.
+- **Respuestas:** `200` con el resumen · `401` sin token o token inválido ·
+  `403` con un rol distinto · `500` con mensaje genérico.
+- **Formato:** `{ ok: true, mensaje: "Resumen del dashboard médico", data: { ... } }`.
+
+```json
+{
+  "ok": true,
+  "mensaje": "Resumen del dashboard médico",
+  "data": {
+    "totales": {
+      "citasHoy": 1,
+      "pacientesAtendidos": 1
+    },
+    "proximaCita": {
+      "id": "2",
+      "fechaHora": "2026-10-23T05:00:00.000Z",
+      "fecha": "2026-10-22",
+      "hora": "23:00",
+      "duracionMinutos": 30,
+      "motivo": "Consulta",
+      "estado": "confirmada",
+      "paciente": "Mariana De Jesus Castellanos Morales"
+    },
+    "proximasCitas": [],
+    "agendaHoy": [],
+    "citasSemana": [
+      { "fecha": "2026-10-19", "etiqueta": "Lun. 19", "total": 1 }
+    ]
+  }
+}
+```
+
+| Campo | Descripción |
+|-------|-------------|
+| `totales.citasHoy` | Citas del médico con `fecha_hora` dentro del día actual |
+| `totales.pacientesAtendidos` | Pacientes únicos con al menos una cita en estado `completada` |
+| `proximaCita` | Primera de las próximas 5 citas activas, o `null` |
+| `proximasCitas` | Hasta 5 citas futuras en estado `pendiente`, `confirmada` o `reagendada` |
+| `agendaHoy` | Todas las citas de hoy con hora, paciente y estado |
+| `citasSemana` | Serie de 7 días de la semana actual (lunes a domingo), sin huecos |
+
+---
+
+## Dashboard del paciente
+
+### `GET /api/dashboard/paciente`
+
+Resumen de solo lectura para el usuario autenticado con rol **paciente**.
+El usuario se obtiene del JWT (`req.usuario.id`) y se cruza con `pacientes.usuario_id`.
+
+- **Acceso:** `Authorization: Bearer <JWT>` con clave de rol `paciente`.
+- **Respuestas:** `200` con el resumen · `401` sin token o token inválido ·
+  `403` con un rol distinto · `500` con mensaje genérico.
+- **Formato:** `{ ok: true, mensaje: "Resumen del dashboard paciente", data: { ... } }`.
+
+```json
+{
+  "ok": true,
+  "mensaje": "Resumen del dashboard paciente",
+  "data": {
+    "citasProgramadas": 3,
+    "citasCompletadas": 1,
+    "doctorPrincipal": {
+      "medico": "Ana",
+      "especialidad": "Cardiología",
+      "total": 4
+    },
+    "proximaCita": {
+      "id": "2",
+      "fecha": "2026-10-22",
+      "hora": "23:00",
+      "estado": "confirmada",
+      "medico": "Ana",
+      "especialidad": "Cardiología",
+      "consultorio": "Consultorio Central"
+    },
+    "proximasCitas": [],
+    "historialCitas": [],
+    "totales": {
+      "citasProgramadas": 3,
+      "citasCompletadas": 1
+    }
+  }
+}
+```
+
+| Campo | Descripción |
+|-------|-------------|
+| `citasProgramadas` | Citas futuras activas (`pendiente`, `confirmada`, `reagendada`) |
+| `citasCompletadas` | Citas del paciente en estado `completada` |
+| `doctorPrincipal` | Médico con más citas del paciente, o `null` si no tiene citas |
+| `proximaCita` | Primera de las próximas 5 citas, o `null` |
+| `proximasCitas` | Hasta 5 citas futuras activas con médico, especialidad y consultorio |
+| `historialCitas` | Hasta 20 citas pasadas o con estado `completada`, `cancelada` o `no_asistio`, más recientes primero |
+| `totales` | Bloque de compatibilidad con el mismo contenido que `citasProgramadas` y `citasCompletadas` |
+
+- Las consultas de cada dashboard se ejecutan en paralelo con `Promise.all` en
+  `ObtenerResumenMedico` y `ObtenerResumenPaciente`.
+
+---
+
 ## Notas de implementación
 
 - Todos los `500` registran con `console.error` y devuelven mensaje genérico (nunca `error.message` al cliente).
