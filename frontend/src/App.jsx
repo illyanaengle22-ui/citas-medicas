@@ -4,6 +4,7 @@ import RutaProtegida from './components/RutaProtegida';
 import DashboardLayout from './layouts/DashboardLayout';
 import Login from './paginas/Login';
 import Register from './paginas/Register';
+import Landing from './paginas/Landing';
 import DashboardHome from './paginas/DashboardHome';
 import AdminEspecialidades from './paginas/admin/AdminEspecialidades';
 import AdminUsuarios from './paginas/admin/AdminUsuarios';
@@ -30,7 +31,8 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/" element={<RedireccionRaiz />} />
+          <Route path="/" element={<Landing />} />
+          <Route path="/dashboard" element={<RedireccionRaiz />} />
           <Route path="/admin" element={
             <RutaProtegida roles={[1]}>
               <DashboardLayout />
