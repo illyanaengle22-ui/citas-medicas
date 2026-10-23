@@ -70,6 +70,7 @@ INSERT INTO estados_cita (id, clave) VALUES
 CREATE TABLE especialidades (
   id          SMALLINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   nombre      VARCHAR(100) NOT NULL UNIQUE,
+  descripcion VARCHAR(500),
   activo      BOOLEAN NOT NULL DEFAULT TRUE
 );
 

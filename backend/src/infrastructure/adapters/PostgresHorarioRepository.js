@@ -39,6 +39,35 @@ class PostgresHorarioRepository extends HorarioRepository {
     return result.rows[0] || null;
   }
 
+  // Listado general (admin global / médico filtrado) con nombres legibles.
+  async listar({ medico_id = null, incluirInactivos = false } = {}) {
+    const condiciones = [];
+    const valores = [];
+
+    if (medico_id !== null) {
+      valores.push(medico_id);
+      condiciones.push(`h.medico_id = $${valores.length}`);
+    }
+    if (!incluirInactivos) {
+      condiciones.push('h.activo = true');
+    }
+
+    const where = condiciones.length > 0 ? `WHERE ${condiciones.join(' AND ')}` : '';
+    const result = await db.query(
+      `SELECT h.id, h.medico_id, h.consultorio_id, h.dia_semana, h.hora_inicio, h.hora_fin,
+              h.activo, h.created_at, h.updated_at,
+              um.nombre AS medico_nombre, co.nombre AS consultorio_nombre
+       FROM horarios h
+       JOIN medicos m ON m.id = h.medico_id AND m.deleted_at IS NULL
+       JOIN usuarios um ON um.id = m.usuario_id AND um.deleted_at IS NULL
+       JOIN consultorios co ON co.id = h.consultorio_id AND co.deleted_at IS NULL
+       ${where}
+       ORDER BY um.nombre ASC, h.dia_semana ASC, h.hora_inicio ASC`,
+      valores
+    );
+    return result.rows;
+  }
+
   async listarPorMedico(medico_id, { soloActivos = true } = {}) {
     const condiciones = ['medico_id = $1'];
     const valores = [medico_id];
@@ -125,8 +154,12 @@ class PostgresHorarioRepository extends HorarioRepository {
     if (bloques.rows.length === 0) return [];
 
     // Citas vigentes (pendiente, confirmada, reagendada) de ese médico en ese día.
+    // TIMESTAMPTZ llega como objeto Date del driver pg: se formatea en la BD
+    // con to_char para que enMinutos reciba siempre 'HH:MM:SS'.
     const citasResult = await db.query(
-      `SELECT fecha_hora, fecha_fin FROM citas
+      `SELECT to_char(fecha_hora, 'HH24:MI:SS')  AS hora_inicio,
+              to_char(fecha_fin,   'HH24:MI:SS')  AS hora_fin
+       FROM citas
        WHERE medico_id = $1
          AND estado_id IN (1, 2, 3)
          AND fecha_hora::date = $2::date
@@ -135,8 +168,12 @@ class PostgresHorarioRepository extends HorarioRepository {
     );
 
     const enMinutos = (t) => {
+      if (t instanceof Date) return t.getHours() * 60 + t.getMinutes();
       const [h, m] = String(t).split(':');
-      return parseInt(h, 10) * 60 + parseInt(m || '0', 10);
+      const horas = parseInt(h, 10);
+      const minutos = parseInt(m || '0', 10);
+      if (Number.isNaN(horas) || Number.isNaN(minutos)) return 0;
+      return horas * 60 + minutos;
     };
 
     const huecos = [];
@@ -149,8 +186,8 @@ class PostgresHorarioRepository extends HorarioRepository {
       // Ocupaciones dentro de este bloque, en minutos desde medianoche del día.
       const ocupaciones = citasResult.rows
         .map((c) => ({
-          inicio: enMinutos(c.fecha_hora),
-          fin: enMinutos(c.fecha_fin)
+          inicio: enMinutos(c.hora_inicio),
+          fin: enMinutos(c.hora_fin),
         }))
         .filter((c) => c.fin > bloqueInicio && c.inicio < bloqueFin)
         .sort((a, b) => a.inicio - b.inicio);

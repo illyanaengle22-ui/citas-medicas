@@ -6,9 +6,9 @@ import {
   faCalendarCheck,
   faCalendarPlus,
   faClock,
+  faHistory,
   faHome,
   faStethoscope,
-  faUser,
   faUserInjured,
   faUserMd,
   faUsers,
@@ -16,27 +16,30 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useAuth } from '../context/AuthContext';
 
+// Cada item debe tener una ruta real registrada en App.jsx.
+// `fin: true` evita que "/admin" marque activo también en "/admin/usuarios".
 const menuAdmin = [
-  { to: '/admin', icono: faHome, texto: 'Dashboard', fin: true, proximamente: false },
-  { to: '/admin/usuarios', icono: faUsers, texto: 'Usuarios', proximamente: false },
-  { to: '/admin/medicos', icono: faUserMd, texto: 'Médicos', proximamente: false },
+  { to: '/admin', icono: faHome, texto: 'Dashboard', fin: true },
+  { to: '/admin/usuarios', icono: faUsers, texto: 'Usuarios' },
+  { to: '/admin/medicos', icono: faUserMd, texto: 'Médicos' },
   { to: '/admin/citas', icono: faCalendar, texto: 'Citas' },
-  { to: '/admin/consultorios', icono: faBuilding, texto: 'Consultorios', proximamente: false },
-  { to: '/admin/especialidades', icono: faStethoscope, texto: 'Especialidades', proximamente: false },
+  { to: '/admin/horarios', icono: faClock, texto: 'Horarios' },
+  { to: '/admin/consultorios', icono: faBuilding, texto: 'Consultorios' },
+  { to: '/admin/especialidades', icono: faStethoscope, texto: 'Especialidades' },
 ];
 
 const menuMedico = [
-  { to: '/medico', icono: faHome, texto: 'Dashboard', fin: true, proximamente: false },
-  { to: '/medico/agenda', icono: faCalendarAlt, texto: 'Mi Agenda', proximamente: false },
-  { to: '/medico/pacientes', icono: faUserInjured, texto: 'Mis Pacientes', proximamente: false },
-  { to: '/medico/horarios', icono: faClock, texto: 'Mis Horarios', proximamente: false },
+  { to: '/medico', icono: faHome, texto: 'Dashboard', fin: true },
+  { to: '/medico/agenda', icono: faCalendarAlt, texto: 'Mi Agenda' },
+  { to: '/medico/pacientes', icono: faUserInjured, texto: 'Mis Pacientes' },
+  { to: '/medico/horarios', icono: faClock, texto: 'Mis Horarios' },
 ];
 
 const menuPaciente = [
-  { to: '/paciente', icono: faHome, texto: 'Dashboard', fin: true, proximamente: false },
-  { to: '/paciente/citas', icono: faCalendarCheck, texto: 'Mis Citas', proximamente: false },
-  { to: '/paciente/agendar', icono: faCalendarPlus, texto: 'Agendar Cita', proximamente: false },
-  { to: '/paciente/perfil', icono: faUser, texto: 'Mi Perfil', proximamente: false },
+  { to: '/paciente', icono: faHome, texto: 'Dashboard', fin: true },
+  { to: '/paciente/agendar', icono: faCalendarPlus, texto: 'Agendar Cita' },
+  { to: '/paciente/citas', icono: faCalendarCheck, texto: 'Mis Citas' },
+  { to: '/paciente/historial', icono: faHistory, texto: 'Mi Historial' },
 ];
 
 function obtenerMenu(rolId) {
@@ -70,9 +73,6 @@ export default function Sidebar() {
           >
             <FontAwesomeIcon icon={item.icono} className="sidebar-icono" />
             <span>{item.texto}</span>
-            {item.proximamente !== false && (
-              <span className="sidebar-badge" title="Próximamente">Próx.</span>
-            )}
           </NavLink>
         ))}
       </nav>

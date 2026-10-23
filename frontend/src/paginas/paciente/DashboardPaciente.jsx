@@ -30,7 +30,7 @@ function AccionesCita() {
         <FontAwesomeIcon icon={faCalendarPlus} aria-hidden="true" />
         Agendar nueva cita
       </Link>
-      <Link className="btn btn-secundario" to="/paciente/citas">
+      <Link className="btn btn-secundario" to="/paciente/historial">
         <FontAwesomeIcon icon={faClipboardList} aria-hidden="true" />
         Ver historial
       </Link>

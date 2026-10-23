@@ -2745,3 +2745,144 @@ select.input {
     animation: none;
   }
 }
+/* ═══════════════════════════════════════════
+   AGENDAR CITA (wizard de pasos)
+   ═══════════════════════════════════════════ */
+
+.agendar-pasos {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.agendar-paso {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--sombra-suave);
+}
+
+.agendar-paso-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--texto);
+  margin-bottom: 1rem;
+}
+
+.agendar-paso-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--primario);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.agendar-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.agendar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.1rem;
+  border: 1.5px solid var(--borde);
+  border-radius: var(--radio-pildora);
+  background: var(--fondo);
+  color: var(--texto);
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transicion);
+}
+
+.agendar-chip:hover {
+  border-color: var(--primario);
+  background: var(--suave);
+}
+
+.agendar-chip.activo {
+  border-color: var(--primario);
+  background: var(--primario);
+  color: #fff;
+  font-weight: 500;
+}
+
+.agendar-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.agendar-campos-accion {
+  grid-column: 1 / -1;
+}
+
+.form-campo-ancho {
+  grid-column: 1 / -1;
+}
+
+.agendar-info {
+  margin-top: 0.9rem;
+  font-size: 0.85rem;
+  color: var(--texto);
+  opacity: 0.7;
+}
+
+.agendar-confirmacion {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--borde);
+}
+
+.agendar-confirmacion h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--texto);
+}
+
+.agendar-resumen {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.9rem;
+}
+
+.agendar-resumen li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--texto);
+  opacity: 0.85;
+}
+
+.agendar-resumen li svg {
+  color: var(--primario);
+  width: 1rem;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.info-complementaria {
+  font-size: 0.85rem;
+  color: var(--texto);
+  opacity: 0.65;
+}

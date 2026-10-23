@@ -9,6 +9,11 @@ class HorarioRepository {
     throw new Error('Método no implementado');
   }
 
+  // Listado general con nombres (admin global o filtrado por médico)
+  async listar({ medico_id = null, incluirInactivos = false } = {}) {
+    throw new Error('Método no implementado');
+  }
+
   async listarPorMedico(medico_id, { soloActivos = true } = {}) {
     throw new Error('Método no implementado');
   }

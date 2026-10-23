@@ -10,8 +10,11 @@ class ApiError extends Error {
 async function apiFetch(path, { method = 'GET', body, token } = {}) {
   const headers = { 'Content-Type': 'application/json' };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  // Si no se pasa token explícito se usa el de la sesión. Así las páginas
+  // nuevas no tienen que recordar adjuntarlo en cada llamada.
+  const jwt = token ?? obtenerToken();
+  if (jwt) {
+    headers['Authorization'] = `Bearer ${jwt}`;
   }
 
   const res = await fetch(`${API_URL}${path}`, {
@@ -79,6 +82,18 @@ export async function registrar(nombre, email, password, captchaId, captchaTexto
 
 export async function obtenerCaptcha() {
   return apiFetch('/api/captcha');
+}
+
+// Construye una query string ignorando valores vacíos/undefined/null.
+// Uso: const qs = construirQuery({ estado, page });  →  "estado=pendiente&page=2"
+export function construirQuery(params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([clave, valor]) => {
+    if (valor === undefined || valor === null || valor === '') return;
+    search.set(clave, String(valor));
+  });
+  const texto = search.toString();
+  return texto ? `?${texto}` : '';
 }
 
 export { apiFetch, ApiError };

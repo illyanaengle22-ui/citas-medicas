@@ -13,12 +13,15 @@
 |-----------------|-----------------|--------------------------|
 | `roles`         | smallint        | number                   |
 | `estados_cuenta`| smallint        | number                   |
+| `estados_cita`  | smallint        | number                   |
 | `especialidades`| smallint        | number                   |
 | `consultorios`  | bigint          | **string**               |
 | `medicos`       | bigint          | **string**               |
 | `usuarios`      | bigint          | **string**               |
 | `pacientes`     | bigint          | **string**               |
+| `horarios`      | bigint          | **string**               |
 | `citas`         | bigint          | **string**               |
+| `recordatorios` | bigint          | **string**               |
 
 ---
 
@@ -463,9 +466,190 @@ El usuario se obtiene del JWT (`req.usuario.id`) y se cruza con `pacientes.usuar
 
 ---
 
+## Horarios de atención (RN-060 a RN-065)
+
+> Todos requieren token JWT. `horarios.id` es **BIGINT** → llega como **string**.
+> `hora_inicio` / `hora_fin` se devuelven como `HH:MM:SS`.
+
+| Método | Ruta | Rol mínimo | Descripción |
+|--------|------|-----------|-------------|
+| GET | `/api/horarios` | admin, medico | Admin: todos (`?todos=true` incluye inactivos, `?medico=<id>` filtra). Médico: solo los suyos |
+| GET | `/api/horarios/medico/:idMedico` | cualquiera | Bloques del médico. Con `?fecha=YYYY-MM-DD&duracion_minutos=N[&consultorio_id=id]` devuelve los **huecos libres** del día (RN-065) |
+| GET | `/api/horarios/:id` | admin, medico | Detalle |
+| POST | `/api/horarios` | admin, medico | Crear. El médico solo para sí mismo |
+| PUT | `/api/horarios/:id` | admin, medico dueño | Actualizar (revalida traslape excluyéndose a sí mismo) |
+| PATCH | `/api/horarios/:id/estado` | admin, medico dueño | `{ activo: boolean }` |
+| DELETE | `/api/horarios/:id` | admin, medico dueño | **Desactiva** (RN-064); nunca borra. Las citas agendadas no se tocan |
+
+### Body POST / PUT `/api/horarios`
+
+```json
+{
+  "medico_id":      "string (bigint, requerido)",
+  "consultorio_id": "string (bigint, requerido)",
+  "dia_semana":     1,
+  "hora_inicio":    "09:00",
+  "hora_fin":       "12:00"
+}
+```
+
+### Respuesta `GET /api/horarios/medico/:idMedico?fecha=...&duracion_minutos=45`
+
+```json
+{
+  "ok": true,
+  "mensaje": "Huecos disponibles",
+  "data": [
+    { "horario_id": "16", "consultorio_id": "2", "hora_inicio": "09:00:00", "hora_fin": "09:45:00", "duracion_minutos": 45 }
+  ]
+}
+```
+
+### Errores específicos
+
+| Código | Causa |
+|--------|-------|
+| 400 | `dia_semana` fuera de 1–7 (RN-060), `hora_fin <= hora_inicio` (RN-061), consultorio no asignado al médico (RN-063) |
+| 403 | Médico intenta gestionar horarios de otro médico |
+| 409 | Traslape de bloques (RN-062) |
+
+---
+
+## Citas (RN-070 a RN-087)
+
+> Todos requieren token JWT. `citas.id` es **BIGINT** → llega como **string**.
+> **Visibilidad (RN-053 / matriz):** el admin ve todas; médico y paciente solo las suyas. El filtro se aplica automáticamente en el servidor.
+
+| Método | Ruta | Rol mínimo | Descripción |
+|--------|------|-----------|-------------|
+| GET | `/api/citas` | cualquiera | Listado con paginación y filtros (ver abajo) |
+| GET | `/api/citas/mis-pacientes` | medico | Pacientes distintos de su agenda, con conteos y última visita |
+| GET | `/api/citas/:id` | dueño, médico de la cita, admin | Detalle |
+| GET | `/api/citas/:id/historial` | dueño, médico de la cita, admin | Historial de estados (RN-090) |
+| GET | `/api/citas/:id/propuestas` | dueño, médico de la cita, admin | Los 3 horarios libres más cercanos para reagendar (RN-083) |
+| POST | `/api/citas` | paciente, admin | Agendar. El paciente agenda para sí mismo; el admin puede indicar `paciente_id` |
+| PUT | `/api/citas/:id/confirmar` | dueño, médico de la cita, admin | `pendiente`/`reagendada` → `confirmada` (RN-080) |
+| PUT | `/api/citas/:id/estado` | dueño, médico de la cita, admin | `{ estado, ignorarPlazo? }` — `cancelada`, `completada`, `no_asistio` |
+| PUT | `/api/citas/:id` | dueño, médico de la cita, admin | Reagendar: `{ fecha_hora }` (RN-084) |
+| DELETE | `/api/citas/:id` | dueño, médico de la cita, admin | **Cancela** la cita (RN-087: nunca borrado físico). `?ignorarPlazo=true` solo admin |
+
+### Parámetros de consulta GET `/api/citas`
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `?estado=` | string | `pendiente`, `confirmada`, `reagendada`, `cancelada`, `completada`, `no_asistio` |
+| `?fecha_desde=` | `YYYY-MM-DD` | Inclusivo (desde 00:00) |
+| `?fecha_hasta=` | `YYYY-MM-DD` | Inclusivo (hasta 23:59) |
+| `?page=` / `?limit=` | number | Paginación (limit máximo 100, por defecto 10) |
+
+### Respuesta del listado y del detalle
+
+El listado devuelve `{ citas, total, page, limit }`; cada cita incluye
+`paciente_nombre`, `medico_nombre` (con prefijo `Dr.`) y `consultorio_nombre`:
+
+```json
+{
+  "ok": true,
+  "mensaje": "Lista de citas",
+  "data": {
+    "citas": [
+      {
+        "id": "5",
+        "uuid_publico": "9df96d31-37f5-41d5-8f90-34ea8d90b3b2",
+        "paciente_id": "1", "medico_id": "2", "consultorio_id": "2",
+        "fecha_hora": "2026-10-26T16:00:00.000Z",
+        "duracion_minutos": 30,
+        "fecha_fin": "2026-10-26T16:30:00.000Z",
+        "estado_id": 1, "estado": "pendiente",
+        "motivo": "Dolor de pecho", "notas": null,
+        "paciente_nombre": "Juan Pérez",
+        "medico_nombre": "Dr. Doctor Prueba",
+        "consultorio_nombre": "Consultorio Central"
+      }
+    ],
+    "total": 1, "page": 1, "limit": 10
+  }
+}
+```
+
+### Body POST `/api/citas`
+
+```json
+{
+  "medico_id":         "string (bigint, requerido)",
+  "consultorio_id":    "string (bigint, requerido)",
+  "fecha_hora":        "2026-10-26T10:00:00-06:00",
+  "duracion_minutos":  30,
+  "motivo":            "opcional",
+  "notas":             "opcional",
+  "paciente_id":       "solo admin"
+}
+```
+
+### Errores específicos
+
+| Código | Causa |
+|--------|-------|
+| 400 | Duración fuera de 10–240 min (RN-071), fecha en el pasado (RN-073), fuera de horario activo (RN-072) |
+| 403 | Paciente agenda en nombre de otro / médico intenta agendar / sin permiso sobre la cita (RN-053) |
+| 404 | Cita no encontrada |
+| 409 | Traslape de citas vigentes (RN-074, mensaje "El horario ya fue ocupado") o transición inválida |
+| 400 | Transición de estado no permitida (RN-080) o estado final (RN-081), asistencia antes de la hora (RN-082), plazo mínimo de cancelación/reagendación (RN-086) |
+
+---
+
+## Recordatorios (RN-100 a RN-107)
+
+> Todos requieren token JWT. El backend no habla con Telegram directamente: usa
+> el adaptador de n8n (RN-107).
+
+| Método | Ruta | Rol mínimo | Descripción |
+|--------|------|-----------|-------------|
+| POST | `/api/recordatorios/enviar` | admin | Dispara el envío por ventana. Body `{ tipo?: "24h" \| "2h" }` (RN-100 / RN-101) |
+| POST | `/api/recordatorios/confirmar` | cualquiera | Registra la respuesta del paciente a un recordatorio (RN-103) |
+| GET | `/api/recordatorios/cita/:idCita` | dueño, médico de la cita, admin | Recordatorios de una cita (RN-104) |
+
+### Body POST `/api/recordatorios/confirmar`
+
+```json
+{
+  "uuidCita":       "9df96d31-37f5-41d5-8f90-34ea8d90b3b2",
+  "respuesta":      "confirmar",
+  "recordatorioId": "opcional",
+  "chatId":         "opcional (lo usa n8n)"
+}
+```
+
+`respuesta` es `confirmar`, `cancelar` o `reagendar`. Para `reagendar` la
+respuesta incluye las 3 opciones más cercanas (RN-083) para que el canal las
+presente.
+
+### Respuesta de envío
+
+```json
+{ "ok": true, "mensaje": "2 recordatorio(s) enviado(s), 0 fallido(s)",
+  "data": { "total": 2, "enviados": 2, "fallidos": 0, "detalles": [ { "cita_id": "5", "ok": true } ] } }
+```
+
+---
+
+## Webhook n8n (RN-107)
+
+Punto de entrada único de n8n. **No usa JWT de usuario**: se autentica con la
+cabecera `x-webhook-secret` = `N8N_WEBHOOK_SECRET` (si la variable no está
+definida se acepta en desarrollo).
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/api/webhooks/n8n/respuesta` | Recibe la respuesta de Telegram `{ chatId, uuidCita, respuesta, recordatorioId? }` y actualiza la cita (RN-103) |
+| GET | `/api/webhooks/n8n/health` | Ping para verificar la conexión desde n8n |
+
+---
+
 ## Notas de implementación
 
 - Todos los `500` registran con `console.error` y devuelven mensaje genérico (nunca `error.message` al cliente).
 - Código `23505` PostgreSQL → 409 con mensaje diferenciado por campo.
+- Código `23P01` PostgreSQL (EXCLUDE USING gist) → 409 con mensaje de traslape claro (RN-075).
 - Los catálogos (`roles`, `estados_cuenta`, `estados_cita`) se referencian **por clave** en subconsultas, nunca por ID numérico fijo (RN-113).
 - Borrado lógico (`deleted_at`) en todas las tablas de negocio; las consultas filtran `deleted_at IS NULL` (RN-110).

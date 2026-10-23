@@ -13,6 +13,10 @@ const pacientesRoutes = require('./interfaces/http/routes/pacientes.routes');
 const medicosRoutes = require('./interfaces/http/routes/medicos.routes');
 const consultoriosRoutes = require('./interfaces/http/routes/consultorios.routes');
 const especialidadesRoutes = require('./interfaces/http/routes/especialidades.routes');
+const horariosRoutes = require('./interfaces/http/routes/horarios.routes');
+const citasRoutes = require('./interfaces/http/routes/citas.routes');
+const recordatoriosRoutes = require('./interfaces/http/routes/recordatorios.routes');
+const n8nWebhookRoutes = require('./interfaces/webhooks/n8nWebhook.routes');
 
 const app = express();
 app.use(cors());
@@ -29,6 +33,10 @@ app.use('/api/pacientes', pacientesRoutes);
 app.use('/api/medicos', medicosRoutes);
 app.use('/api/consultorios', consultoriosRoutes);
 app.use('/api/especialidades', especialidadesRoutes);
+app.use('/api/horarios', horariosRoutes);
+app.use('/api/citas', citasRoutes);
+app.use('/api/recordatorios', recordatoriosRoutes);
+app.use('/api/webhooks/n8n', n8nWebhookRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true, mensaje: 'Servidor activo' }));
 

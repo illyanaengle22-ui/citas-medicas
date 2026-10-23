@@ -36,9 +36,15 @@ class PostgresCitaRepository extends CitaRepository {
     const result = await db.query(
       `SELECT c.id, c.uuid_publico, c.paciente_id, c.medico_id, c.consultorio_id, c.fecha_hora,
               c.duracion_minutos, c.fecha_fin, c.estado_id, c.motivo, c.notas, c.created_at, c.updated_at,
-              ec.clave AS estado
+              ec.clave AS estado,
+              up.nombre AS paciente_nombre, um.nombre AS medico_nombre, co.nombre AS consultorio_nombre
        FROM citas c
        JOIN estados_cita ec ON ec.id = c.estado_id
+       LEFT JOIN pacientes p ON p.id = c.paciente_id AND p.deleted_at IS NULL
+       LEFT JOIN usuarios up ON up.id = p.usuario_id AND up.deleted_at IS NULL
+       LEFT JOIN medicos m ON m.id = c.medico_id AND m.deleted_at IS NULL
+       LEFT JOIN usuarios um ON um.id = m.usuario_id AND um.deleted_at IS NULL
+       LEFT JOIN consultorios co ON co.id = c.consultorio_id AND co.deleted_at IS NULL
        WHERE c.id = $1`,
       [id]
     );
@@ -50,9 +56,15 @@ class PostgresCitaRepository extends CitaRepository {
     const result = await db.query(
       `SELECT c.id, c.uuid_publico, c.paciente_id, c.medico_id, c.consultorio_id, c.fecha_hora,
               c.duracion_minutos, c.fecha_fin, c.estado_id, c.motivo, c.notas, c.created_at, c.updated_at,
-              ec.clave AS estado
+              ec.clave AS estado,
+              up.nombre AS paciente_nombre, um.nombre AS medico_nombre, co.nombre AS consultorio_nombre
        FROM citas c
        JOIN estados_cita ec ON ec.id = c.estado_id
+       LEFT JOIN pacientes p ON p.id = c.paciente_id AND p.deleted_at IS NULL
+       LEFT JOIN usuarios up ON up.id = p.usuario_id AND up.deleted_at IS NULL
+       LEFT JOIN medicos m ON m.id = c.medico_id AND m.deleted_at IS NULL
+       LEFT JOIN usuarios um ON um.id = m.usuario_id AND um.deleted_at IS NULL
+       LEFT JOIN consultorios co ON co.id = c.consultorio_id AND co.deleted_at IS NULL
        WHERE c.uuid_publico = $1`,
       [uuid_publico]
     );
@@ -83,9 +95,15 @@ class PostgresCitaRepository extends CitaRepository {
     const sql = `
       SELECT c.id, c.uuid_publico, c.paciente_id, c.medico_id, c.consultorio_id, c.fecha_hora,
              c.duracion_minutos, c.fecha_fin, c.estado_id, c.motivo, c.notas, c.created_at, c.updated_at,
-             ec.clave AS estado
+             ec.clave AS estado,
+             up.nombre AS paciente_nombre, um.nombre AS medico_nombre, co.nombre AS consultorio_nombre
       FROM citas c
       JOIN estados_cita ec ON ec.id = c.estado_id
+      LEFT JOIN pacientes p ON p.id = c.paciente_id AND p.deleted_at IS NULL
+      LEFT JOIN usuarios up ON up.id = p.usuario_id AND up.deleted_at IS NULL
+      LEFT JOIN medicos m ON m.id = c.medico_id AND m.deleted_at IS NULL
+      LEFT JOIN usuarios um ON um.id = m.usuario_id AND um.deleted_at IS NULL
+      LEFT JOIN consultorios co ON co.id = c.consultorio_id AND co.deleted_at IS NULL
       ${where}
       ORDER BY c.fecha_hora ASC
       LIMIT $${valores.length + 1} OFFSET $${valores.length + 2}
@@ -93,6 +111,25 @@ class PostgresCitaRepository extends CitaRepository {
     const result = await db.query(sql, [...valores, limit, offset]);
 
     return { data: result.rows, total, page, limit };
+  }
+
+  // "Mis pacientes" del médico: pacientes distintos con los que tiene citas,
+  // con conteo y última visita (consume la página MisPacientes del frontend).
+  async pacientesDelMedico(medico_id) {
+    const result = await db.query(
+      `SELECT p.id, p.usuario_id, p.telefono, u.nombre, u.email,
+              COUNT(c.id)::int                                     AS total_citas,
+              COUNT(c.id) FILTER (WHERE c.estado_id = 5)::int      AS citas_completadas,
+              MAX(c.fecha_hora)                                    AS ultima_cita
+       FROM citas c
+       JOIN pacientes p ON p.id = c.paciente_id AND p.deleted_at IS NULL
+       JOIN usuarios u ON u.id = p.usuario_id AND u.deleted_at IS NULL
+       WHERE c.medico_id = $1
+       GROUP BY p.id, p.usuario_id, p.telefono, u.nombre, u.email
+       ORDER BY u.nombre ASC`,
+      [medico_id]
+    );
+    return result.rows;
   }
 
   // RN-080: la transición se valida en domain antes de llegar aquí.

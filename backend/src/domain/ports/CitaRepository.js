@@ -41,6 +41,11 @@ class CitaRepository {
   async listarHistorial(cita_id) {
     throw new Error('Método no implementado');
   }
+
+  // Pacientes distintos de un médico (vista "Mis pacientes")
+  async pacientesDelMedico(medico_id) {
+    throw new Error('Método no implementado');
+  }
 }
 
 module.exports = CitaRepository;
