@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  faEye, faCheck, faXmark, faRotateRight, faClipboardList, faChevronLeft, faChevronRight,
+  faCheck, faBan, faUserSlash, faRotateRight, faClipboardList, faChevronLeft, faChevronRight,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import CrudTable from '../../components/CrudTable';
@@ -197,19 +197,18 @@ export default function AdminCitas() {
   const acciones = (fila) => {
     const vigente = esVigente(fila.estado);
     const lista = [
-      { icono: faEye, titulo: 'Ver', clase: 'btn-ver', onClick: () => abrirDetalle(fila) },
-      { icono: faClipboardList, titulo: 'Historial', clase: 'btn-ver', onClick: () => abrirHistorial(fila) },
+      { icono: faClipboardList, titulo: 'Ver detalle e historial', clase: 'btn-ver', onClick: () => abrirHistorial(fila) },
     ];
     if (vigente && fila.estado !== 'confirmada') {
       lista.push({ icono: faCheck, titulo: 'Confirmar', clase: 'btn-aprobar', onClick: () => pedirConfirmacion(fila, 'confirmar') });
     }
     if (vigente) {
       lista.push({ icono: faRotateRight, titulo: 'Reagendar', clase: 'btn-editar', onClick: () => abrirReagendar(fila) });
-      lista.push({ icono: faXmark, titulo: 'Cancelar', clase: 'btn-rechazar', onClick: () => pedirConfirmacion(fila, 'cancelar') });
+      lista.push({ icono: faBan, titulo: 'Cancelar', clase: 'btn-rechazar', onClick: () => pedirConfirmacion(fila, 'cancelar') });
     }
     if (fila.estado === 'confirmada' || fila.estado === 'reagendada') {
       lista.push({ icono: faCheck, titulo: 'Completada', clase: 'btn-aprobar', onClick: () => pedirConfirmacion(fila, 'completada') });
-      lista.push({ icono: faXmark, titulo: 'No asistió', clase: 'btn-eliminar', onClick: () => pedirConfirmacion(fila, 'no_asistio') });
+      lista.push({ icono: faUserSlash, titulo: 'No asistió', clase: 'btn-eliminar', onClick: () => pedirConfirmacion(fila, 'no_asistio') });
     }
     return lista;
   };

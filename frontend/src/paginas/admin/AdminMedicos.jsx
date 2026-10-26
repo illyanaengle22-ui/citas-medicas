@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   faPlus, faEdit, faTrash, faEye, faToggleOn, faToggleOff,
+  faMagnifyingGlass, faUserMd, faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import CrudTable from '../../components/CrudTable';
 import FormModal from '../../components/FormModal';
@@ -113,7 +114,12 @@ const columnas = [
     render: (fila) => (
       <div className="usuario-celda medico-celda">
         <div className="avatar">{iniciales(fila.nombre)}</div>
-        <span>{nombreVisible(fila)}</span>
+        <div className="medico-celda-info">
+          <span className="medico-nombre" title={nombreVisible(fila)}>{nombreVisible(fila)}</span>
+          {fila.email && (
+            <span className="medico-email" title={fila.email}>{fila.email}</span>
+          )}
+        </div>
       </div>
     ),
   },
@@ -622,62 +628,108 @@ export default function AdminMedicos() {
   // ── Render ────────────────────────────────────────────────────────────────
   const esEliminar = confirmacion?.accion === 'eliminar';
   const esActivar = confirmacion?.accion === 'activar';
+  const hayFiltros = Boolean(
+    busqueda.trim() || filtroEspecialidad || filtroConsultorio || mostrarInactivos
+  );
+
+  function limpiarFiltros() {
+    setBusqueda('');
+    setFiltroEspecialidad('');
+    setFiltroConsultorio('');
+    setMostrarInactivos(false);
+  }
 
   return (
     <div className="admin-medicos">
-      <div className="filtros-barra">
-        <h2>Médicos</h2>
+      <div className="admin-medicos-encabezado">
+        <div className="admin-medicos-titulo">
+          <span className="admin-medicos-icono" aria-hidden="true">
+            <FontAwesomeIcon icon={faUserMd} />
+          </span>
+          <div>
+            <h2>Médicos</h2>
+            <p>Administra el equipo médico, sus especialidades y consultorios.</p>
+          </div>
+        </div>
 
-        <div className="filtros-controles">
+        <button
+          type="button"
+          className="btn btn-primario admin-medicos-nuevo"
+          onClick={abrirNueva}
+        >
+          <FontAwesomeIcon icon={faPlus} />
+          <span>Nuevo médico</span>
+        </button>
+      </div>
+
+      <section className="admin-medicos-filtros" aria-label="Filtros de médicos">
+        <div className="admin-medicos-busqueda">
+          <FontAwesomeIcon
+            icon={faMagnifyingGlass}
+            className="admin-medicos-busqueda-icono"
+            aria-hidden="true"
+          />
           <input
             type="text"
             className="input"
-            placeholder="Buscar médico"
+            placeholder="Buscar por nombre o cédula"
+            aria-label="Buscar médico"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
           />
-
-          <select
-            className="input"
-            value={filtroEspecialidad}
-            onChange={(e) => setFiltroEspecialidad(e.target.value)}
-            aria-label="Filtrar por especialidad"
-          >
-            <option value="">Especialidad: todas</option>
-            {especialidades.map((esp) => (
-              <option key={esp.id} value={String(esp.id)}>{esp.nombre}</option>
-            ))}
-          </select>
-
-          <select
-            className="input"
-            value={filtroConsultorio}
-            onChange={(e) => setFiltroConsultorio(e.target.value)}
-            aria-label="Filtrar por consultorio"
-          >
-            <option value="">Consultorio: todos</option>
-            {consultorios.map((con) => (
-              <option key={con.id} value={String(con.id)}>{con.nombre}</option>
-            ))}
-          </select>
-
-          <label className="form-checkbox-label">
-            <input
-              type="checkbox"
-              checked={mostrarInactivos}
-              onChange={(e) => setMostrarInactivos(e.target.checked)}
-            />
-            <span>Mostrar inactivos</span>
-          </label>
-
-          <div className="btn-nuevo-container">
-            <button className="btn btn-primario" onClick={abrirNueva}>
-              <FontAwesomeIcon icon={faPlus} />
-              <span>Nuevo médico</span>
-            </button>
-          </div>
         </div>
-      </div>
+
+        <select
+          className="input"
+          value={filtroEspecialidad}
+          onChange={(e) => setFiltroEspecialidad(e.target.value)}
+          aria-label="Filtrar por especialidad"
+        >
+          <option value="">Especialidad: todas</option>
+          {especialidades.map((esp) => (
+            <option key={esp.id} value={String(esp.id)}>{esp.nombre}</option>
+          ))}
+        </select>
+
+        <select
+          className="input"
+          value={filtroConsultorio}
+          onChange={(e) => setFiltroConsultorio(e.target.value)}
+          aria-label="Filtrar por consultorio"
+        >
+          <option value="">Consultorio: todos</option>
+          {consultorios.map((con) => (
+            <option key={con.id} value={String(con.id)}>{con.nombre}</option>
+          ))}
+        </select>
+
+        <label className="admin-medicos-check">
+          <input
+            type="checkbox"
+            checked={mostrarInactivos}
+            onChange={(e) => setMostrarInactivos(e.target.checked)}
+          />
+          <span>Mostrar inactivos</span>
+        </label>
+      </section>
+
+      {!cargando && (
+        <div className="admin-medicos-resumen">
+          <span>
+            <strong>{datos.length}</strong>{' '}
+            {datos.length === 1 ? 'médico' : 'médicos'}
+            {hayFiltros
+              ? (datos.length === 1 ? ' encontrado' : ' encontrados')
+              : ' en total'}
+          </span>
+          {hayFiltros && (
+            <button type="button" className="admin-medicos-limpiar" onClick={limpiarFiltros}>
+              <FontAwesomeIcon icon={faXmark} />
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+      )}
 
       <CrudTable
         columnas={columnas}
@@ -685,7 +737,7 @@ export default function AdminMedicos() {
         cargando={cargando}
         acciones={acciones}
         mensajeVacio={
-          busqueda.trim() || filtroEspecialidad || filtroConsultorio
+          hayFiltros
             ? 'No hay médicos que coincidan con los filtros'
             : 'No hay médicos registrados'
         }

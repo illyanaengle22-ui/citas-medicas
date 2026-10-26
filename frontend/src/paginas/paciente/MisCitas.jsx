@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  faCheck, faXmark, faRotateRight, faClipboardList, faCalendarPlus,
+  faCheck, faBan, faRotateRight, faClipboardList, faCalendarPlus,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useNavigate } from 'react-router-dom';
@@ -170,15 +170,14 @@ export default function MisCitas() {
 
   const acciones = (fila) => {
     const lista = [
-      { icono: faEye, titulo: 'Ver', clase: 'btn-ver', onClick: () => abrirDetalle(fila) },
-      { icono: faClipboardList, titulo: 'Historial', clase: 'btn-ver', onClick: () => abrirHistorial(fila) },
+      { icono: faClipboardList, titulo: 'Ver detalle e historial', clase: 'btn-ver', onClick: () => abrirHistorial(fila) },
     ];
     if (esVigente(fila.estado)) {
       if (fila.estado !== 'confirmada') {
         lista.push({ icono: faCheck, titulo: 'Confirmar', clase: 'btn-aprobar', onClick: () => pedirConfirmacion(fila, 'confirmar') });
       }
       lista.push({ icono: faRotateRight, titulo: 'Reagendar', clase: 'btn-editar', onClick: () => abrirReagendar(fila) });
-      lista.push({ icono: faXmark, titulo: 'Cancelar', clase: 'btn-rechazar', onClick: () => pedirConfirmacion(fila, 'cancelar') });
+      lista.push({ icono: faBan, titulo: 'Cancelar', clase: 'btn-rechazar', onClick: () => pedirConfirmacion(fila, 'cancelar') });
     }
     return lista;
   };

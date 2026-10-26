@@ -1436,6 +1436,17 @@ select.input {
   color: #fff;
 }
 
+/* Acciones no disponibles (p. ej. completar una cita que aún no inicia) */
+.crud-td-acciones .btn:disabled,
+.crud-td-acciones .btn:disabled:hover {
+  background: #EEF2F5;
+  color: #9AA5B1;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Paginacion */
 .paginacion {
   display: flex;
@@ -1717,30 +1728,233 @@ select.input {
    PÁGINA DE MÉDICOS
    ═══════════════════════════════════════════ */
 
-.admin-medicos .filtros-barra,
-.admin-medicos .filtros-controles {
-  flex-wrap: wrap;
+.admin-medicos {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.admin-medicos .filtros-controles {
-  flex: 1 1 auto;
-  justify-content: flex-end;
+.admin-medicos-encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-medicos-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
   min-width: 0;
 }
 
-.admin-medicos .filtros-controles .form-checkbox-label,
-.admin-medicos .btn-nuevo-container {
+.admin-medicos-icono {
+  width: 50px;
+  height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  border-radius: 16px;
+  color: var(--primario);
+  background: linear-gradient(135deg, #E6F2FB 0%, #F7FBFE 100%);
+  border: 1px solid #D8EAF5;
+  font-size: 1.35rem;
+  box-shadow: 0 2px 8px rgba(94, 155, 186, 0.12);
 }
 
-.medico-celda span {
+.admin-medicos-titulo h2 {
+  font-size: 1.5rem;
+  line-height: 1.2;
+  color: var(--texto);
+}
+
+.admin-medicos-titulo p {
+  margin-top: 0.2rem;
+  font-size: 0.88rem;
+  color: var(--texto);
+  opacity: 0.55;
+}
+
+.admin-medicos-nuevo {
+  flex-shrink: 0;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.admin-medicos-filtros {
+  display: grid;
+  grid-template-columns: minmax(230px, 1.6fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra-suave);
+}
+
+.admin-medicos-busqueda {
+  position: relative;
+  min-width: 0;
+}
+
+.admin-medicos-busqueda-icono {
+  position: absolute;
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+  color: var(--primario);
+  opacity: 0.6;
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+.admin-medicos-busqueda .input {
+  padding-left: 2.7rem;
+}
+
+.admin-medicos-filtros .input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.72rem 1rem;
+  font-size: 0.9rem;
+}
+
+.admin-medicos-filtros select.input {
+  padding-right: 2.35rem;
+  background-position: right 0.9rem center;
+  text-overflow: ellipsis;
+}
+
+.admin-medicos-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.15rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--texto);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.admin-medicos-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primario);
+  cursor: pointer;
+}
+
+.admin-medicos-resumen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 0.25rem;
+  font-size: 0.85rem;
+  color: rgba(42, 27, 79, 0.62);
+}
+
+.admin-medicos-resumen strong {
+  font-weight: 700;
+  color: var(--texto);
+}
+
+.admin-medicos-limpiar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.25rem;
+  border: none;
+  background: transparent;
+  color: var(--primario);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 1;
+}
+
+.admin-medicos-limpiar:hover {
+  color: var(--primario-hover);
+  text-decoration: underline;
+}
+
+.admin-medicos .crud-table-container {
+  box-shadow: var(--sombra-suave);
+}
+
+.admin-medicos .crud-table {
+  min-width: 900px;
+}
+
+.admin-medicos .crud-table th {
+  background: #F7FAFC;
+  letter-spacing: 0.04em;
+}
+
+.admin-medicos .crud-table tbody tr {
+  transition: background var(--transicion);
+}
+
+.admin-medicos .crud-table tbody tr:hover {
+  background: #F4F9FD;
+}
+
+.admin-medicos .usuario-celda .avatar {
+  border: 1px solid #D8EAF5;
+  box-shadow: 0 0 0 3px #F4FAFF;
+}
+
+.medico-celda {
+  min-width: 0;
+}
+
+.medico-celda-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.08rem;
+}
+
+.medico-celda .medico-nombre,
+.medico-celda .medico-email {
   display: block;
-  max-width: 190px;
+  max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 500;
+}
+
+.medico-celda .medico-nombre {
+  font-weight: 600;
   color: var(--texto);
+}
+
+.medico-celda .medico-email {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--texto);
+  opacity: 0.5;
+}
+
+.admin-medicos .badge-exito,
+.admin-medicos .badge-inactivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.admin-medicos .badge-exito::before,
+.admin-medicos .badge-inactivo::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
 }
 
 .celda-cedula {
@@ -1894,19 +2108,6 @@ select.input {
 
 /* ── Responsive 1366px ── */
 @media (max-width: 1366px) {
-  .admin-medicos .filtros-controles .input[type="text"] {
-    width: 150px;
-  }
-
-  .admin-medicos .filtros-controles select.input {
-    min-width: 150px;
-    max-width: 210px;
-  }
-
-  .admin-medicos .btn-nuevo-container {
-    width: auto;
-  }
-
   .admin-medicos .crud-table td,
   .admin-medicos .crud-table th {
     padding-left: 0.7rem;
@@ -1917,8 +2118,9 @@ select.input {
     max-width: 170px;
   }
 
-  .admin-medicos .medico-celda span {
-    max-width: 150px;
+  .admin-medicos .medico-celda .medico-nombre,
+  .admin-medicos .medico-celda .medico-email {
+    max-width: 170px;
   }
 
   .admin-medicos .celda-insignias {
@@ -1930,28 +2132,50 @@ select.input {
   }
 }
 
-/* ── Responsive 390px ── */
-@media (max-width: 390px) {
-  .admin-medicos .filtros-controles {
+/* ── Responsive 1200px ── */
+@media (max-width: 1200px) {
+  .admin-medicos-filtros {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .admin-medicos-busqueda {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ── Responsive 768px ── */
+@media (max-width: 768px) {
+  .admin-medicos-encabezado {
     flex-direction: column;
     align-items: stretch;
-    width: 100%;
   }
 
-  .admin-medicos .filtros-controles .input,
-  .admin-medicos .filtros-controles select.input {
-    width: 100%;
-    max-width: none;
-  }
-
-  .admin-medicos .btn-nuevo-container {
+  .admin-medicos-nuevo {
     width: 100%;
   }
+}
 
-  .admin-medicos .btn-nuevo-container .btn {
-    width: 100%;
+/* ── Responsive 560px ── */
+@media (max-width: 560px) {
+  .admin-medicos-filtros {
+    grid-template-columns: 1fr;
   }
 
+  .admin-medicos-busqueda {
+    grid-column: auto;
+  }
+
+  .admin-medicos-check {
+    padding-left: 0.15rem;
+  }
+
+  .admin-medicos-resumen {
+    flex-wrap: wrap;
+  }
+}
+
+/* ── Responsive 390px ── */
+@media (max-width: 390px) {
   .admin-medicos .usuario-celda {
     flex-direction: row;
     align-items: center;

@@ -23,6 +23,7 @@ const menuAdmin = [
   { to: '/admin/usuarios', icono: faUsers, texto: 'Usuarios' },
   { to: '/admin/medicos', icono: faUserMd, texto: 'Médicos' },
   { to: '/admin/citas', icono: faCalendar, texto: 'Citas' },
+  { to: '/admin/calendario', icono: faCalendarAlt, texto: 'Calendario' },
   { to: '/admin/horarios', icono: faClock, texto: 'Horarios' },
   { to: '/admin/consultorios', icono: faBuilding, texto: 'Consultorios' },
   { to: '/admin/especialidades', icono: faStethoscope, texto: 'Especialidades' },

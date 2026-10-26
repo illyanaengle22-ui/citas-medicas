@@ -1,15 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  faCheck, faXmark, faClipboardList, faCalendarCheck,
+  faCheck, faBan, faUserSlash, faClipboardList, faCalendarCheck, faCalendarAlt, faList,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import CalendarioCitas from '../../components/CalendarioCitas';
 import CrudTable from '../../components/CrudTable';
 import FormModal from '../../components/FormModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { apiFetch, construirQuery } from '../../services/api';
+import { apiFetch } from '../../services/api';
+import { obtenerTodasLasCitas } from '../../services/citas';
+import '../agenda.css';
 import {
   ESTADOS_CITA, claseEstado, etiquetaEstado, formatearFechaHora, formatearDuracion,
-  esVigente,
+  esVigente, puedeMarcarCompletada,
 } from '../../components/citasHelpers';
 
 const columnas = [
@@ -72,6 +75,7 @@ function CitaDetalle({ cita }) {
 export default function MiAgenda() {
   const [datos, setDatos] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [vista, setVista] = useState('calendario');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroDesde, setFiltroDesde] = useState('');
   const [filtroHasta, setFiltroHasta] = useState('');
@@ -85,14 +89,12 @@ export default function MiAgenda() {
   const cargarDatos = useCallback(async () => {
     setCargando(true);
     try {
-      const query = construirQuery({
+      const citas = await obtenerTodasLasCitas({
         estado: filtroEstado,
         fecha_desde: filtroDesde,
         fecha_hasta: filtroHasta,
-        limit: 100,
       });
-      const data = await apiFetch(`/api/citas${query}`);
-      setDatos(data?.citas ?? []);
+      setDatos(citas);
     } catch (err) {
       mostrarToast(err.message, 'error');
     } finally {
@@ -172,15 +174,21 @@ export default function MiAgenda() {
 
   const acciones = (fila) => {
     const lista = [
-      { icono: faEye, titulo: 'Ver', clase: 'btn-ver', onClick: () => abrirDetalle(fila) },
-      { icono: faClipboardList, titulo: 'Historial', clase: 'btn-ver', onClick: () => abrirHistorial(fila) },
+      { icono: faClipboardList, titulo: 'Ver detalle e historial', clase: 'btn-ver', onClick: () => abrirHistorial(fila) },
     ];
     if (fila.estado === 'confirmada' || fila.estado === 'reagendada') {
-      lista.push({ icono: faCheck, titulo: 'Completada', clase: 'btn-aprobar', onClick: () => pedirConfirmacion(fila, 'completada') });
-      lista.push({ icono: faXmark, titulo: 'No asistió', clase: 'btn-eliminar', onClick: () => pedirConfirmacion(fila, 'no_asistio') });
+      const puedeCompletar = puedeMarcarCompletada(fila.fecha_hora);
+      lista.push({
+        icono: faCheck,
+        titulo: puedeCompletar ? 'Completada' : 'Aún no es la hora de la cita',
+        clase: 'btn-aprobar',
+        disabled: !puedeCompletar,
+        onClick: () => pedirConfirmacion(fila, 'completada'),
+      });
+      lista.push({ icono: faUserSlash, titulo: 'No asistió', clase: 'btn-eliminar', onClick: () => pedirConfirmacion(fila, 'no_asistio') });
     }
     if (esVigente(fila.estado)) {
-      lista.push({ icono: faXmark, titulo: 'Cancelar', clase: 'btn-rechazar', onClick: () => pedirConfirmacion(fila, 'cancelar') });
+      lista.push({ icono: faBan, titulo: 'Cancelar', clase: 'btn-rechazar', onClick: () => pedirConfirmacion(fila, 'cancelar') });
     }
     return lista;
   };
@@ -202,6 +210,24 @@ export default function MiAgenda() {
         </h2>
 
         <div className="filtros-controles">
+          <div className="vista-toggle" role="group" aria-label="Vista de la agenda">
+            <button
+              type="button"
+              className={`vista-toggle-btn${vista === 'calendario' ? ' activo' : ''}`}
+              onClick={() => setVista('calendario')}
+              aria-pressed={vista === 'calendario'}
+            >
+              <FontAwesomeIcon icon={faCalendarAlt} aria-hidden="true" /> Calendario
+            </button>
+            <button
+              type="button"
+              className={`vista-toggle-btn${vista === 'lista' ? ' activo' : ''}`}
+              onClick={() => setVista('lista')}
+              aria-pressed={vista === 'lista'}
+            >
+              <FontAwesomeIcon icon={faList} aria-hidden="true" /> Lista
+            </button>
+          </div>
           <select
             className="input"
             value={filtroEstado}
@@ -237,14 +263,23 @@ export default function MiAgenda() {
         </div>
       </div>
 
-      <CrudTable
-        columnas={columnas}
-        datos={datos}
-        cargando={cargando}
-        acciones={acciones}
-        mensajeVacio="No tienes citas registradas"
-        buscar={false}
-      />
+      {cargando ? (
+        <div className="crud-cargando">
+          <div className="spinner" />
+          <span>Cargando citas...</span>
+        </div>
+      ) : vista === 'calendario' ? (
+        <CalendarioCitas citas={datos} onEventClick={abrirDetalle} />
+      ) : (
+        <CrudTable
+          columnas={columnas}
+          datos={datos}
+          cargando={false}
+          acciones={acciones}
+          mensajeVacio="No tienes citas registradas"
+          buscar={false}
+        />
+      )}
 
       {detalle && (
         <FormModal

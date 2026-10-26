@@ -1,0 +1,153 @@
+/* ═══════════════════════════════════════════
+   VISTAS DE AGENDA / CALENDARIO
+   ═══════════════════════════════════════════ */
+
+.medico-agenda .filtros-barra,
+.admin-calendario .filtros-barra {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.medico-agenda .filtros-barra h2,
+.admin-calendario .filtros-barra h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: auto;
+  font-size: 1.35rem;
+  white-space: nowrap;
+}
+
+.medico-agenda .filtros-controles,
+.admin-calendario .filtros-controles {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.medico-agenda .filtros-controles select.input {
+  flex: 0 0 190px;
+  min-width: 190px;
+  width: 190px;
+}
+
+.medico-agenda .filtros-controles .input[type="date"] {
+  flex: 0 0 150px;
+  min-width: 150px;
+  width: 150px;
+  padding-left: 1rem;
+  padding-right: 2.25rem;
+}
+
+.admin-calendario .filtros-controles select.input {
+  flex: 0 0 230px;
+  min-width: 230px;
+  width: 230px;
+}
+
+.medico-agenda .filtros-controles .btn,
+.admin-calendario .filtros-controles .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Selector segmentado Calendario / Lista */
+.vista-toggle {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 0.2rem;
+  padding: 0.25rem;
+  background: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pildora);
+}
+
+.vista-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border: 0;
+  border-radius: var(--radio-pildora);
+  background: transparent;
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0.72;
+  transition:
+    background var(--transicion),
+    color var(--transicion),
+    opacity var(--transicion),
+    box-shadow var(--transicion);
+}
+
+.vista-toggle-btn:hover {
+  background: #fff;
+  opacity: 1;
+}
+
+.vista-toggle-btn.activo {
+  background: var(--primario);
+  color: #fff;
+  opacity: 1;
+  box-shadow: var(--sombra-suave);
+}
+
+.vista-toggle-btn:focus-visible {
+  outline: 2px solid var(--primario);
+  outline-offset: 2px;
+}
+
+.calendario-resumen {
+  margin: -0.35rem 0 1rem;
+  color: var(--texto);
+  font-size: 0.875rem;
+  opacity: 0.65;
+}
+
+@media (max-width: 1200px) {
+  .medico-agenda .filtros-barra h2,
+  .admin-calendario .filtros-barra h2 {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .medico-agenda .filtros-controles,
+  .admin-calendario .filtros-controles {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .medico-agenda .filtros-controles,
+  .admin-calendario .filtros-controles {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .medico-agenda .filtros-controles select.input,
+  .medico-agenda .filtros-controles .input[type="date"],
+  .admin-calendario .filtros-controles select.input {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .vista-toggle {
+    width: 100%;
+  }
+
+  .vista-toggle-btn {
+    flex: 1 1 0;
+  }
+}

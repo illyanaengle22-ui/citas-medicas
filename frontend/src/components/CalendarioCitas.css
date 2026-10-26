@@ -1,0 +1,154 @@
+.calendario-citas {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1rem 1.25rem 1.25rem;
+  box-shadow: var(--sombra-suave);
+}
+
+.calendario-citas .fc {
+  --fc-border-color: var(--borde);
+  --fc-page-bg-color: #fff;
+  --fc-neutral-bg-color: var(--fondo);
+  --fc-today-bg-color: rgba(94, 155, 186, 0.1);
+  --fc-highlight-color: rgba(94, 155, 186, 0.15);
+  --fc-event-bg-color: var(--primario);
+  --fc-event-border-color: var(--primario);
+  --fc-event-text-color: #fff;
+  --fc-button-bg-color: var(--primario);
+  --fc-button-border-color: var(--primario);
+  --fc-button-hover-bg-color: var(--primario-hover);
+  --fc-button-hover-border-color: var(--primario-hover);
+  --fc-button-active-bg-color: var(--primario-hover);
+  --fc-button-active-border-color: var(--primario-hover);
+  font-family: inherit;
+  color: var(--texto);
+}
+
+.calendario-citas .fc .fc-toolbar {
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.calendario-citas .fc .fc-toolbar-title {
+  color: var(--texto);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.calendario-citas .fc .fc-button {
+  border-radius: var(--radio-pildora);
+  box-shadow: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.calendario-citas .fc .fc-button-primary {
+  background-color: var(--primario);
+  border-color: var(--primario);
+}
+
+.calendario-citas .fc .fc-button-primary:not(:disabled):hover,
+.calendario-citas .fc .fc-button-primary:not(:disabled):focus {
+  background-color: var(--primario-hover);
+  border-color: var(--primario-hover);
+}
+
+.calendario-citas .fc .fc-button-primary:not(:disabled).fc-button-active,
+.calendario-citas .fc .fc-button-primary:not(:disabled):active {
+  background-color: var(--primario-hover);
+  border-color: var(--primario-hover);
+}
+
+.calendario-citas .fc .fc-col-header-cell-cushion,
+.calendario-citas .fc .fc-daygrid-day-number {
+  color: var(--texto);
+  text-decoration: none;
+}
+
+.calendario-citas .fc .fc-col-header-cell-cushion {
+  font-weight: 600;
+}
+
+.calendario-citas .fc .fc-daygrid-day-number {
+  font-weight: 500;
+  padding: 0.35rem 0.5rem;
+}
+
+.calendario-citas .fc .fc-timegrid-slot-label-cushion,
+.calendario-citas .fc .fc-timegrid-axis-cushion {
+  color: var(--texto);
+  opacity: 0.65;
+  font-size: 0.75rem;
+}
+
+.calendario-citas .fc .fc-event {
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 1px 4px;
+}
+
+.calendario-citas .fc .fc-event-main,
+.calendario-citas .fc .fc-event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendario-citas .fc .fc-daygrid-day {
+  transition: background var(--transicion);
+}
+
+.calendario-citas .fc .fc-daygrid-day:hover {
+  background: #fbfdff;
+}
+
+.calendario-citas .fc .evento-pendiente {
+  background-color: var(--acento);
+}
+
+.calendario-citas .fc .evento-confirmada {
+  background-color: var(--exito);
+}
+
+.calendario-citas .fc .evento-reagendada {
+  background-color: var(--primario);
+}
+
+.calendario-citas .fc .evento-cancelada {
+  background-color: var(--error);
+}
+
+.calendario-citas .fc .evento-completada {
+  background-color: #6b7280;
+}
+
+.calendario-citas .fc .evento-no-asistio {
+  background-color: #9ca3af;
+}
+
+.calendario-citas .fc .fc-daygrid-event-dot {
+  border-color: currentColor;
+}
+
+@media (max-width: 768px) {
+  .calendario-citas {
+    padding: 0.75rem;
+  }
+
+  .calendario-citas .fc .fc-toolbar {
+    justify-content: center;
+  }
+
+  .calendario-citas .fc .fc-toolbar-chunk {
+    display: flex;
+    justify-content: center;
+  }
+
+  .calendario-citas .fc .fc-toolbar-title {
+    font-size: 1rem;
+  }
+}

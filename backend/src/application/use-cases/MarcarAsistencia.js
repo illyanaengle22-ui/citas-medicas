@@ -4,7 +4,9 @@ const Cita = require('../../domain/entities/Cita');
 const EstadoCita = require('../../domain/value-objects/EstadoCita');
 
 // RN-082: marcar asistencia (completada / no_asistio) solo corresponde al
-// médico de la cita o a un administrador, y solo a partir de la hora de inicio.
+// médico de la cita o a un administrador.
+// Regla de completada: el médico puede marcarla desde 5 minutos antes del
+// inicio; el administrador no tiene restricción de horario.
 class MarcarAsistencia {
   constructor(citaRepository) {
     this.repo = citaRepository;
@@ -26,13 +28,24 @@ class MarcarAsistencia {
       }
     }
 
-    // RN-082: recién a partir de la hora de inicio
-    if (Date.now() < new Date(row.fecha_hora).getTime()) {
+    const cita = Cita.fromRow(row);
+    const inicioMs = new Date(cita.fecha_hora).getTime();
+    const ahoraMs = Date.now();
+    const toleranciaMs = 5 * 60 * 1000;
+
+    if (asistio) {
+      // El admin puede completar sin restricciones. El médico solo desde
+      // 5 minutos antes de la hora de inicio.
+      const dentroDeTolerancia = Number.isFinite(inicioMs) && ahoraMs >= inicioMs - toleranciaMs;
+      if (actor.rol !== 'admin' && !dentroDeTolerancia) {
+        return { success: false, mensaje: 'No puedes completar una cita que aún no ha comenzado' };
+      }
+    } else if (!Number.isFinite(inicioMs) || ahoraMs < inicioMs) {
+      // RN-082: no_asistio sigue requiriendo que haya llegado la hora de inicio.
       return { success: false, mensaje: 'Aún no es la hora de inicio de la cita [RN-082]' };
     }
 
     const destino = EstadoCita.fromClave(asistio ? 'completada' : 'no_asistio');
-    const cita = Cita.fromRow(row);
 
     if (!cita.puedeTransicionarA(destino)) {
       if (cita.estado.esFinal()) {

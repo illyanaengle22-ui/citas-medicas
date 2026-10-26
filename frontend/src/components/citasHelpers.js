@@ -45,6 +45,15 @@ export function esFinal(estado) {
   return ESTADOS_FINALES.includes(estado);
 }
 
+// Regla de completada: se habilita desde 5 minutos antes de la hora de inicio.
+// El backend vuelve a validar esta condición; aquí solo controlamos la UI.
+export function puedeMarcarCompletada(fechaHora, toleranciaMinutos = 5) {
+  if (!fechaHora) return false;
+  const inicio = new Date(fechaHora).getTime();
+  if (Number.isNaN(inicio)) return false;
+  return Date.now() >= inicio - toleranciaMinutos * 60 * 1000;
+}
+
 // 2026-10-26T16:00:00.000Z → "26 oct 2026, 10:00"
 export function formatearFechaHora(fecha) {
   if (!fecha) return '—';

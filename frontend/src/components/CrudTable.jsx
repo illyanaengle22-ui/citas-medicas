@@ -91,6 +91,7 @@ export default function CrudTable({
                             onClick={() => accion.onClick(fila)}
                             title={accion.titulo}
                             aria-label={accion.titulo}
+                            disabled={Boolean(accion.disabled)}
                           >
                             <FontAwesomeIcon icon={accion.icono} />
                           </button>

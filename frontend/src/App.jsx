@@ -17,6 +17,7 @@ const AdminConsultorios = lazy(() => import('./paginas/admin/AdminConsultorios')
 const AdminMedicos = lazy(() => import('./paginas/admin/AdminMedicos'));
 const AdminHorarios = lazy(() => import('./paginas/admin/AdminHorarios'));
 const AdminCitas = lazy(() => import('./paginas/admin/AdminCitas'));
+const AdminCalendario = lazy(() => import('./paginas/admin/AdminCalendario'));
 const DashboardMedico = lazy(() => import('./paginas/medico/DashboardMedico'));
 const MiAgenda = lazy(() => import('./paginas/medico/MiAgenda'));
 const MisHorarios = lazy(() => import('./paginas/medico/MisHorarios'));
@@ -68,6 +69,7 @@ export default function App() {
               <Route path="medicos" element={<AdminMedicos />} />
               <Route path="horarios" element={<AdminHorarios />} />
               <Route path="citas" element={<AdminCitas />} />
+              <Route path="calendario" element={<AdminCalendario />} />
             </Route>
             <Route path="/medico" element={
               <RutaProtegida roles={[2]}>
