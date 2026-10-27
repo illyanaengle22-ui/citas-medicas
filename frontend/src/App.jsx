@@ -26,6 +26,7 @@ const DashboardPaciente = lazy(() => import('./paginas/paciente/DashboardPacient
 const AgendarCita = lazy(() => import('./paginas/paciente/AgendarCita'));
 const MisCitas = lazy(() => import('./paginas/paciente/MisCitas'));
 const MiHistorial = lazy(() => import('./paginas/paciente/MiHistorial'));
+const MiPerfil = lazy(() => import('./paginas/MiPerfil'));
 
 function CargandoRuta() {
   return (
@@ -57,6 +58,13 @@ export default function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/" element={<Landing />} />
             <Route path="/dashboard" element={<RedireccionRaiz />} />
+            <Route path="/perfil" element={
+              <RutaProtegida roles={[1, 2, 3]}>
+                <DashboardLayout />
+              </RutaProtegida>
+            }>
+              <Route index element={<MiPerfil />} />
+            </Route>
             <Route path="/admin" element={
               <RutaProtegida roles={[1]}>
                 <DashboardLayout />
@@ -70,6 +78,7 @@ export default function App() {
               <Route path="horarios" element={<AdminHorarios />} />
               <Route path="citas" element={<AdminCitas />} />
               <Route path="calendario" element={<AdminCalendario />} />
+              <Route path="perfil" element={<Navigate to="/perfil" replace />} />
             </Route>
             <Route path="/medico" element={
               <RutaProtegida roles={[2]}>
@@ -80,6 +89,7 @@ export default function App() {
               <Route path="agenda" element={<MiAgenda />} />
               <Route path="horarios" element={<MisHorarios />} />
               <Route path="pacientes" element={<MisPacientes />} />
+              <Route path="perfil" element={<Navigate to="/perfil" replace />} />
             </Route>
             <Route path="/paciente" element={
               <RutaProtegida roles={[3]}>
@@ -90,6 +100,7 @@ export default function App() {
               <Route path="agendar" element={<AgendarCita />} />
               <Route path="citas" element={<MisCitas />} />
               <Route path="historial" element={<MiHistorial />} />
+              <Route path="perfil" element={<Navigate to="/perfil" replace />} />
             </Route>
           </Routes>
         </Suspense>

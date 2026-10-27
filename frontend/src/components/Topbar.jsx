@@ -1,8 +1,20 @@
 import { useAuth } from '../context/AuthContext';
 import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { NavLink } from 'react-router-dom';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 const roles = { 1: 'Admin', 2: 'Médico', 3: 'Paciente' };
+
+function iniciales(nombre = '') {
+  return nombre
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export default function Topbar() {
   const { user, logout } = useAuth();
@@ -11,6 +23,9 @@ export default function Topbar() {
     logout();
     window.location.href = '/login';
   };
+
+  // Leer foto_url del localStorage (se guarda tras actualizar perfil)
+  const fotoUrl = user?.foto_url ? `${API_URL}${user.foto_url}` : null;
 
   return (
     <header className="topbar">
@@ -25,6 +40,18 @@ export default function Topbar() {
       <div className="topbar-derecha">
         <span className="insignia-rol">{roles[user?.rol_id] || 'Usuario'}</span>
         <span className="topbar-usuario">{user?.nombre || 'Usuario'}</span>
+
+        {/* Mini avatar con link a perfil */}
+        <NavLink to="/perfil" className="topbar-avatar" title="Mi Perfil">
+          {fotoUrl ? (
+            <img src={fotoUrl} alt="Perfil" className="topbar-avatar-img" />
+          ) : (
+            <span className="topbar-avatar-iniciales">
+              {iniciales(user?.nombre || '')}
+            </span>
+          )}
+        </NavLink>
+
         <button className="btn-cerrar-sesion" onClick={handleLogout}>
           <FontAwesomeIcon icon={faSignOutAlt} />
           <span>Cerrar sesión</span>

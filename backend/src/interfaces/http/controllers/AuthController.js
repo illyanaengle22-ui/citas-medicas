@@ -110,7 +110,7 @@ async function login(req, res) {
     // Email normalizado (trim + minúsculas) y también la columna, para cubrir
     // filas históricas guardadas con espacios o mayúsculas.
     const result = await db.query(
-      `SELECT u.id, u.uuid_publico, u.nombre, u.email,
+      `SELECT u.id, u.uuid_publico, u.nombre, u.email, u.foto_url,
               u.password_hash, u.rol_id, u.estado_id, u.ultimo_login,
               ec.clave AS estado_clave
        FROM usuarios u
@@ -161,6 +161,7 @@ async function login(req, res) {
           uuid_publico: user.uuid_publico,
           nombre:      user.nombre,
           email:       user.email,
+          foto_url:    user.foto_url,
           rol_id:      user.rol_id,
           estado_id:   user.estado_id,
         },

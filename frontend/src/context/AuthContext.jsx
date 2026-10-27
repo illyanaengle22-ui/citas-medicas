@@ -27,6 +27,14 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const actualizarUsuario = useCallback((cambios) => {
+    setUser((prev) => {
+      const actualizado = { ...prev, ...cambios };
+      localStorage.setItem('user', JSON.stringify(actualizado));
+      return actualizado;
+    });
+  }, []);
+
   const redirectPorRol = useCallback((usuario) => {
     if (!usuario) return '/login';
     switch (usuario.rol_id) {
@@ -38,7 +46,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, registrar, logout, redirectPorRol }}>
+    <AuthContext.Provider value={{ user, token, login, registrar, logout, actualizarUsuario, redirectPorRol }}>
       {children}
     </AuthContext.Provider>
   );

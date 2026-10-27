@@ -9,6 +9,7 @@ import {
   faHistory,
   faHome,
   faStethoscope,
+  faUserCircle,
   faUserInjured,
   faUserMd,
   faUsers,
@@ -27,6 +28,7 @@ const menuAdmin = [
   { to: '/admin/horarios', icono: faClock, texto: 'Horarios' },
   { to: '/admin/consultorios', icono: faBuilding, texto: 'Consultorios' },
   { to: '/admin/especialidades', icono: faStethoscope, texto: 'Especialidades' },
+  { to: '/perfil', icono: faUserCircle, texto: 'Mi Perfil' },
 ];
 
 const menuMedico = [
@@ -34,6 +36,7 @@ const menuMedico = [
   { to: '/medico/agenda', icono: faCalendarAlt, texto: 'Mi Agenda' },
   { to: '/medico/pacientes', icono: faUserInjured, texto: 'Mis Pacientes' },
   { to: '/medico/horarios', icono: faClock, texto: 'Mis Horarios' },
+  { to: '/perfil', icono: faUserCircle, texto: 'Mi Perfil' },
 ];
 
 const menuPaciente = [
@@ -41,6 +44,7 @@ const menuPaciente = [
   { to: '/paciente/agendar', icono: faCalendarPlus, texto: 'Agendar Cita' },
   { to: '/paciente/citas', icono: faCalendarCheck, texto: 'Mis Citas' },
   { to: '/paciente/historial', icono: faHistory, texto: 'Mi Historial' },
+  { to: '/perfil', icono: faUserCircle, texto: 'Mi Perfil' },
 ];
 
 function obtenerMenu(rolId) {

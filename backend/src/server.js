@@ -16,6 +16,7 @@ const especialidadesRoutes = require('./interfaces/http/routes/especialidades.ro
 const horariosRoutes = require('./interfaces/http/routes/horarios.routes');
 const citasRoutes = require('./interfaces/http/routes/citas.routes');
 const recordatoriosRoutes = require('./interfaces/http/routes/recordatorios.routes');
+const perfilRoutes = require('./interfaces/http/routes/perfil.routes');
 const n8nWebhookRoutes = require('./interfaces/webhooks/n8nWebhook.routes');
 
 const app = express();
@@ -25,9 +26,15 @@ app.use(express.json());
 // Sirve el frontend de prueba (login-test.html) directo desde el backend
 app.use(express.static(path.join(__dirname, '..', '..', 'frontend')));
 
+// Sirve imágenes de perfil subidas por multer
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/captcha', captchaRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+// Perfil compartido por todos los roles. Debe ir antes de /api/usuarios
+// porque ese router exige rol admin para todas sus rutas.
+app.use('/api/usuarios/perfil', perfilRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/pacientes', pacientesRoutes);
 app.use('/api/medicos', medicosRoutes);
@@ -36,6 +43,7 @@ app.use('/api/especialidades', especialidadesRoutes);
 app.use('/api/horarios', horariosRoutes);
 app.use('/api/citas', citasRoutes);
 app.use('/api/recordatorios', recordatoriosRoutes);
+app.use('/api/perfil', perfilRoutes);
 app.use('/api/webhooks/n8n', n8nWebhookRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true, mensaje: 'Servidor activo' }));
