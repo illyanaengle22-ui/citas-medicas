@@ -5,6 +5,7 @@ const PostgresRecordatorioRepository = require('../../infrastructure/adapters/Po
 const PostgresHorarioRepository = require('../../infrastructure/adapters/PostgresHorarioRepository');
 const ProcesarRespuestaTelegram = require('../../application/use-cases/ProcesarRespuestaTelegram');
 const Recordatorio = require('../../domain/entities/Recordatorio');
+const { secretValido } = require('../http/utils/webhookSecret');
 
 const citaRepo = new PostgresCitaRepository();
 const recordatorioRepo = new PostgresRecordatorioRepository();
@@ -12,13 +13,7 @@ const horarioRepo = new PostgresHorarioRepository();
 
 // RN-107: el webhook es el único punto de entrada de n8n. No usa JWT de usuario:
 // se autentica con el secreto compartido (N8N_WEBHOOK_SECRET) en la cabecera
-// x-webhook-secret, el mismo que envía el adaptador de salida.
-function secretValido(req) {
-  const esperado = process.env.N8N_WEBHOOK_SECRET;
-  // Sin secreto configurado se acepta en desarrollo; en producción se debe definir.
-  if (!esperado) return true;
-  return req.headers['x-webhook-secret'] === esperado;
-}
+// x-webhook-secret (helper compartido en interfaces/http/utils/webhookSecret).
 
 function responder400(res, mensaje) {
   return res.status(400).json({ ok: false, mensaje });

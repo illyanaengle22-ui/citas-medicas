@@ -191,6 +191,7 @@ cancelada, completada, no_asistio → (estados finales, sin cambios)
 | RN-105 | No se envía el mismo tipo de recordatorio dos veces para la misma cita.  |
 | RN-106 | Si el envío falla, el estado del recordatorio refleja el fallo y la cita **no se ve afectada**.  |
 | RN-107 | El backend no habla directamente con Telegram: usa el puerto `NotificacionPort`, implementado por el adaptador de n8n. |
+| RN-116 | La vinculación Telegram–paciente se hace con un **código de un solo uso** (6 caracteres, 10 minutos) generado desde la webapp; n8n lo canjea por un JWT llamando a `/api/telegram/vincular` con la cabecera `x-webhook-secret`. Un solo código activo por paciente y un solo paciente por chat (RN-051). |
 
 ---
 

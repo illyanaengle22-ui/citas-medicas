@@ -120,9 +120,15 @@ async function listar(req, res) {
 
     const filtros = { ...base };
 
+    // Parámetros vacíos = sin filtro: las tools de n8n siempre envían todos los
+    // parámetros declarados y el agente pone '' cuando el usuario no dio el dato.
+    const q = Object.fromEntries(
+      Object.entries(req.query).filter(([, valor]) => valor !== '')
+    );
+
     // Filtros adicionales: estado, fechas y paginación.
-    if (req.query.estado !== undefined) {
-      const estado = String(req.query.estado).trim().toLowerCase();
+    if (q.estado !== undefined) {
+      const estado = String(q.estado).trim().toLowerCase();
       if (!ESTADOS_VALIDOS.includes(estado)) {
         return res.status(400).json({
           ok: false,
@@ -131,22 +137,22 @@ async function listar(req, res) {
       }
       filtros.estado = estado;
     }
-    if (req.query.fecha_desde !== undefined) {
-      if (!esFechaISO(req.query.fecha_desde)) {
+    if (q.fecha_desde !== undefined) {
+      if (!esFechaISO(q.fecha_desde)) {
         return res.status(400).json({ ok: false, mensaje: 'fecha_desde debe ser YYYY-MM-DD' });
       }
-      filtros.fecha_desde = `${req.query.fecha_desde}T00:00:00`;
+      filtros.fecha_desde = `${q.fecha_desde}T00:00:00`;
     }
-    if (req.query.fecha_hasta !== undefined) {
-      if (!esFechaISO(req.query.fecha_hasta)) {
+    if (q.fecha_hasta !== undefined) {
+      if (!esFechaISO(q.fecha_hasta)) {
         return res.status(400).json({ ok: false, mensaje: 'fecha_hasta debe ser YYYY-MM-DD' });
       }
       // Día completo inclusivo.
-      filtros.fecha_hasta = `${req.query.fecha_hasta}T23:59:59.999`;
+      filtros.fecha_hasta = `${q.fecha_hasta}T23:59:59.999`;
     }
 
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 10));
+    const page = Math.max(1, parseInt(q.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(q.limit, 10) || 10));
     filtros.page = page;
     filtros.limit = limit;
 

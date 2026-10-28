@@ -1,6 +1,6 @@
 # ENDPOINTS.md — Sistema de Citas Médicas
 
-> Última actualización: 2026-10-22
+> Última actualización: 2026-10-27
 > Convenciones generales (RN-120 a RN-122):
 > - Toda respuesta: `{ "ok": boolean, "mensaje": string, "data": any }`
 > - Todos los endpoints cuelgan de `/api/`
@@ -643,6 +643,57 @@ definida se acepta en desarrollo).
 |--------|------|-------------|
 | POST | `/api/webhooks/n8n/respuesta` | Recibe la respuesta de Telegram `{ chatId, uuidCita, respuesta, recordatorioId? }` y actualiza la cita (RN-103) |
 | GET | `/api/webhooks/n8n/health` | Ping para verificar la conexión desde n8n |
+
+---
+
+## Vinculación Telegram (RN-116)
+
+Une un chat de Telegram con la cuenta de un paciente para que el agente de n8n
+opere sobre la API **como ese paciente**. El chat solo almacena un
+`chatId`; el JWT se emite en cada conversación.
+
+**Flujo:**
+
+1. Paciente logueado en la webapp → `POST /api/telegram/codigo` recibe un código de 6 caracteres (vive 10 min, un solo uso).
+2. Escribe `/start <código>` en el bot → n8n llama `POST /api/telegram/vincular` y queda guardado `pacientes.telegram_chat_id` (RN-051: un chat = un paciente).
+3. Cada mensaje de conversación → n8n llama `POST /api/telegram/token` con el `chatId` y usa el JWT devuelto en las headers `Authorization` de las tools.
+
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| POST | `/api/telegram/codigo` | JWT rol `paciente` | Genera (o reemplaza) el código de vinculación del paciente |
+| GET | `/api/telegram/estado` | JWT rol `paciente` | Estado `{ vinculado, chatId }` de mi cuenta |
+| POST | `/api/telegram/vincular` | `x-webhook-secret` | Canjea `{ chatId, codigo }` → guarda el chat y devuelve JWT |
+| POST | `/api/telegram/token` | `x-webhook-secret` | Canjea `{ chatId }` → JWT fresco del paciente vinculado |
+
+```http
+POST /api/telegram/codigo
+Authorization: Bearer <JWT paciente>
+
+{ "ok": true, "mensaje": "Código generado",
+  "data": { "codigo": "QK845E", "comando": "/start QK845E", "expiraEn": "2026-10-27T15:30:00.000Z" } }
+```
+
+```http
+POST /api/telegram/vincular
+x-webhook-secret: <N8N_WEBHOOK_SECRET>
+
+{ "chatId": "999888777", "codigo": "QK845E" }
+→ { "ok": true, "mensaje": "Cuenta vinculada correctamente",
+    "data": { "token": "<JWT>", "chatId": "999888777", "nombre": "Juan" } }
+
+Errores: 400 código inválido/expirado · 409 chat ya vinculado a otra cuenta (RN-051)
+```
+
+```http
+POST /api/telegram/token
+x-webhook-secret: <N8N_WEBHOOK_SECRET>
+
+{ "chatId": "999888777" }
+→ { "ok": true, "mensaje": "Token generado",
+    "data": { "token": "<JWT 24h>", "pacienteId": "1", "nombre": "Juan" } }
+
+Errores: 400 chatId no numérico · 404 chat sin vincular
+```
 
 ---
 

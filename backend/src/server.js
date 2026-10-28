@@ -18,6 +18,7 @@ const citasRoutes = require('./interfaces/http/routes/citas.routes');
 const recordatoriosRoutes = require('./interfaces/http/routes/recordatorios.routes');
 const perfilRoutes = require('./interfaces/http/routes/perfil.routes');
 const n8nWebhookRoutes = require('./interfaces/webhooks/n8nWebhook.routes');
+const telegramRoutes = require('./interfaces/http/routes/telegram.routes');
 
 const app = express();
 app.use(cors());
@@ -45,6 +46,7 @@ app.use('/api/citas', citasRoutes);
 app.use('/api/recordatorios', recordatoriosRoutes);
 app.use('/api/perfil', perfilRoutes);
 app.use('/api/webhooks/n8n', n8nWebhookRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true, mensaje: 'Servidor activo' }));
 

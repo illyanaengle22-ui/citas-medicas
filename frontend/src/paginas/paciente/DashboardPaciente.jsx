@@ -11,6 +11,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import useDashboardData from '../../hooks/useDashboardData';
 import TarjetaStat from '../../components/dashboard/TarjetaStat';
+import VincularTelegram from '../../components/VincularTelegram';
 import { formatearFechaCorta } from '../../components/dashboard/rangoFechas';
 import {
   etiquetaCita,
@@ -208,6 +209,8 @@ export default function DashboardPaciente() {
               </section>
             )}
           </section>
+
+          <VincularTelegram />
         </>
       )}
     </div>
