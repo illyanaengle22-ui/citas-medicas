@@ -108,7 +108,7 @@ export default function VincularTelegram() {
                   </button>
                 </div>
                 <p className="telegram-codigo-nota">
-                  Caduca en 10 minutos y solo sirve una vez.
+                  Caduca en 15 minutos y solo sirve una vez.
                 </p>
               </div>
             )}

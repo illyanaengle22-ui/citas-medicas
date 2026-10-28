@@ -654,7 +654,7 @@ opere sobre la API **como ese paciente**. El chat solo almacena un
 
 **Flujo:**
 
-1. Paciente logueado en la webapp → `POST /api/telegram/codigo` recibe un código de 6 caracteres (vive 10 min, un solo uso).
+1. Paciente logueado en la webapp → `POST /api/telegram/codigo` recibe un código de 6 caracteres (vive 15 min, un solo uso).
 2. Escribe `/start <código>` en el bot → n8n llama `POST /api/telegram/vincular` y queda guardado `pacientes.telegram_chat_id` (RN-051: un chat = un paciente).
 3. Cada mensaje de conversación → n8n llama `POST /api/telegram/token` con el `chatId` y usa el JWT devuelto en las headers `Authorization` de las tools.
 
@@ -681,7 +681,7 @@ x-webhook-secret: <N8N_WEBHOOK_SECRET>
 → { "ok": true, "mensaje": "Cuenta vinculada correctamente",
     "data": { "token": "<JWT>", "chatId": "999888777", "nombre": "Juan" } }
 
-Errores: 400 código inválido/expirado · 409 chat ya vinculado a otra cuenta (RN-051)
+Errores: 400 código no existe/expirado · 409 código ya usado/chat ya vinculado a otra cuenta (RN-051)
 ```
 
 ```http
