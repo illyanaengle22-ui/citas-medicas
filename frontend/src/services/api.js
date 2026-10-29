@@ -8,7 +8,13 @@ class ApiError extends Error {
 }
 
 async function apiFetch(path, { method = 'GET', body, token } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
+  const esFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  const headers = {};
+
+  // FormData debe dejar que el navegador calcule el Content-Type con boundary.
+  if (!esFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   // Si no se pasa token explícito se usa el de la sesión. Así las páginas
   // nuevas no tienen que recordar adjuntarlo en cada llamada.
@@ -20,7 +26,7 @@ async function apiFetch(path, { method = 'GET', body, token } = {}) {
   const res = await fetch(`${API_URL}${path}`, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: esFormData ? body : (body ? JSON.stringify(body) : undefined),
   });
 
   // Solo redirigir cuando falla una petición autenticada. Un 401 en el
@@ -123,4 +129,12 @@ export function construirQuery(params = {}) {
   return texto ? `?${texto}` : '';
 }
 
-export { apiFetch, ApiError };
+// Resuelve una ruta relativa devuelta por el backend (por ejemplo
+// /uploads/medicos/foto.jpg) contra la URL base de la API.
+export function urlArchivo(ruta) {
+  if (!ruta) return null;
+  if (/^(https?:)?\/\//i.test(ruta) || ruta.startsWith('data:')) return ruta;
+  return `${API_URL}${ruta.startsWith('/') ? '' : '/'}${ruta}`;
+}
+
+export { apiFetch, ApiError, API_URL };

@@ -6,10 +6,13 @@ import {
 import CrudTable from '../../components/CrudTable';
 import FormModal from '../../components/FormModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { apiFetch, obtenerToken } from '../../services/api';
+import { apiFetch, obtenerToken, urlArchivo } from '../../services/api';
+import { formatearCosto } from '../../components/medicoHelpers';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+const TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 function iniciales(nombre) {
   const limpio = String(nombre || '').replace(/^Dr\.?\s+/i, '').trim();
@@ -71,6 +74,8 @@ function mapearError(err) {
     if (m.includes('cédula') || m.includes('cedula')) return { cedula_profesional: mensaje };
     if (m.includes('contraseña') || m.includes('password')) return { password: mensaje };
     if (m.includes('teléfono') || m.includes('telefono')) return { telefono: mensaje };
+    if (m.includes('costo')) return { costo_consulta: mensaje };
+    if (m.includes('imagen') || m.includes('imág') || m.includes('foto') || m.includes('archivo')) return { foto: mensaje };
     if (m.includes('especialidad')) return { especialidades: mensaje };
     if (m.includes('consultorio')) return { consultorios: mensaje };
     if (m.includes('nombre')) return { nombre: mensaje };
@@ -106,14 +111,42 @@ function CeldaEspecialidades({ especialidades = [] }) {
   );
 }
 
+// ── Miniatura de foto para la tabla ────────────────────────────────────────
+function CeldaFotoMedico({ fila }) {
+  const [error, setError] = useState(false);
+  const foto = urlArchivo(fila.foto_url);
+
+  if (!foto || error) {
+    return (
+      <div className="medico-tabla-avatar" aria-hidden="true">
+        {iniciales(fila.nombre)}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      className="medico-tabla-foto"
+      src={foto}
+      alt={`Foto de ${nombreVisible(fila)}`}
+      loading="lazy"
+      onError={() => setError(true)}
+    />
+  );
+}
+
 // ── Columnas ─────────────────────────────────────────────────────────────────
 const columnas = [
+  {
+    clave: 'foto_url',
+    titulo: 'Foto',
+    render: (fila) => <CeldaFotoMedico fila={fila} />,
+  },
   {
     clave: 'nombre',
     titulo: 'Médico',
     render: (fila) => (
-      <div className="usuario-celda medico-celda">
-        <div className="avatar">{iniciales(fila.nombre)}</div>
+      <div className="medico-celda">
         <div className="medico-celda-info">
           <span className="medico-nombre" title={nombreVisible(fila)}>{nombreVisible(fila)}</span>
           {fila.email && (
@@ -361,6 +394,19 @@ export default function AdminMedicos() {
       ayuda: 'Entre 7 y 15 dígitos. Se guardan solo los dígitos.',
     },
     {
+      nombre: 'foto', etiqueta: 'Foto de perfil (opcional)', tipo: 'file', requerido: false,
+      accept: 'image/*',
+      fotoActual: editando?.foto_url ? urlArchivo(editando.foto_url) : null,
+      ayuda: 'JPG, PNG, WEBP o GIF. Máximo 5 MB.',
+    },
+    {
+      nombre: 'costo_consulta', etiqueta: 'Costo de consulta (MXN)', tipo: 'number', requerido: false,
+      placeholder: 'Ej. 500.00',
+      min: 0,
+      step: '0.01',
+      ayuda: 'Opcional. Se muestra en el directorio de médicos.',
+    },
+    {
       nombre: 'especialidades', etiqueta: 'Especialidades', tipo: 'multiselect',
       opciones: opcionesEspecialidades,
       cargando: cargandoCatalogos,
@@ -403,6 +449,8 @@ export default function AdminMedicos() {
           password: '',
           cedula_profesional: editando.cedula_profesional || '',
           telefono: editando.telefono || '',
+          foto: null,
+          costo_consulta: editando.costo_consulta ?? '',
           especialidades: (editando.especialidades || []).map((esp) => String(esp.id)),
           consultorios: (editando.consultorios || []).map((con) => String(con.id)),
         }
@@ -412,6 +460,8 @@ export default function AdminMedicos() {
           password: '',
           cedula_profesional: '',
           telefono: '',
+          foto: null,
+          costo_consulta: '',
           especialidades: [],
           consultorios: [],
         }
@@ -443,6 +493,22 @@ export default function AdminMedicos() {
     const errorTelefono = validarTelefono(valores.telefono);
     if (errorTelefono) erroresLocales.telefono = errorTelefono;
 
+    const costoTexto = String(valores.costo_consulta ?? '').trim();
+    if (costoTexto !== '') {
+      const costo = Number(costoTexto);
+      if (!Number.isFinite(costo) || costo < 0) {
+        erroresLocales.costo_consulta = 'El costo debe ser un número mayor o igual a 0';
+      }
+    }
+
+    if (valores.foto instanceof File) {
+      if (!TIPOS_FOTO.includes(valores.foto.type)) {
+        erroresLocales.foto = 'Solo se permiten imágenes JPG, PNG, WEBP o GIF';
+      } else if (valores.foto.size > 5 * 1024 * 1024) {
+        erroresLocales.foto = 'La imagen no puede superar los 5 MB';
+      }
+    }
+
     if (Object.keys(erroresLocales).length > 0) {
       setErrores(erroresLocales);
       return;
@@ -451,31 +517,33 @@ export default function AdminMedicos() {
     setGuardando(true);
     try {
       const token = obtenerToken();
-      const cuerpo = {
-        nombre: valores.nombre.trim(),
-        email: valores.email.trim(),
-        cedula_profesional: valores.cedula_profesional.trim(),
-        telefono: valores.telefono || '',
-      };
+
+      // FormData permite enviar la foto junto con el resto de los campos.
+      const formData = new FormData();
+      formData.append('nombre', valores.nombre.trim());
+      formData.append('email', valores.email.trim());
+      formData.append('cedula_profesional', valores.cedula_profesional.trim());
+      formData.append('telefono', valores.telefono || '');
+      formData.append('costo_consulta', costoTexto);
 
       // En creación la contraseña es obligatoria; en edición solo si se escribió.
-      if (valores.password) cuerpo.password = valores.password;
+      if (valores.password) formData.append('password', valores.password);
+      if (valores.foto instanceof File) formData.append('foto', valores.foto);
 
       if (esCreacion) {
+        formData.append('especialidades', JSON.stringify((valores.especialidades || []).map(Number)));
+        formData.append('consultorios', JSON.stringify((valores.consultorios || []).map(Number)));
+
         await apiFetch('/api/medicos', {
           method: 'POST',
-          body: {
-            ...cuerpo,
-            especialidades: (valores.especialidades || []).map(Number),
-            consultorios: (valores.consultorios || []).map(Number),
-          },
+          body: formData,
           token,
         });
         mostrarToast('Médico creado correctamente');
       } else {
         await apiFetch(`/api/medicos/${editando.id}`, {
           method: 'PUT',
-          body: cuerpo,
+          body: formData,
           token,
         });
 
@@ -570,6 +638,20 @@ export default function AdminMedicos() {
     return (
       <dl className="ver-usuario-lista">
         <div className="ver-usuario-fila">
+          <dt>Foto</dt>
+          <dd>
+            {m.foto_url ? (
+              <img
+                className="ver-medico-foto"
+                src={urlArchivo(m.foto_url)}
+                alt={`Foto de ${nombreVisible(m)}`}
+              />
+            ) : (
+              <span className="celda-vacia">Sin foto</span>
+            )}
+          </dd>
+        </div>
+        <div className="ver-usuario-fila">
           <dt>Nombre</dt>
           <dd>{nombreVisible(m)}</dd>
         </div>
@@ -584,6 +666,14 @@ export default function AdminMedicos() {
         <div className="ver-usuario-fila">
           <dt>Teléfono</dt>
           <dd>{tel || <span className="celda-vacia">—</span>}</dd>
+        </div>
+        <div className="ver-usuario-fila">
+          <dt>Costo de consulta</dt>
+          <dd>
+            {m.costo_consulta === null || m.costo_consulta === undefined || m.costo_consulta === ''
+              ? <span className="celda-vacia">—</span>
+              : formatearCosto(m.costo_consulta)}
+          </dd>
         </div>
         <div className="ver-usuario-fila">
           <dt>Estado</dt>
@@ -648,7 +738,7 @@ export default function AdminMedicos() {
           </span>
           <div>
             <h2>Médicos</h2>
-            <p>Administra el equipo médico, sus especialidades y consultorios.</p>
+            <p>Administra el equipo médico, sus especialidades, consultorios y costo de consulta.</p>
           </div>
         </div>
 

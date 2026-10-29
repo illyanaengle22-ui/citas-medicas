@@ -103,7 +103,11 @@ export default function FormModal({
               <CampoFormulario
                 key={campo.nombre}
                 campo={campo}
-                valor={valores[campo.nombre] ?? (campo.tipo === 'checkbox' ? false : campo.tipo === 'multiselect' ? [] : '')}
+                valor={valores[campo.nombre] ?? (
+                  campo.tipo === 'checkbox' ? false :
+                  campo.tipo === 'multiselect' ? [] :
+                  campo.tipo === 'file' ? null : ''
+                )}
                 error={errores[campo.nombre]}
                 soloLectura={soloLectura}
                 passwordVisible={!!passwordVisible[campo.nombre]}
@@ -255,6 +259,30 @@ function CampoFormulario({ campo, valor, error, soloLectura, passwordVisible, on
       );
       break;
 
+    case 'file':
+      inputEl = (
+        <div className="form-archivo">
+          {campo.fotoActual && (
+            <img
+              src={campo.fotoActual}
+              alt="Foto actual"
+              className="form-archivo-preview"
+            />
+          )}
+          <input
+            {...comun}
+            type="file"
+            className={`form-archivo-input${error ? ' input-error' : ''}`}
+            accept={campo.accept || 'image/*'}
+            onChange={(e) => onChange(e.target.files?.[0] || null)}
+          />
+          {valor?.name && (
+            <span className="form-ayuda">Archivo seleccionado: {valor.name}</span>
+          )}
+        </div>
+      );
+      break;
+
     default:
       inputEl = (
         <input
@@ -263,6 +291,9 @@ function CampoFormulario({ campo, valor, error, soloLectura, passwordVisible, on
           value={valor}
           placeholder={campo.placeholder}
           readOnly={soloLectura}
+          min={campo.min}
+          max={campo.max}
+          step={campo.step}
           onChange={(e) => onChange(e.target.value)}
         />
       );
@@ -294,6 +325,8 @@ function construirEstadoInicial(campos, valoresIniciales) {
     } else if (campo.tipo === 'multiselect') {
       const inicial = valoresIniciales[campo.nombre];
       estado[campo.nombre] = Array.isArray(inicial) ? inicial.map(String) : [];
+    } else if (campo.tipo === 'file') {
+      estado[campo.nombre] = null;
     } else {
       estado[campo.nombre] = valoresIniciales[campo.nombre] ?? '';
     }

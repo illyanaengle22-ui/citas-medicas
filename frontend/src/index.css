@@ -1127,6 +1127,51 @@ select.input {
   cursor: pointer;
 }
 
+/* Campo de archivo (foto de médico) */
+.form-archivo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.form-archivo-preview {
+  width: 84px;
+  height: 84px;
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  object-fit: cover;
+  background: var(--suave);
+}
+
+.form-archivo-input {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px dashed #C9DCE8;
+  border-radius: 12px;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.form-archivo-input::file-selector-button {
+  margin-right: 0.75rem;
+  padding: 0.45rem 0.8rem;
+  border: 0;
+  border-radius: var(--radio-pildora);
+  background: var(--suave);
+  color: var(--primario);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.form-archivo-input:hover {
+  border-color: var(--primario);
+}
+
 /* ═══════════════════════════════════════════
    TABLA CRUD
    ═══════════════════════════════════════════ */
@@ -1972,6 +2017,42 @@ select.input {
   font-weight: 400;
   color: var(--texto);
   opacity: 0.5;
+}
+
+.medico-tabla-foto,
+.medico-tabla-avatar {
+  display: block;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid #D8EAF5;
+  box-shadow: 0 0 0 3px #F4FAFF;
+}
+
+.medico-tabla-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--suave);
+  color: var(--primario);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.admin-medicos .crud-table th:first-child,
+.admin-medicos .crud-table td:first-child {
+  width: 72px;
+  padding-right: 0.5rem;
+}
+
+.ver-medico-foto {
+  width: 120px;
+  height: 120px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  object-fit: cover;
+  background: var(--suave);
 }
 
 .admin-medicos .badge-exito,

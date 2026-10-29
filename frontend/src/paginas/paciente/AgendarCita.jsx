@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch, construirQuery } from '../../services/api';
 import { horaCorta, fechaISO } from '../../components/citasHelpers';
+import MedicoCard from '../../components/MedicoCard';
 
 // Duraciones sugeridas (RN-071: 10–240 min).
 const DURACIONES = [15, 30, 45, 60, 90, 120];
@@ -214,18 +215,18 @@ export default function AgendarCita() {
           ) : medicosFiltrados.length === 0 ? (
             <p className="panel-vacio">No hay médicos en esta especialidad.</p>
           ) : (
-            <div className="agendar-chips">
-              {medicosFiltrados.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  className={`agendar-chip ${String(medicoId) === String(m.id) ? 'activo' : ''}`}
-                  onClick={() => cambiarMedico(String(medicoId) === String(m.id) ? '' : String(m.id))}
-                >
-                  <FontAwesomeIcon icon={faUserDoctor} aria-hidden="true" />{' '}
-                  {m.medico_mostrar ?? m.nombre}
-                </button>
-              ))}
+            <div className="medico-card-grid agendar-medicos-grid">
+              {medicosFiltrados.map((m) => {
+                const seleccionado = String(medicoId) === String(m.id);
+                return (
+                  <MedicoCard
+                    key={m.id}
+                    medico={m}
+                    selected={seleccionado}
+                    onSelect={() => cambiarMedico(seleccionado ? '' : String(m.id))}
+                  />
+                );
+              })}
             </div>
           )}
           {medicoSeleccionado && medicoSeleccionado.consultorios?.length > 0 && (

@@ -1,0 +1,172 @@
+/* ═══════════════════════════════════════════
+   TARJETAS DE MÉDICO
+   ═══════════════════════════════════════════ */
+
+.medico-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 1rem;
+}
+
+.medico-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: #fff;
+  color: var(--texto);
+  font-family: inherit;
+  text-align: left;
+  box-shadow: var(--sombra-suave);
+  transition:
+    transform var(--transicion),
+    box-shadow var(--transicion),
+    border-color var(--transicion);
+}
+
+button.medico-card {
+  cursor: pointer;
+}
+
+button.medico-card:hover {
+  transform: translateY(-2px);
+  border-color: #C9E2F1;
+  box-shadow: var(--sombra-hover);
+}
+
+button.medico-card:focus-visible {
+  outline: 2px solid var(--primario);
+  outline-offset: 2px;
+}
+
+.medico-card--seleccionado {
+  border-color: var(--primario);
+  box-shadow:
+    0 0 0 3px rgba(94, 155, 186, 0.18),
+    var(--sombra-suave);
+}
+
+.medico-card-foto {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: linear-gradient(135deg, #E6F2FB 0%, #F7FBFE 100%);
+}
+
+.medico-card-foto img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.medico-card-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--primario);
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.medico-card-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  box-shadow: 0 2px 8px rgba(42, 27, 79, 0.12);
+  pointer-events: none;
+}
+
+.medico-card-cuerpo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.1rem 1.1rem;
+}
+
+.medico-card-nombre {
+  overflow: hidden;
+  color: var(--texto);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.medico-card-especialidad {
+  overflow: hidden;
+  color: var(--primario);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.medico-card-pie {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--borde);
+}
+
+.medico-card-costo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.medico-card-costo-label {
+  color: var(--texto);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  opacity: 0.5;
+  text-transform: uppercase;
+}
+
+.medico-card-costo strong {
+  color: var(--texto);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.medico-card-seleccion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radio-pildora);
+  background: var(--fondo);
+  color: var(--primario);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.medico-card-seleccion.activa {
+  background: var(--suave);
+}
+
+@media (max-width: 520px) {
+  .medico-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
