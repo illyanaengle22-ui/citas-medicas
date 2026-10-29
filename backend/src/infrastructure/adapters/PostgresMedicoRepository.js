@@ -34,6 +34,8 @@ const SQL_MEDICO_COMPLETO = `
     CONCAT('Dr. ', u.nombre)                            AS medico_mostrar,
     m.cedula_profesional,
     m.telefono,
+    m.foto_url,
+    m.costo_consulta,
     m.activo,
     COALESCE(
       json_agg(DISTINCT jsonb_build_object('id', me.especialidad_id, 'nombre', e.nombre))
@@ -70,6 +72,13 @@ class PostgresMedicoRepository extends MedicoRepository {
     return String(email).trim().toLowerCase();
   }
 
+  _normalizarCosto(costo) {
+    if (costo === undefined || costo === null || costo === '') return null;
+    const numero = Number(costo);
+    if (!Number.isFinite(numero)) return null;
+    return Number(numero.toFixed(2));
+  }
+
   // ── Validación de relaciones ───────────────────────────────────────────────
   async _validarEspecialidadesActivas(ids, client) {
     for (const id of ids) {
@@ -101,6 +110,8 @@ class PostgresMedicoRepository extends MedicoRepository {
       medico_mostrar:    row.medico_mostrar,
       cedula_profesional: row.cedula_profesional,
       telefono:          row.telefono,
+      foto_url:          row.foto_url,
+      costo_consulta:    row.costo_consulta === null ? null : Number(row.costo_consulta),
       activo:            row.activo,
       especialidades:    row.especialidades,
       consultorios:      row.consultorios,
@@ -152,7 +163,7 @@ class PostgresMedicoRepository extends MedicoRepository {
     const sql = `
       ${SQL_MEDICO_COMPLETO}
       WHERE ${condiciones.join(' AND ')}
-      GROUP BY m.id, u.nombre, u.email, m.cedula_profesional, m.telefono, m.activo, m.usuario_id
+      GROUP BY m.id, u.nombre, u.email, m.cedula_profesional, m.telefono, m.foto_url, m.costo_consulta, m.activo, m.usuario_id
       ORDER BY u.nombre ASC
     `;
 
@@ -168,7 +179,7 @@ class PostgresMedicoRepository extends MedicoRepository {
     const sql = `
       ${SQL_MEDICO_COMPLETO}
       WHERE ${condiciones.join(' AND ')}
-      GROUP BY m.id, u.nombre, u.email, m.cedula_profesional, m.telefono, m.activo, m.usuario_id
+      GROUP BY m.id, u.nombre, u.email, m.cedula_profesional, m.telefono, m.foto_url, m.costo_consulta, m.activo, m.usuario_id
     `;
     const result = await db.query(sql, [id]);
     if (result.rows.length === 0) return null;
@@ -177,10 +188,12 @@ class PostgresMedicoRepository extends MedicoRepository {
 
   // ── crear (RN-042: todo en una transacción) ───────────────────────────────
   async crear({ nombre, email, password, cedula_profesional, telefono,
+                foto_url = null, costo_consulta = null,
                 especialidades = [], consultorios = [] }) {
     const nombreNorm  = this._normalizarNombre(nombre);
     const emailNorm   = this._normalizarEmail(email);
     const telNorm     = this._normalizarTelefono(telefono);
+    const costoNorm   = this._normalizarCosto(costo_consulta);
     const hash        = await bcrypt.hash(password, 10);
 
     const client = await db.getClient();
@@ -213,10 +226,10 @@ class PostgresMedicoRepository extends MedicoRepository {
       let medicoResult;
       try {
         medicoResult = await client.query(`
-          INSERT INTO medicos (usuario_id, cedula_profesional, telefono)
-          VALUES ($1, $2, $3)
+          INSERT INTO medicos (usuario_id, cedula_profesional, telefono, foto_url, costo_consulta)
+          VALUES ($1, $2, $3, $4, $5)
           RETURNING id
-        `, [usuario_id, cedula_profesional, telNorm]);
+        `, [usuario_id, cedula_profesional, telNorm, foto_url, costoNorm]);
       } catch (err) {
         if (err.code === '23505') throw new DuplicadoCedulaError();
         throw err;
@@ -254,7 +267,8 @@ class PostgresMedicoRepository extends MedicoRepository {
   }
 
   // ── actualizar (nombre y email viven en usuarios) ─────────────────────────
-  async actualizar(id, { nombre, email, cedula_profesional, telefono, password }) {
+  async actualizar(id, { nombre, email, cedula_profesional, telefono, password,
+                         foto_url, costo_consulta }) {
     const client = await db.getClient();
     try {
       await client.query('BEGIN');
@@ -305,6 +319,14 @@ class PostgresMedicoRepository extends MedicoRepository {
       if (telefono !== undefined) {
         camposM.push(`telefono = $${valsM.length + 1}`);
         valsM.push(this._normalizarTelefono(telefono));
+      }
+      if (foto_url !== undefined) {
+        camposM.push(`foto_url = $${valsM.length + 1}`);
+        valsM.push(foto_url);
+      }
+      if (costo_consulta !== undefined) {
+        camposM.push(`costo_consulta = $${valsM.length + 1}`);
+        valsM.push(this._normalizarCosto(costo_consulta));
       }
       if (camposM.length > 0) {
         valsM.push(id);

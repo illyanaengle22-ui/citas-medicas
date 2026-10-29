@@ -27,8 +27,10 @@ app.use(express.json());
 // Sirve el frontend de prueba (login-test.html) directo desde el backend
 app.use(express.static(path.join(__dirname, '..', '..', 'frontend')));
 
-// Sirve imágenes de perfil subidas por multer
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// Sirve imágenes de perfil/médicos subidas por multer.
+// UPLOADS_DIR permite una ruta absoluta en producción; en desarrollo usa backend/uploads.
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/captcha', captchaRoutes);

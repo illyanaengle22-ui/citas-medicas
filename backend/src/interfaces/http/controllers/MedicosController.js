@@ -59,6 +59,42 @@ function validarArrayIds(arr, tipo, campo) {
   return null;
 }
 
+// En multipart/form-data los arrays llegan como string JSON ("[1,2]")
+// o separados por coma ("1,2"). En JSON llegan como arrays normales.
+function normalizarArrayIds(valor) {
+  if (Array.isArray(valor)) return valor;
+  if (valor === undefined || valor === null || valor === '') return [];
+  if (typeof valor !== 'string') return valor;
+
+  const texto = valor.trim();
+  if (!texto) return [];
+
+  try {
+    const parsed = JSON.parse(texto);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (_) {
+    // No era JSON; se intenta con lista separada por comas.
+  }
+
+  return texto.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+// costo_consulta: undefined = no actualizar; '' o null = limpiar;
+// número >= 0 = guardar con dos decimales.
+function validarCostoConsulta(valor) {
+  if (valor === undefined) return { ok: true, valor: undefined };
+  if (valor === null || String(valor).trim() === '') return { ok: true, valor: null };
+
+  const numero = Number(String(valor).trim());
+  if (!Number.isFinite(numero) || numero < 0) {
+    return { ok: false, mensaje: 'El costo de consulta debe ser un número mayor o igual a 0' };
+  }
+  if (numero > 99999999.99) {
+    return { ok: false, mensaje: 'El costo de consulta excede el máximo permitido' };
+  }
+  return { ok: true, valor: Number(numero.toFixed(2)) };
+}
+
 // Errores PG que son de datos (400)
 function esErrorDeDatos(error) {
   return error.code === '22003' || error.code === '22P02';
@@ -148,7 +184,7 @@ async function obtenerPorId(req, res) {
 async function crear(req, res) {
   try {
     const { nombre, email, password, cedula_profesional, telefono,
-            especialidades = [], consultorios = [] } = req.body || {};
+            costo_consulta, especialidades = [], consultorios = [] } = req.body || {};
 
     // Validaciones obligatorias
     const errNombre = validarNombre(nombre);
@@ -169,17 +205,28 @@ async function crear(req, res) {
     const errTel = validarTelefono(telefono);
     if (errTel) return res.status(400).json({ ok: false, mensaje: errTel });
 
-    // Validar arrays de ids
-    const errEsp = validarArrayIds(especialidades, 'smallint', 'especialidades');
+    const costo = validarCostoConsulta(costo_consulta);
+    if (!costo.ok) return res.status(400).json({ ok: false, mensaje: costo.mensaje });
+
+    // Validar arrays de ids (acepta JSON y multipart)
+    const especialidadesNorm = normalizarArrayIds(especialidades);
+    const consultoriosNorm   = normalizarArrayIds(consultorios);
+
+    const errEsp = validarArrayIds(especialidadesNorm, 'smallint', 'especialidades');
     if (errEsp) return res.status(400).json({ ok: false, mensaje: errEsp });
 
-    const errCon = validarArrayIds(consultorios, 'bigint', 'consultorios');
+    const errCon = validarArrayIds(consultoriosNorm, 'bigint', 'consultorios');
     if (errCon) return res.status(400).json({ ok: false, mensaje: errCon });
+
+    const fotoUrl = req.file ? `/uploads/medicos/${req.file.filename}` : null;
 
     const caso = new RegistrarMedico(repo);
     const medico = await caso.execute({
       nombre, email, password, cedula_profesional, telefono,
-      especialidades, consultorios,
+      foto_url: fotoUrl,
+      costo_consulta: costo.valor ?? null,
+      especialidades: especialidadesNorm,
+      consultorios: consultoriosNorm,
     });
 
     return res.status(201).json({ ok: true, mensaje: 'Médico creado correctamente', data: medico.toPublicDTO() });
@@ -198,11 +245,13 @@ async function actualizar(req, res) {
     const id = validarId(req.params.id, 'bigint');
     if (!id) return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
 
-    const { nombre, email, cedula_profesional, telefono, password } = req.body || {};
+    const { nombre, email, cedula_profesional, telefono, password,
+            costo_consulta } = req.body || {};
 
-    // Al menos un campo debe venir
+    // Al menos un campo debe venir (incluyendo foto o costo)
     if (nombre === undefined && email === undefined && cedula_profesional === undefined &&
-        telefono === undefined && password === undefined) {
+        telefono === undefined && password === undefined &&
+        costo_consulta === undefined && !req.file) {
       return res.status(400).json({ ok: false, mensaje: 'No hay campos para actualizar' });
     }
 
@@ -220,8 +269,17 @@ async function actualizar(req, res) {
       if (errTel) return res.status(400).json({ ok: false, mensaje: errTel });
     }
 
+    const costo = validarCostoConsulta(costo_consulta);
+    if (!costo.ok) return res.status(400).json({ ok: false, mensaje: costo.mensaje });
+
+    const fotoUrl = req.file ? `/uploads/medicos/${req.file.filename}` : undefined;
+
     const caso = new ActualizarMedico(repo);
-    const medico = await caso.execute(id, { nombre, email, cedula_profesional, telefono, password });
+    const medico = await caso.execute(id, {
+      nombre, email, cedula_profesional, telefono, password,
+      foto_url: fotoUrl,
+      costo_consulta: costo.valor,
+    });
 
     if (!medico) return res.status(404).json({ ok: false, mensaje: 'Médico no encontrado' });
 

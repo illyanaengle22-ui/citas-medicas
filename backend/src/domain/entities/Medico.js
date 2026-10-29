@@ -13,6 +13,8 @@ class Medico {
     email,
     cedula_profesional,
     telefono,
+    foto_url,
+    costo_consulta,
     activo,
     especialidades = [],
     consultorios  = [],
@@ -23,6 +25,8 @@ class Medico {
     this.email             = email;
     this.cedula_profesional = cedula_profesional;
     this.telefono          = telefono;
+    this.foto_url          = foto_url;
+    this.costo_consulta    = costo_consulta;
     this.activo            = activo;
     this.especialidades    = especialidades;
     this.consultorios      = consultorios;
@@ -38,6 +42,8 @@ class Medico {
       medico_mostrar:    `Dr. ${this.nombre}`,
       cedula_profesional: this.cedula_profesional,
       telefono:          this.telefono,
+      foto_url:          this.foto_url,
+      costo_consulta:    this.costo_consulta,
       activo:            this.activo,
       especialidades:    this.especialidades,
       consultorios:      this.consultorios,
@@ -52,6 +58,8 @@ class Medico {
       nombre:         this.nombre,
       medico_mostrar: `Dr. ${this.nombre}`,
       telefono:       this.telefono,
+      foto_url:       this.foto_url,
+      costo_consulta: this.costo_consulta,
       activo:         this.activo,
       especialidades: this.especialidades,
       consultorios:   this.consultorios,
