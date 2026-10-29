@@ -89,14 +89,22 @@ async function listar(req, res) {
     const soloConEspecialidad = !admin;
 
     // Filtros
+    // Las tools de n8n envían el literal 'null'/'undefined' cuando $fromAI
+    // no recibió el parámetro: se trata como "sin filtro", no como ID
+    // inválido (RN de chatbot; evita 400 espurios).
+    const esSinFiltro = (valor) => {
+      const texto = String(valor ?? '').trim().toLowerCase();
+      return texto === '' || texto === 'null' || texto === 'undefined';
+    };
+
     let especialidadId = null;
-    if (req.query.especialidad) {
+    if (req.query.especialidad && !esSinFiltro(req.query.especialidad)) {
       especialidadId = validarId(req.query.especialidad, 'smallint');
       if (!especialidadId) return res.status(400).json({ ok: false, mensaje: 'ID de especialidad inválido' });
     }
 
     let consultorioId = null;
-    if (req.query.consultorio) {
+    if (req.query.consultorio && !esSinFiltro(req.query.consultorio)) {
       consultorioId = validarId(req.query.consultorio, 'bigint');
       if (!consultorioId) return res.status(400).json({ ok: false, mensaje: 'ID de consultorio inválido' });
     }

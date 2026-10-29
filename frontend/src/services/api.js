@@ -43,16 +43,41 @@ async function apiFetch(path, { method = 'GET', body, token } = {}) {
   return json.data;
 }
 
+// Valores corruptos que localStorage puede contener si en algún momento se
+// guardó `undefined` (JSON.stringify(undefined) ⇒ undefined ⇒ "undefined").
+function esValorInvalido(valor) {
+  return valor == null || valor === 'undefined' || valor === 'null' || valor === '';
+}
+
 export function obtenerToken() {
-  return localStorage.getItem('token');
+  const token = localStorage.getItem('token');
+  if (esValorInvalido(token)) {
+    limpiarSesion();
+    return null;
+  }
+  return token;
 }
 
 export function obtenerUsuario() {
   const raw = localStorage.getItem('user');
-  return raw ? JSON.parse(raw) : null;
+  if (esValorInvalido(raw)) {
+    limpiarSesion();
+    return null;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    // Sesión corrupta: se limpia para que la app no se rompa al cargar.
+    limpiarSesion();
+    return null;
+  }
 }
 
 export function guardarSesion(token, user) {
+  if (esValorInvalido(token) || !user || typeof user !== 'object') {
+    limpiarSesion();
+    return;
+  }
   localStorage.setItem('token', token);
   localStorage.setItem('user', JSON.stringify(user));
 }
@@ -72,12 +97,14 @@ export async function login(email, password, captchaId, captchaTexto) {
 }
 
 export async function registrar(nombre, email, password, captchaId, captchaTexto) {
-  const data = await apiFetch('/api/auth/registrar', {
+  // El registro NO crea sesión: el backend devuelve la fila del usuario en
+  // estado `pendiente` y no emite token (RN-011). La sesión se crea recién
+  // cuando el administrador aprueba la cuenta y la persona inicia sesión.
+  await apiFetch('/api/auth/registrar', {
     method: 'POST',
     body: { nombre, email, password, captchaId, captchaTexto },
   });
-  guardarSesion(data.token, data.usuario);
-  return data.usuario;
+  return null;
 }
 
 export async function obtenerCaptcha() {

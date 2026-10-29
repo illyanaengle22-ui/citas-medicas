@@ -16,8 +16,9 @@ export function AuthProvider({ children }) {
 
   const registrar = useCallback(async (nombre, email, password, captchaId, captchaTexto) => {
     const usuario = await registrarService(nombre, email, password, captchaId, captchaTexto);
-    setToken(obtenerToken());
-    setUser(usuario);
+    // Registro no genera token ni sesión (cuenta queda pendiente de aprobación).
+    setToken(null);
+    setUser(null);
     return usuario;
   }, []);
 

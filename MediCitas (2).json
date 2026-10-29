@@ -1,0 +1,790 @@
+{
+  "name": "MediCitas",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "=Eres MedicitasBot, el asistente virtual de la clínica. Ayudas a los pacientes a gestionar sus citas médicas por chat: consultarlas, agendar, confirmar, cancelar y reagendar.\n\nFECHA ACTUAL\nHoy es {{ $now.setLocale('es').toFormat(\"cccc d 'de' LLLL 'de' yyyy, HH:mm\") }}. Úsala para interpretar \"mañana\", \"el viernes\", \"la próxima semana\", etc. Al enviar fechas a las herramientas usa siempre el formato YYYY-MM-DD.\n\nPERSONALIDAD Y TONO\n- Hablas en español, de forma cercana, amable y clara, como un recepcionista servicial.\n- Eres conciso: respuestas de 2 a 5 oraciones, salvo que te pidan detalles.\n- Nunca usas jerga técnica ni mencionas \"endpoints\", \"APIs\", \"herramientas\" o \"bases de datos\". El paciente solo ve tu ayuda.\n- No usas emojis.\n- Te despides con calidez y ofreces más ayuda solo si tiene sentido.\n\nMENÚ INICIAL\nCuando el paciente salude, inicie la conversación o no deje claro qué necesita, preséntale este menú tal cual:\n\nHola, soy MedicitasBot, el asistente de la clínica. ¿Qué te gustaría hacer?\n\n1. Ver mis citas\n2. Agendar una cita nueva\n3. Confirmar una cita\n4. Cancelar una cita\n5. Reagendar una cita\n6. Consultar médicos y especialidades\n7. Ver mi historial o mis recordatorios\n\nPuedes responder con el número o escribirme lo que necesitas.\n\nReglas del menú:\n- Si el paciente responde con un número, ejecuta esa opción. Si escribe lo que quiere con sus palabras, no le muestres el menú: ayúdalo directamente.\n- Si el paciente ya dijo qué quiere en su primer mensaje (ej. \"quiero cancelar mi cita\"), salta el menú y procede.\n- Al terminar una gestión, pregunta brevemente si necesita algo más. Muestra el menú de nuevo solo si el paciente lo pide (\"menú\", \"opciones\", \"ayuda\") o si parece perdido.\n\nVINCULACIÓN DE CUENTA\nEstado actual del paciente: vinculado = {{ $('Sesion').first().json.vinculado }}\n- Si vinculado es false: NO llames a herramientas de citas. Responde solo: \"Aún no vinculas tu cuenta. Entra a la webapp, en el dashboard elige 'Generar código' y envíamelo aquí.\"\n- Si el mensaje contiene un código de 6 caracteres (ej: \"/start QK845E\", \"QK845E\", \"mi código es QK845E\"), llama link_account con ese código. Tras \"cuenta vinculada\", pide que repita su consulta.\n- \"/start\" sin código → pídele el código. Nunca inventes códigos.\n\nHERRAMIENTAS (no inventes datos)\nSolo puedes responder con información real obtenida de las herramientas. Nunca inventes horarios, fechas, nombres de médicos ni estados de citas.\n- list_my_appointments: ver las citas del paciente (se puede filtrar por estado y fechas).\n- get_appointment: ver el detalle de una cita específica.\n- get_appointment_history: historial de citas pasadas.\n- get_appointment_reminders: recordatorios de citas.\n- list_specialties: listar las especialidades disponibles.\n- search_doctors: buscar médicos por especialidad o nombre.\n- get_available_slots: consultar horarios disponibles de un médico.\n- create_appointment: agendar una cita.\n- confirm_appointment: confirmar una cita.\n- cancel_appointment: cancelar una cita.\n- get_reschedule_options: ver horarios alternativos para reagendar.\n- reschedule_appointment: reagendar una cita.\n\nFLUJOS\nVer citas (opción 1): usa list_my_appointments y preséntalas en una lista corta con fecha, hora y médico. Si no tiene citas, dilo con claridad y ofrece agendar una.\n\nAgendar (opción 2): pregunta especialidad, luego médico, luego fecha y luego hora. Usa list_specialties, search_doctors y get_available_slots para ofrecer solo opciones reales. Si falta un dato, pídelo de forma natural, de uno en uno. Antes de crear la cita, resume los datos y pide confirmación. Después usa create_appointment.\n\nConfirmar (opción 3): si el paciente tiene varias citas pendientes, muéstralas y pregunta cuál. Luego usa confirm_appointment.\n\nCancelar (opción 4): identifica la cita (usa list_my_appointments si hace falta). Antes de cancelar, pregunta: \"¿Confirmas que quieres cancelar tu cita del 27 de octubre con el Dr. Pérez?\". Solo ejecuta cancel_appointment si responde que sí.\n\nReagendar (opción 5): identifica la cita, usa get_reschedule_options y muestra los horarios disponibles. Cuando el paciente elija uno, confirma el cambio antes de ejecutar reschedule_appointment.\n\nConsultar médicos y especialidades (opción 6): usa list_specialties o search_doctors según lo que pida.\n\nHistorial y recordatorios (opción 7): usa get_appointment_history o get_appointment_reminders según lo que pida. Si no queda claro cuál, pregunta.\n\nREGLAS GENERALES\n- Antes de cualquier acción que modifique una cita (cancelar, reagendar, agendar), confirma con el paciente.\n- Después de cada acción exitosa, confirma el resultado en una frase clara. Ejemplo: \"Listo, tu cita del 27 de octubre a las 10:00 quedó cancelada y el horario fue liberado.\"\n- Si una herramienta devuelve un error, explica la razón en palabras sencillas y sugiere el siguiente paso. Nunca digas \"error técnico\".\n- Si no encuentras resultados, dilo claramente y ofrece una alternativa. No inventes.\n\nLÍMITES ESTRICTOS\n- NO das consejo médico, diagnósticos, interpretación de síntomas ni recomendaciones de tratamiento. Si preguntan, responde: \"Para eso necesitas hablar con tu médico. Yo solo te ayudo con tus citas.\"\n- NO agendas, cancelas ni consultas citas de otros pacientes. Solo las del paciente de esta conversación.\n- NO pides datos sensibles (contraseñas, número de teléfono completo, diagnósticos). Si el paciente los comparte, pídele amablemente que no lo haga.\n- Si el paciente se molesta, discúlpate con empatía y ofrécele contactar a atención humana en: [TELÉFONO O CORREO DE LA CLÍNICA].\n\nCUANDO NO ENTIENDES\nPide una aclaración breve y no adivines. Ejemplo: \"¿Te refieres a cancelar o a reagendar tu cita?\"\n\nFORMATO\n- Solo texto plano en español, sin Markdown ni emojis. No uses asteriscos, almohadillas ni guiones largos de formato.\n- Usa listas numeradas únicamente para menús, citas u horarios disponibles."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        48,
+        -96
+      ],
+      "id": "45ecdd5b-1912-4f84-b228-35c3920aba54",
+      "name": "AI Agent",
+      "retryOnFail": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        16
+      ],
+      "id": "81d942a4-e055-408d-be15-4e2e6c2082c2",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "QXK4lQ3J4clPPY7H",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Lista las especialidades médicas disponibles con su ID.",
+        "url": "http://localhost:4000/api/especialidades",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Sesion').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -240,
+        80
+      ],
+      "id": "240a7179-0c2b-485c-b965-7db593a1782a",
+      "name": "list_specialties"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Busca médicos. Parámetros opcionales: especialidad_id, nombre, consultorio_id. Devuelve el ID del médico y su consultorio.\n",
+        "url": "http://localhost:4000/api/medicos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "especialidad",
+              "value": "={{ String($fromAI('especialidad_id') ?? '').trim() }}"
+            },
+            {
+              "name": "q",
+              "value": "={{ String($fromAI('nombre') ?? '').trim() }}"
+            },
+            {
+              "name": "consultorio",
+              "value": "={{ String($fromAI('consultorio_id') ?? '').trim() }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Sesion').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -80,
+        272
+      ],
+      "id": "7f619926-14b1-4439-b5a7-6e6a8ab8e0c4",
+      "name": "search_doctors"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Horarios disponibles de un médico en una fecha. Requiere medico_id y fecha (YYYY-MM-DD).",
+        "url": "={{ 'http://localhost:4000/api/horarios/medico/' + $fromAI('medico_id','ID del médico','string') }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fecha",
+              "value": "={{ String($fromAI('fecha','','string') ?? '').trim() }}"
+            },
+            {
+              "name": "duracion_minutos",
+              "value": "={{ $fromAI('duracion_minutos','','number') || 30 }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Sesion').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -80,
+        96
+      ],
+      "id": "fef30079-e68c-449b-965c-7c495cb68afc",
+      "name": "get_available_slots"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:4000/api/citas",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "estado",
+              "value": "={{ String($fromAI('estado', 'Estado de la cita. Valores: pendiente, confirmada, cancelada. Dejar vacío si no se especifica', 'string') ?? '').trim() }}"
+            },
+            {
+              "name": "fecha_desde",
+              "value": "={{ String($fromAI('fecha_desde', 'Fecha inicial en formato YYYY-MM-DD. Opcional', 'string') ?? '').trim() }}"
+            },
+            {
+              "name": "fecha_hasta",
+              "value": "={{ String($fromAI('fecha_hasta', 'Fecha final en formato YYYY-MM-DD. Opcional', 'string') ?? '').trim() }}"
+            },
+            {
+              "name": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Sesion').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -256,
+        272
+      ],
+      "id": "c8095d80-ecf6-40c1-933f-b41fc01d92ed",
+      "name": "list_my_appointments"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://localhost:4000/api/citas/' + $fromAI('cita_id','','string') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Sesion').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        192,
+        96
+      ],
+      "id": "5e8d8a31-7e1a-490a-93c7-0b4781469b95",
+      "name": "get_appointment"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://localhost:4000/api/citas/' + $fromAI('cita_id','','string') + '/historial' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Sesion').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        48,
+        96
+      ],
+      "id": "d0d76740-d66f-48f1-8a4a-ec433575e250",
+      "name": "get_appointment_history"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://localhost:4000/api/recordatorios/cita/' + $fromAI('cita_id','','string') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Sesion').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        64,
+        272
+      ],
+      "id": "c43caf81-3ce7-4be4-b6b5-83bf346cd1b4",
+      "name": "get_appointment_reminders"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Agenda una cita. Requiere medico_id, consultorio_id, fecha_hora (ISO) y motivo. Úsala solo después de que el paciente confirme.",
+        "method": "POST",
+        "url": "http://localhost:4000/api/citas",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Sesion').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"medico_id\": \"{{ String($fromAI('medico_id') ?? '') }}\",\n  \"consultorio_id\": \"{{ String($fromAI('consultorio_id') ?? '') }}\",\n  \"fecha_hora\": \"{{ String($fromAI('fecha_hora') ?? '') }}\",\n  \"duracion_minutos\": 30,\n  \"motivo\": \"{{ String($fromAI('motivo') ?? '') }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        272
+      ],
+      "id": "92287312-f0b4-4ffb-a3a8-4cd60aa657f7",
+      "name": "create_appointment"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'http://localhost:4000/api/citas/' + $fromAI('cita_id') + '/confirmar' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Sesion').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        336,
+        112
+      ],
+      "id": "7079986e-f30a-4a22-b0e1-ac351bc212c2",
+      "name": "confirm_appointment"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Cancela una cita por cita_id. Úsala solo con confirmación del paciente.",
+        "method": "PUT",
+        "url": "={{ 'http://localhost:4000/api/citas/' + $fromAI('cita_id') + '/estado' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Sesion').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"estado\":\"cancelada\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        384,
+        304
+      ],
+      "id": "b538c2b7-ef1c-4b71-b290-6e6c9618a502",
+      "name": "cancel_appointment"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'http://localhost:4000/api/citas/' + $fromAI('cita_id') + '/propuestas' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Sesion').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        512,
+        272
+      ],
+      "id": "c0724016-5d87-49b5-b548-48c30c848cdb",
+      "name": "get_reschedule_options"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'http://localhost:4000/api/citas/' + $fromAI('cita_id') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Sesion').first().json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"fecha_hora\": \"{{ String($fromAI('fecha_hora') ?? '') }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        480,
+        112
+      ],
+      "id": "bf39310f-b1fe-40ac-9522-033f6d19ee92",
+      "name": "reschedule_appointment"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:4000/api/telegram/token",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "tu-secreto"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chatId\": \"{{ $('Entrada').first().json.message.chat.id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -416,
+        -288
+      ],
+      "id": "4ef3d02b-9bfe-40b5-a0c7-ae61609f6051",
+      "name": "Obtener token",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        -272
+      ],
+      "id": "0219740e-e90f-4ff6-82c8-c66fd9d37692",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -608,
+        -416
+      ],
+      "id": "20740b5f-f1d9-4733-a909-1315676e7c29",
+      "name": "Entrada",
+      "webhookId": "f4646ae4-1455-4abc-a03d-f0679aa9d02d",
+      "credentials": {
+        "telegramApi": {
+          "id": "YRKFPAQ3VnP21gS2",
+          "name": "medicitas"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "733a7b37-e845-41e2-8db3-5b21a28d1255",
+              "name": "chatInput",
+              "value": "={{ $('Entrada').first().json.message.text }}",
+              "type": "string"
+            },
+            {
+              "id": "3a81ac55-7095-45f1-8407-dc9c81ce845a",
+              "name": "sessionId",
+              "value": "={{ $('Entrada').first().json.message.chat.id }}",
+              "type": "string"
+            },
+            {
+              "id": "b6e000f4-9217-49d5-94b6-787679b10c1f",
+              "name": "chatId",
+              "value": "={{ $('Entrada').first().json.message.chat.id }}",
+              "type": "string"
+            },
+            {
+              "id": "76cd9185-4d22-44ed-9246-0487f3f75de3",
+              "name": "token",
+              "value": "={{ $json?.data?.token ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "fefcebf1-1d5e-4391-9823-14b9a240e43d",
+              "name": "vinculado",
+              "value": "={{ $json?.ok === true }}",
+              "type": "string"
+            },
+            {
+              "id": "a625d5c2-c217-48d3-a31d-ba299118db38",
+              "name": "aviso",
+              "value": "={{ $json?.mensaje ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "f3c04cba-a1a3-49ce-b3d3-25928d9e92a9",
+              "name": "codigo",
+              "value": "={{ ($('Entrada').first().json.message.text.match(/[A-Z0-9]{6}/i) || [''])[0].toUpperCase() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -144,
+        -176
+      ],
+      "id": "1a37bdf8-1e83-422e-829f-298ebd34783e",
+      "name": "Sesion"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Entrada').first().json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": true
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        -96
+      ],
+      "id": "0f52811e-d268-4ed9-8545-99ce7fc75378",
+      "name": "Enviar",
+      "webhookId": "622176fe-c406-4eca-afeb-76b3014d926f",
+      "credentials": {
+        "telegramApi": {
+          "id": "YRKFPAQ3VnP21gS2",
+          "name": "medicitas"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Vincula este chat con la cuenta del paciente. Úsala SOLO cuando el paciente envíe su código de 6 caracteres.",
+        "method": "POST",
+        "url": "http://localhost:4000/api/telegram/vincular",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "tu-secreto"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chatId\": \"{{ $('Sesion').first().json.chatId }}\",\n  \"codigo\": \"{{ $('Sesion').first().json.codigo }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        608,
+        80
+      ],
+      "id": "aca87490-06c8-44ee-9fcd-e49fc9d36611",
+      "name": "link_account",
+      "notesInFlow": false
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "list_specialties": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search_doctors": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_available_slots": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "list_my_appointments": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_appointment": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_appointment_history": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_appointment_reminders": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_appointment": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "confirm_appointment": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cancel_appointment": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_reschedule_options": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reschedule_appointment": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Enviar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener token": {
+      "main": [
+        [
+          {
+            "node": "Sesion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entrada": {
+      "main": [
+        [
+          {
+            "node": "Obtener token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sesion": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "link_account": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "cb655df8-d8a2-4d70-9a9d-ac5ea4496f9b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "81da7a4fd60210cfe9257b8f081da82af63d1738117958d3cadfdadd280cf155"
+  },
+  "id": "rjrlMQS0icELm9Wi",
+  "tags": []
+}
