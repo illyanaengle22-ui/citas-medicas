@@ -16,6 +16,10 @@ const {
   pacienteIdDeUsuario,
 } = require('../utils/identidad');
 const { esFechaISO } = require('../utils/rangoFechas');
+const {
+  ZONA_HORARIA,
+  formatearFechaHoraLocal,
+} = require('../../../infrastructure/utils/fechaHoraLocal');
 
 const citasRepo = new PostgresCitaRepository();
 const horariosRepo = new PostgresHorarioRepository();
@@ -90,16 +94,27 @@ async function exigirAccesoCita(req, res, cita) {
   return false;
 }
 
-function formatearCita(row) {
+function formatearCita(row, formatoLocal = false) {
+  const fechaLocal = formatearFechaHoraLocal(row.fecha_hora);
+  const fechaFinLocal = formatearFechaHoraLocal(row.fecha_fin);
   return {
     id: row.id,
     uuid_publico: row.uuid_publico,
     paciente_id: row.paciente_id,
     medico_id: row.medico_id,
     consultorio_id: row.consultorio_id,
-    fecha_hora: row.fecha_hora,
+    // `formato=local` lo usan las herramientas de n8n: así el modelo recibe
+    // directamente 08:30 en lugar del ISO UTC y no depende de interpretarlo.
+    fecha_hora: formatoLocal ? (fechaLocal?.iso ?? row.fecha_hora) : row.fecha_hora,
+    // Campos de presentación para n8n/Telegram: la API sigue exponiendo
+    // `fecha_hora` en UTC por defecto, pero estos valores ya están en la zona
+    // de la clínica.
+    fecha_local: fechaLocal?.fecha ?? null,
+    hora_local: fechaLocal?.hora ?? null,
+    fecha_hora_local: fechaLocal?.iso ?? null,
+    zona_horaria: ZONA_HORARIA,
     duracion_minutos: row.duracion_minutos,
-    fecha_fin: row.fecha_fin,
+    fecha_fin: formatoLocal ? (fechaFinLocal?.iso ?? row.fecha_fin) : row.fecha_fin,
     estado_id: row.estado_id,
     estado: row.estado,
     motivo: row.motivo,
@@ -137,6 +152,25 @@ async function listar(req, res) {
       }
       filtros.estado = estado;
     }
+
+    // Permite listar un subconjunto de estados en una sola petición. Las vistas
+    // del paciente lo usan para separar citas activas del historial sin perder
+    // registros por la paginación.
+    if (q.estados !== undefined) {
+      const estados = [...new Set(
+        String(q.estados)
+          .split(',')
+          .map((estado) => estado.trim().toLowerCase())
+          .filter(Boolean)
+      )];
+      if (estados.length === 0 || estados.some((estado) => !ESTADOS_VALIDOS.includes(estado))) {
+        return res.status(400).json({
+          ok: false,
+          mensaje: `estados inválidos; use una lista separada por comas con: ${ESTADOS_VALIDOS.join(', ')}`,
+        });
+      }
+      filtros.estados = estados;
+    }
     if (q.fecha_desde !== undefined) {
       if (!esFechaISO(q.fecha_desde)) {
         return res.status(400).json({ ok: false, mensaje: 'fecha_desde debe ser YYYY-MM-DD' });
@@ -157,11 +191,12 @@ async function listar(req, res) {
     filtros.limit = limit;
 
     const resultado = await citasRepo.listar(filtros);
+    const formatoLocal = req.query.formato === 'local';
     return res.json({
       ok: true,
       mensaje: 'Lista de citas',
       data: {
-        citas: resultado.data.map(formatearCita),
+        citas: resultado.data.map((cita) => formatearCita(cita, formatoLocal)),
         total: resultado.total,
         page: resultado.page,
         limit: resultado.limit,
@@ -194,7 +229,11 @@ async function obtenerPorId(req, res) {
     if (!cita) return res.status(404).json({ ok: false, mensaje: 'Cita no encontrada' });
 
     if (!(await exigirAccesoCita(req, res, cita))) return;
-    return res.json({ ok: true, mensaje: 'Cita encontrada', data: formatearCita(cita) });
+    return res.json({
+      ok: true,
+      mensaje: 'Cita encontrada',
+      data: formatearCita(cita, req.query.formato === 'local'),
+    });
   } catch (error) {
     return respuestaError500(res, 'Error al obtener cita', error);
   }
@@ -236,7 +275,7 @@ async function crear(req, res) {
     return res.status(201).json({
       ok: true,
       mensaje: resultado.mensaje,
-      data: creada ? formatearCita(creada) : resultado.data,
+      data: creada ? formatearCita(creada, req.query.formato === 'local') : resultado.data,
     });
   } catch (error) {
     if (error instanceof TraslapeError) {
@@ -266,7 +305,7 @@ async function confirmar(req, res) {
     return res.json({
       ok: true,
       mensaje: resultado.mensaje,
-      data: actualizada ? formatearCita(actualizada) : resultado.data,
+      data: actualizada ? formatearCita(actualizada, req.query.formato === 'local') : resultado.data,
     });
   } catch (error) {
     if (error instanceof TraslapeError) {
@@ -312,7 +351,7 @@ async function cambiarEstado(req, res) {
     return res.json({
       ok: true,
       mensaje: resultado.mensaje,
-      data: actualizada ? formatearCita(actualizada) : resultado.data,
+      data: actualizada ? formatearCita(actualizada, req.query.formato === 'local') : resultado.data,
     });
   } catch (error) {
     if (error instanceof TraslapeError) {
@@ -342,7 +381,7 @@ async function reagendar(req, res) {
     return res.json({
       ok: true,
       mensaje: resultado.mensaje,
-      data: actualizada ? formatearCita(actualizada) : resultado.data,
+      data: actualizada ? formatearCita(actualizada, req.query.formato === 'local') : resultado.data,
     });
   } catch (error) {
     if (error instanceof TraslapeError) {

@@ -7,10 +7,11 @@ import { useNavigate } from 'react-router-dom';
 import CrudTable from '../../components/CrudTable';
 import FormModal from '../../components/FormModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { apiFetch, construirQuery } from '../../services/api';
+import { apiFetch } from '../../services/api';
+import { obtenerTodasLasCitas } from '../../services/citas';
 import {
-  ESTADOS_CITA, claseEstado, etiquetaEstado, formatearFechaHora, formatearDuracion,
-  esVigente,
+  ESTADOS_CITA, ESTADOS_VIGENTES, claseEstado, etiquetaEstado, formatearFechaHora,
+  formatearDuracion, esVigente,
 } from '../../components/citasHelpers';
 
 const columnas = [
@@ -42,9 +43,13 @@ const columnas = [
   },
 ];
 
+// Mis Citas solo muestra citas activas. Las finalizadas (cancelada,
+// completada y no_asistio) se consultan desde Mi Historial.
 const opcionesEstado = [
-  { valor: '', etiqueta: 'Todos los estados' },
-  ...ESTADOS_CITA.map((e) => ({ valor: e.clave, etiqueta: e.etiqueta })),
+  { valor: '', etiqueta: 'Todas las citas activas' },
+  ...ESTADOS_CITA
+    .filter((e) => ESTADOS_VIGENTES.includes(e.clave))
+    .map((e) => ({ valor: e.clave, etiqueta: e.etiqueta })),
 ];
 
 function CitaDetalle({ cita }) {
@@ -88,9 +93,13 @@ export default function MisCitas() {
   const cargarDatos = useCallback(async () => {
     setCargando(true);
     try {
-      const query = construirQuery({ estado: filtroEstado, limit: 100 });
-      const data = await apiFetch(`/api/citas${query}`);
-      setDatos(data?.citas ?? []);
+      const citas = await obtenerTodasLasCitas({
+        estado: filtroEstado,
+        // Sin filtro explícito, el backend devuelve solo estados vigentes.
+        estados: filtroEstado ? '' : ESTADOS_VIGENTES.join(','),
+      });
+      // Filtro defensivo por si el frontend se despliega antes que el backend.
+      setDatos(citas.filter((cita) => ESTADOS_VIGENTES.includes(cita.estado)));
     } catch (err) {
       mostrarToast(err.message, 'error');
     } finally {
@@ -219,7 +228,9 @@ export default function MisCitas() {
         datos={datos}
         cargando={cargando}
         acciones={acciones}
-        mensajeVacio="Aún no tienes citas registradas"
+        mensajeVacio={filtroEstado
+          ? 'No hay citas con este estado.'
+          : 'No tienes citas activas. Las citas finalizadas están en Mi Historial.'}
         buscar={false}
       />
 

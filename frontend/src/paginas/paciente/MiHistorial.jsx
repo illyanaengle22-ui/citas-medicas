@@ -3,7 +3,8 @@ import { faNotesMedical, faEye } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import CrudTable from '../../components/CrudTable';
 import FormModal from '../../components/FormModal';
-import { apiFetch, construirQuery } from '../../services/api';
+import { apiFetch } from '../../services/api';
+import { obtenerTodasLasCitas } from '../../services/citas';
 import {
   ESTADOS_FINALES, claseEstado, etiquetaEstado, formatearFechaHora, formatearDuracion,
 } from '../../components/citasHelpers';
@@ -80,9 +81,13 @@ export default function MiHistorial() {
   const cargarDatos = useCallback(async () => {
     setCargando(true);
     try {
-      const query = construirQuery({ estado: filtroEstado, limit: 100 });
-      const data = await apiFetch(`/api/citas${query}`);
-      setDatos(data?.citas ?? []);
+      const citas = await obtenerTodasLasCitas({
+        estado: filtroEstado,
+        // Sin filtro explícito, el historial solo trae citas finalizadas.
+        estados: filtroEstado ? '' : ESTADOS_FINALES.join(','),
+      });
+      // Filtro defensivo por si el frontend se despliega antes que el backend.
+      setDatos(citas.filter((cita) => ESTADOS_FINALES.includes(cita.estado)));
     } catch (err) {
       setToast({ mensaje: err.message, tipo: 'error' });
       setTimeout(() => setToast(null), 3000);

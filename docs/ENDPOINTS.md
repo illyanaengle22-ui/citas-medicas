@@ -538,9 +538,11 @@ El usuario se obtiene del JWT (`req.usuario.id`) y se cruza con `pacientes.usuar
 | Parámetro | Tipo | Descripción |
 |-----------|------|-------------|
 | `?estado=` | string | `pendiente`, `confirmada`, `reagendada`, `cancelada`, `completada`, `no_asistio` |
+| `?estados=` | string | Lista separada por comas, por ejemplo `pendiente,confirmada,reagendada`; se combina con `estado` si ambos se envían |
 | `?fecha_desde=` | `YYYY-MM-DD` | Inclusivo (desde 00:00) |
 | `?fecha_hasta=` | `YYYY-MM-DD` | Inclusivo (hasta 23:59) |
 | `?page=` / `?limit=` | number | Paginación (limit máximo 100, por defecto 10) |
+| `?formato=local` | string | Devuelve `fecha_hora` y `fecha_fin` con el offset de `APP_TIMEZONE`; pensado para n8n/Telegram |
 
 ### Respuesta del listado y del detalle
 
@@ -558,6 +560,10 @@ El listado devuelve `{ citas, total, page, limit }`; cada cita incluye
         "uuid_publico": "9df96d31-37f5-41d5-8f90-34ea8d90b3b2",
         "paciente_id": "1", "medico_id": "2", "consultorio_id": "2",
         "fecha_hora": "2026-10-26T16:00:00.000Z",
+        "fecha_local": "2026-10-26",
+        "hora_local": "10:00",
+        "fecha_hora_local": "2026-10-26T10:00:00-06:00",
+        "zona_horaria": "America/Mexico_City",
         "duracion_minutos": 30,
         "fecha_fin": "2026-10-26T16:30:00.000Z",
         "estado_id": 1, "estado": "pendiente",
@@ -571,6 +577,12 @@ El listado devuelve `{ citas, total, page, limit }`; cada cita incluye
   }
 }
 ```
+
+> Por defecto `fecha_hora` y `fecha_fin` son instantes en UTC (ISO 8601 con `Z`).
+> Para mostrar al usuario usa `fecha_local`, `hora_local` y `fecha_hora_local`,
+> que ya están convertidos a `APP_TIMEZONE` (por defecto `America/Mexico_City`).
+> Con `?formato=local`, `fecha_hora` y `fecha_fin` también se devuelven con el
+> offset local (por ejemplo `2026-11-09T08:30:00-06:00`).
 
 ### Body POST `/api/citas`
 

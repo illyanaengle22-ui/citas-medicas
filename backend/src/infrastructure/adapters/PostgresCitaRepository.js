@@ -72,7 +72,7 @@ class PostgresCitaRepository extends CitaRepository {
   }
 
   // RN-053: visibilidad por rol. admin ve todas; médico y paciente solo las suyas.
-  async listar({ paciente_id = null, medico_id = null, estado = null, fecha_desde = null, fecha_hasta = null, page = 1, limit = 10 } = {}) {
+  async listar({ paciente_id = null, medico_id = null, estado = null, estados = null, fecha_desde = null, fecha_hasta = null, page = 1, limit = 10 } = {}) {
     const condiciones = [];
     const valores = [];
 
@@ -81,6 +81,10 @@ class PostgresCitaRepository extends CitaRepository {
     if (estado !== null) {
       valores.push(estado);
       condiciones.push(`c.estado_id = (SELECT id FROM estados_cita WHERE clave = $${valores.length})`);
+    }
+    if (Array.isArray(estados) && estados.length > 0) {
+      valores.push(estados);
+      condiciones.push(`c.estado_id IN (SELECT id FROM estados_cita WHERE clave = ANY($${valores.length}::text[]))`);
     }
     if (fecha_desde !== null) { valores.push(fecha_desde); condiciones.push(`c.fecha_hora >= $${valores.length}`); }
     if (fecha_hasta !== null) { valores.push(fecha_hasta); condiciones.push(`c.fecha_hora <= $${valores.length}`); }

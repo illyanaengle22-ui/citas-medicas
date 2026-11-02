@@ -1,5 +1,11 @@
 'use strict';
 
+const {
+  ZONA_HORARIA,
+  formatearTextoLocal,
+  formatearFechaHoraLocal,
+} = require('../utils/fechaHoraLocal');
+
 // RN-107: el backend no habla directamente con Telegram; publica el mensaje en un
 // webhook de n8n (expuesto con ngrok en desarrollo) y n8n llama a la API de Telegram.
 // Implementa NotificacionPort: ambos métodos resuelven { ok, error? }.
@@ -47,7 +53,8 @@ class N8nNotificacionAdapter {
 
   // RN-100 / RN-101: recordatorio de 24 h o 2 h antes de la cita.
   async enviarRecordatorio({ chatId, cita, tipo }) {
-    const cuando = new Date(cita.fecha_hora).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+    const fechaLocal = formatearFechaHoraLocal(cita.fecha_hora);
+    const cuando = formatearTextoLocal(cita.fecha_hora);
     const mensaje =
       tipo === '24h'
         ? `Te recordamos tu cita médica mañana (${cuando}). Responde CONFIRMAR, CANCELAR o REAGENDAR.`
@@ -61,6 +68,10 @@ class N8nNotificacionAdapter {
       cita: {
         uuid_publico: cita.uuid_publico,
         fecha_hora: cita.fecha_hora,
+        fecha_local: fechaLocal?.fecha ?? null,
+        hora_local: fechaLocal?.hora ?? null,
+        fecha_hora_local: fechaLocal?.iso ?? null,
+        zona_horaria: ZONA_HORARIA,
         duracion_minutos: cita.duracion_minutos,
         medico_nombre: cita.medico_nombre
       }
