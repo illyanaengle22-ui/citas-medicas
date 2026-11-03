@@ -7,9 +7,11 @@
 # y limpia todo al terminar.
 # ============================================================================
 
-# Detectar URL base: si ADMIN/PAC vienen vacíos significa que el script se
-# lanzó sin tokens; se intenta auto-obtenerlos con captchaId=test.
-HOST="${MEDICOS_HOST:-http://10.255.255.254:4000}"
+# URL base configurable. Se conserva MEDICOS_HOST por compatibilidad, pero
+# BASE_URL es la variable estándar de todos los scripts de prueba.
+BASE_URL="${BASE_URL:-${MEDICOS_HOST:-http://localhost:4000}}"
+BASE_URL="${BASE_URL%/}"
+HOST="$BASE_URL"
 BASE_MED="$HOST/api/medicos"
 BASE_ESP="$HOST/api/especialidades"
 BASE_CON="$HOST/api/consultorios"

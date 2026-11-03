@@ -32,7 +32,7 @@ async function recibirRespuesta(req, res) {
   }
 
   try {
-    const { chatId, uuidCita, respuesta, recordatorioId } = req.body || {};
+    const { chatId, uuidCita, respuesta, recordatorioId, fecha_hora } = req.body || {};
 
     if (!uuidCita || typeof uuidCita !== 'string') {
       return responder400(res, 'uuidCita es requerido');
@@ -49,6 +49,9 @@ async function recibirRespuesta(req, res) {
     if (chatId !== undefined && chatId !== null && typeof chatId !== 'string' && typeof chatId !== 'number') {
       return responder400(res, 'chatId debe ser texto o número');
     }
+    if (fecha_hora !== undefined && fecha_hora !== null && typeof fecha_hora !== 'string') {
+      return responder400(res, 'fecha_hora debe ser texto ISO 8601');
+    }
 
     const caso = new ProcesarRespuestaTelegram(citaRepo, recordatorioRepo, horarioRepo);
     const resultado = await caso.execute({
@@ -56,6 +59,7 @@ async function recibirRespuesta(req, res) {
       uuidCita,
       respuesta,
       recordatorioId: recordatorioId ?? null,
+      fecha_hora: fecha_hora ?? null,
     });
 
     if (!resultado.success) {

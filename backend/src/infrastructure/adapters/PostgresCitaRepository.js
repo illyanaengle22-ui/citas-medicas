@@ -9,19 +9,23 @@ const CODIGO_EXCLUIR = '23P01';
 
 function traducirError(error) {
   if (error && error.code === CODIGO_EXCLUIR) {
-    // RN-075: el médico ya tiene una cita vigente que se traslapa en el rango.
-    return new TraslapeError('El horario ya fue ocupado para ese médico en esa fecha y hora');
+    // RN-075 / RN-078: mensaje claro según el constraint que disparó.
+    if (error.constraint === 'ex_citas_sin_traslape_paciente') {
+      return new TraslapeError('El paciente ya tiene una cita vigente que se traslapa en esa fecha y hora [RN-078]');
+    }
+    return new TraslapeError('El horario ya fue ocupado para ese médico en esa fecha y hora [RN-074]');
   }
   return error;
 }
 
 class PostgresCitaRepository extends CitaRepository {
   // Devuelve la cita con estado y nombre del paciente/médico legibles.
-  async crear({ paciente_id, medico_id, consultorio_id, fecha_hora, duracion_minutos = 30, motivo = null, notas = null, estado_id = 1 }) {
+  async crear({ paciente_id, medico_id, consultorio_id, fecha_hora, duracion_minutos = 30, motivo = null, notas = null, estado_id = null }) {
     try {
       const result = await db.query(
         `INSERT INTO citas (paciente_id, medico_id, consultorio_id, fecha_hora, duracion_minutos, motivo, notas, estado_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         VALUES ($1, $2, $3, $4, $5, $6, $7,
+                 COALESCE($8, (SELECT id FROM estados_cita WHERE clave = 'pendiente')))
          RETURNING id, uuid_publico, paciente_id, medico_id, consultorio_id, fecha_hora,
                    duracion_minutos, fecha_fin, estado_id, motivo, notas, created_at, updated_at`,
         [paciente_id, medico_id, consultorio_id, fecha_hora, duracion_minutos, motivo, notas, estado_id]
@@ -57,6 +61,7 @@ class PostgresCitaRepository extends CitaRepository {
       `SELECT c.id, c.uuid_publico, c.paciente_id, c.medico_id, c.consultorio_id, c.fecha_hora,
               c.duracion_minutos, c.fecha_fin, c.estado_id, c.motivo, c.notas, c.created_at, c.updated_at,
               ec.clave AS estado,
+              up.id AS paciente_usuario_id,
               up.nombre AS paciente_nombre, um.nombre AS medico_nombre, co.nombre AS consultorio_nombre
        FROM citas c
        JOIN estados_cita ec ON ec.id = c.estado_id
@@ -123,9 +128,10 @@ class PostgresCitaRepository extends CitaRepository {
     const result = await db.query(
       `SELECT p.id, p.usuario_id, p.telefono, u.nombre, u.email,
               COUNT(c.id)::int                                     AS total_citas,
-              COUNT(c.id) FILTER (WHERE c.estado_id = 5)::int      AS citas_completadas,
+              COUNT(c.id) FILTER (WHERE ec.clave = 'completada')::int AS citas_completadas,
               MAX(c.fecha_hora)                                    AS ultima_cita
        FROM citas c
+       JOIN estados_cita ec ON ec.id = c.estado_id
        JOIN pacientes p ON p.id = c.paciente_id AND p.deleted_at IS NULL
        JOIN usuarios u ON u.id = p.usuario_id AND u.deleted_at IS NULL
        WHERE c.medico_id = $1
@@ -137,15 +143,69 @@ class PostgresCitaRepository extends CitaRepository {
   }
 
   // RN-080: la transición se valida en domain antes de llegar aquí.
-  // RN-090: el trigger trg_citas_historial registra el cambio (origen 'sistema').
-  async cambiarEstado(id, estado_id) {
-    const result = await db.query(
-      `UPDATE citas SET estado_id = $1 WHERE id = $2
-       RETURNING id, uuid_publico, paciente_id, medico_id, consultorio_id, fecha_hora,
-                 duracion_minutos, fecha_fin, estado_id, motivo, notas, created_at, updated_at`,
-      [estado_id, id]
-    );
-    return result.rows[0] || null;
+  // RN-090 / RN-091: el trigger trg_citas_historial registra el cambio y lee
+  // actor/origen/comentario desde variables locales de la transacción.
+  async cambiarEstado(id, estado_id, { cambiadoPor = null, origen = 'sistema', comentario = null } = {}) {
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `SELECT set_config('app.cambiado_por', $1, true),
+                set_config('app.origen', $2, true),
+                set_config('app.comentario', $3, true)`,
+        [cambiadoPor == null ? '' : String(cambiadoPor), origen || 'sistema', comentario || '']
+      );
+      const result = await client.query(
+        `UPDATE citas SET estado_id = $1 WHERE id = $2
+         RETURNING id, uuid_publico, paciente_id, medico_id, consultorio_id, fecha_hora,
+                   duracion_minutos, fecha_fin, estado_id, motivo, notas, created_at, updated_at`,
+        [estado_id, id]
+      );
+      await client.query('COMMIT');
+      return result.rows[0] || null;
+    } catch (error) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* ignorar */ }
+      throw traducirError(error);
+    } finally {
+      client.release();
+    }
+  }
+
+  // RN-112: mueve la fecha y, si aplica, cambia el estado en una sola
+  // transacción. El trigger de historial registra el cambio de estado.
+  async reagendar(id, { fecha_hora, estado_id = null, cambiadoPor = null, origen = 'web', comentario = null } = {}) {
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `SELECT set_config('app.cambiado_por', $1, true),
+                set_config('app.origen', $2, true),
+                set_config('app.comentario', $3, true)`,
+        [cambiadoPor == null ? '' : String(cambiadoPor), origen || 'web', comentario || '']
+      );
+
+      const campos = ['fecha_hora = $1'];
+      const valores = [fecha_hora];
+      if (estado_id !== null && estado_id !== undefined) {
+        valores.push(estado_id);
+        campos.push(`estado_id = $${valores.length}`);
+      }
+      valores.push(id);
+
+      const result = await client.query(
+        `UPDATE citas SET ${campos.join(', ')} WHERE id = $${valores.length}
+         RETURNING id, uuid_publico, paciente_id, medico_id, consultorio_id, fecha_hora,
+                   duracion_minutos, fecha_fin, estado_id, motivo, notas, created_at, updated_at`,
+        valores
+      );
+      await client.query('COMMIT');
+      return result.rows[0] || null;
+    } catch (error) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* ignorar */ }
+      throw traducirError(error);
+    } finally {
+      client.release();
+    }
   }
 
   // Usado por reagendar: mueve fecha_hora o duración. Dispara de nuevo el
@@ -181,7 +241,26 @@ class PostgresCitaRepository extends CitaRepository {
   async buscarTraslape({ medico_id, fecha_hora, fecha_fin, excluirId = null }) {
     const valores = [medico_id, fecha_hora, fecha_fin];
     let sql = `SELECT 1 FROM citas
-               WHERE medico_id = $1 AND estado_id IN (1, 2, 3)
+               WHERE medico_id = $1
+                 AND estado_id IN (SELECT id FROM estados_cita
+                                   WHERE clave IN ('pendiente','confirmada','reagendada'))
+                 AND tstzrange(fecha_hora, fecha_fin) && tstzrange($2::timestamptz, $3::timestamptz)`;
+    if (excluirId !== null) {
+      valores.push(excluirId);
+      sql += ` AND id <> $${valores.length}`;
+    }
+    const result = await db.query(sql, valores);
+    return result.rows.length > 0;
+  }
+
+  // RN-078: pre-check de traslape del paciente con cualquier médico.
+  // La BD lo garantiza además con el EXCLUDE de la migración 006.
+  async buscarTraslapePaciente({ paciente_id, fecha_hora, fecha_fin, excluirId = null }) {
+    const valores = [paciente_id, fecha_hora, fecha_fin];
+    let sql = `SELECT 1 FROM citas
+               WHERE paciente_id = $1
+                 AND estado_id IN (SELECT id FROM estados_cita
+                                   WHERE clave IN ('pendiente','confirmada','reagendada'))
                  AND tstzrange(fecha_hora, fecha_fin) && tstzrange($2::timestamptz, $3::timestamptz)`;
     if (excluirId !== null) {
       valores.push(excluirId);

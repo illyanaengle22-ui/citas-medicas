@@ -184,10 +184,10 @@ Todos los campos son opcionales (al menos uno requerido).
 | GET    | `/api/usuarios` | admin | Listar con paginación `?page=&limit=&rol=&estado=&q=` |
 | GET    | `/api/usuarios/pendientes` | admin | Listar cuentas pendientes |
 | GET    | `/api/usuarios/:id` | admin | Obtener usuario por id |
-| POST   | `/api/usuarios/admin` | admin | Crear usuario admin o paciente |
+| POST   | `/api/usuarios` | admin | Crear usuario (paciente o admin) |
 | PUT    | `/api/usuarios/:id` | admin | Actualizar nombre/email/password |
-| PATCH  | `/api/usuarios/:id/aprobar` | admin | Aprobar cuenta pendiente |
-| PATCH  | `/api/usuarios/:id/rechazar` | admin | Rechazar cuenta pendiente |
+| PUT    | `/api/usuarios/:id/aprobar` | admin | Aprobar cuenta pendiente |
+| DELETE | `/api/usuarios/:id/negar` | admin | Rechazar cuenta pendiente |
 | PATCH  | `/api/usuarios/:id/rol` | admin | Cambiar rol (no hacia/desde médico) |
 | DELETE | `/api/usuarios/:id` | admin | Soft delete |
 
@@ -648,12 +648,12 @@ presente.
 ## Webhook n8n (RN-107)
 
 Punto de entrada único de n8n. **No usa JWT de usuario**: se autentica con la
-cabecera `x-webhook-secret` = `N8N_WEBHOOK_SECRET` (si la variable no está
-definida se acepta en desarrollo).
+cabecera `x-webhook-secret` = `N8N_WEBHOOK_SECRET` (obligatoria: si la variable
+no está definida, la petición se rechaza con 401; nunca se acepta en "desarrollo").
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| POST | `/api/webhooks/n8n/respuesta` | Recibe la respuesta de Telegram `{ chatId, uuidCita, respuesta, recordatorioId? }` y actualiza la cita (RN-103) |
+| POST | `/api/webhooks/n8n/respuesta` | Recibe la respuesta de Telegram `{ chatId, uuidCita, respuesta, recordatorioId?, fecha_hora? }` y actualiza la cita (RN-103). `respuesta='reagendar'` sin `fecha_hora` devuelve 3 opciones; con `fecha_hora` aplica el cambio directamente |
 | GET | `/api/webhooks/n8n/health` | Ping para verificar la conexión desde n8n |
 
 ---
@@ -670,11 +670,20 @@ opere sobre la API **como ese paciente**. El chat solo almacena un
 2. Escribe `/start <código>` en el bot → n8n llama `POST /api/telegram/vincular` y queda guardado `pacientes.telegram_chat_id` (RN-051: un chat = un paciente).
 3. Cada mensaje de conversación → n8n llama `POST /api/telegram/token` con el `chatId` y usa el JWT devuelto en las headers `Authorization` de las tools.
 
+La vinculación es **idempotente**: si n8n se reinicia y pierde la memoria de qué
+chats ya vinculó, la verdad sigue en la tabla `pacientes`. Ante la duda, n8n
+puede consultar `GET /api/telegram/estado/:chatId`; y `POST /api/telegram/vincular`
+responde `200 { "ok": true, "mensaje": "Ya vinculado" }` si el chat ya está en la
+BD (aunque el código falte, sea inválido, haya expirado o ya se haya usado).
+
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
 | POST | `/api/telegram/codigo` | JWT rol `paciente` | Genera (o reemplaza) el código de vinculación del paciente |
 | GET | `/api/telegram/estado` | JWT rol `paciente` | Estado `{ vinculado, chatId }` de mi cuenta |
-| POST | `/api/telegram/vincular` | `x-webhook-secret` | Canjea `{ chatId, codigo }` → guarda el chat y devuelve JWT |
+| POST | `/api/telegram/vincular` | `x-webhook-secret` | Canjea `{ chatId, codigo }` → guarda el chat y devuelve JWT. Idempotente: `200 "Ya vinculado"` si el chat ya está en la BD |
+| GET | `/api/telegram/estado/:chatId` | `x-webhook-secret` | `{ vinculado, paciente_id }` consultando `pacientes.telegram_chat_id` |
+| DELETE | `/api/telegram/vincular` | JWT rol `paciente` | Desvincula mi cuenta (`telegram_chat_id = NULL`). Idempotente |
+| DELETE | `/api/telegram/vincular/:chatId` | `x-webhook-secret` | Desvincula ese chat desde n8n. Idempotente |
 | POST | `/api/telegram/token` | `x-webhook-secret` | Canjea `{ chatId }` → JWT fresco del paciente vinculado |
 
 ```http
@@ -691,10 +700,50 @@ x-webhook-secret: <N8N_WEBHOOK_SECRET>
 
 { "chatId": "999888777", "codigo": "QK845E" }
 → { "ok": true, "mensaje": "Cuenta vinculada correctamente",
-    "data": { "token": "<JWT>", "chatId": "999888777", "nombre": "Juan" } }
+    "data": { "token": "<JWT>", "chatId": "999888777", "paciente_id": "1", "nombre": "Juan" } }
 
-Errores: 400 código no existe/expirado · 409 código ya usado/chat ya vinculado a otra cuenta (RN-051)
+Si el chat ya está vinculado (mismo u otro código, incluso ausente o expirado):
+→ { "ok": true, "mensaje": "Ya vinculado",
+    "data": { "token": "<JWT>", "chatId": "999888777", "paciente_id": "1", "nombre": "Juan" } }
+
+Errores: 400 chatId inválido / código no existe o expirado (solo si el chat aún no está vinculado)
+        · 409 código ya usado por otro chat o chat ya vinculado a otra cuenta (RN-051)
 ```
+
+```http
+GET /api/telegram/estado/999888777
+x-webhook-secret: <N8N_WEBHOOK_SECRET>
+
+→ { "ok": true, "mensaje": "Estado de vinculación", "vinculado": true, "paciente_id": "1",
+    "data": { "vinculado": true, "paciente_id": "1" } }
+
+Chat sin vincular → { "ok": true, "vinculado": false, "paciente_id": null, "data": { ... } }
+Errores: 400 chatId no numérico · 401 secreto inválido o ausente
+```
+
+```http
+DELETE /api/telegram/vincular
+Authorization: Bearer <JWT paciente>
+
+→ { "ok": true, "mensaje": "Cuenta desvinculada",
+    "data": { "desvinculado": true, "paciente_id": "1" } }
+
+Si no estaba vinculada → { "ok": true, "mensaje": "La cuenta no estaba vinculada",
+                          "data": { "desvinculado": false } }
+```
+
+```http
+DELETE /api/telegram/vincular/999888777
+x-webhook-secret: <N8N_WEBHOOK_SECRET>
+
+→ { "ok": true, "mensaje": "Cuenta desvinculada",
+    "data": { "desvinculado": true, "paciente_id": "1" } }
+
+Errores: 400 chatId no numérico · 401 secreto inválido o ausente
+```
+
+Al desvincular también se eliminan los códigos pendientes de ese paciente, para
+que un `/start CÓDIGO` viejo no vuelva a vincular el chat sin pasar por la webapp.
 
 ```http
 POST /api/telegram/token

@@ -29,6 +29,8 @@ class EnviarRecordatorio {
       if (await this.repo.existeTipo(cand.cita_id, tipo)) continue;
 
       const recordatorio = await this.repo.crear({ cita_id: cand.cita_id, canal: 'telegram', tipo });
+      // Otro proceso pudo crearlo entre el pre-check y el INSERT.
+      if (!recordatorio) continue;
 
       const r = await this.notif.enviarRecordatorio({
         chatId: cand.telegram_chat_id,

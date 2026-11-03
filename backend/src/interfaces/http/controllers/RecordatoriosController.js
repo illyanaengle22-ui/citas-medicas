@@ -48,7 +48,7 @@ async function enviar(req, res) {
 //   (web o Telegram vía n8n): { uuidCita, respuesta: 'confirmar'|'cancelar'|'reagendar', recordatorioId?, chatId? }
 async function confirmar(req, res) {
   try {
-    const { uuidCita, respuesta, recordatorioId, chatId } = req.body || {};
+    const { uuidCita, respuesta, recordatorioId, chatId, fecha_hora } = req.body || {};
 
     if (!uuidCita || typeof uuidCita !== 'string') {
       return res.status(400).json({ ok: false, mensaje: 'uuidCita es requerido' });
@@ -83,7 +83,15 @@ async function confirmar(req, res) {
     }
 
     const caso = new ProcesarRespuestaTelegram(citaRepo, recordatorioRepo, horarioRepo);
-    const resultado = await caso.execute({ chatId: chatId ?? null, uuidCita, respuesta, recordatorioId: recordatorioId ?? null });
+    const resultado = await caso.execute({
+      chatId: chatId ?? null,
+      uuidCita,
+      respuesta,
+      recordatorioId: recordatorioId ?? null,
+      fecha_hora: fecha_hora ?? null,
+      origen: 'web',
+      cambiadoPor: req.usuario?.id ?? null,
+    });
 
     if (!resultado.success) {
       return res.status(400).json({ ok: false, mensaje: resultado.mensaje });

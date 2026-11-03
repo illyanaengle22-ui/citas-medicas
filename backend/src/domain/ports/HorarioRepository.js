@@ -14,7 +14,7 @@ class HorarioRepository {
     throw new Error('Método no implementado');
   }
 
-  async listarPorMedico(medico_id, { soloActivos = true } = {}) {
+  async listarPorMedico(medico_id, { soloActivos = true, soloDisponibles = false } = {}) {
     throw new Error('Método no implementado');
   }
 

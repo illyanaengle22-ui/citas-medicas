@@ -8,15 +8,17 @@ const COLUMNAS =
   'id, cita_id, canal, tipo, estado, respuesta, enviado_at, respondido_at';
 
 class PostgresRecordatorioRepository extends RecordatorioRepository {
-  // RN-105: se crea un recordatorio de un tipo dado solo si aún no existe para esa cita.
+  // RN-105: se crea un recordatorio de un tipo dado solo si aún no existe para
+  // esa cita. ON CONFLICT hace que dos procesos concurrentes no dupliquen.
   async crear({ cita_id, canal = 'telegram', tipo, estado = 'enviado' }) {
     const result = await db.query(
       `INSERT INTO recordatorios (cita_id, canal, tipo, estado)
        VALUES ($1, $2, $3, $4)
+       ON CONFLICT (cita_id, tipo) DO NOTHING
        RETURNING ${COLUMNAS}`,
       [cita_id, canal, tipo, estado]
     );
-    return result.rows[0];
+    return result.rows[0] || null;
   }
 
   async obtenerPorId(id) {
@@ -49,13 +51,16 @@ class PostgresRecordatorioRepository extends RecordatorioRepository {
               um.nombre AS medico_nombre, up.nombre AS paciente_nombre,
               ec.clave AS estado
        FROM citas c
-       JOIN pacientes p ON p.id = c.paciente_id
-       JOIN medicos m ON m.id = c.medico_id
-       JOIN usuarios um ON um.id = m.usuario_id
-       JOIN usuarios up ON up.id = p.usuario_id
+       JOIN pacientes p ON p.id = c.paciente_id AND p.deleted_at IS NULL
+       JOIN medicos m ON m.id = c.medico_id AND m.deleted_at IS NULL
+       JOIN usuarios um ON um.id = m.usuario_id AND um.deleted_at IS NULL
+       JOIN usuarios up ON up.id = p.usuario_id AND up.deleted_at IS NULL
        JOIN estados_cita ec ON ec.id = c.estado_id
-       WHERE c.estado_id IN (1, 2, 3)
+       WHERE c.estado_id IN (SELECT id FROM estados_cita
+                                 WHERE clave IN ('pendiente','confirmada','reagendada'))
          AND p.telegram_chat_id IS NOT NULL
+         AND m.activo = true
+         AND up.estado_id = (SELECT id FROM estados_cuenta WHERE clave = 'activo')
          AND c.fecha_hora > now()
          AND c.fecha_hora <= now() + ($1 || ' hours')::interval
          AND NOT EXISTS (

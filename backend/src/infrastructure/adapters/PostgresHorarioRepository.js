@@ -3,6 +3,7 @@
 const db = require('../../infrastructure/db');
 const HorarioRepository = require('../../domain/ports/HorarioRepository');
 const TraslapeError = require('../../domain/value-objects/TraslapeError');
+const { ZONA_HORARIA } = require('../../domain/utils/fechaHoraLocal');
 
 // Columnas que se devuelven al exterior (nunca datos internos).
 const COLUMNAS =
@@ -68,18 +69,41 @@ class PostgresHorarioRepository extends HorarioRepository {
     return result.rows;
   }
 
-  async listarPorMedico(medico_id, { soloActivos = true } = {}) {
-    const condiciones = ['medico_id = $1'];
+  async listarPorMedico(medico_id, { soloActivos = true, soloDisponibles = false } = {}) {
+    const condiciones = ['h.medico_id = $1'];
     const valores = [medico_id];
 
     if (soloActivos) {
-      condiciones.push('activo = true');
+      condiciones.push('h.activo = true');
+    }
+
+    if (soloDisponibles) {
+      // RN-031 / RN-044 / RN-110: no agendar con médico/consultorio inactivo
+      // o eliminado, ni con un médico sin especialidad activa.
+      condiciones.push(`EXISTS (
+        SELECT 1 FROM medicos m
+        JOIN usuarios u ON u.id = m.usuario_id
+        JOIN estados_cuenta ec ON ec.id = u.estado_id
+        WHERE m.id = h.medico_id
+          AND m.deleted_at IS NULL AND m.activo = true
+          AND u.deleted_at IS NULL AND ec.clave = 'activo'
+      )`);
+      condiciones.push(`EXISTS (
+        SELECT 1 FROM consultorios c
+        WHERE c.id = h.consultorio_id
+          AND c.deleted_at IS NULL AND c.activo = true
+      )`);
+      condiciones.push(`EXISTS (
+        SELECT 1 FROM medico_especialidades me
+        JOIN especialidades e ON e.id = me.especialidad_id
+        WHERE me.medico_id = h.medico_id AND e.activo = true
+      )`);
     }
 
     const result = await db.query(
-      `SELECT ${COLUMNAS} FROM horarios
+      `SELECT ${COLUMNAS} FROM horarios h
        WHERE ${condiciones.join(' AND ')}
-       ORDER BY dia_semana ASC, hora_inicio ASC`,
+       ORDER BY h.dia_semana ASC, h.hora_inicio ASC`,
       valores
     );
     return result.rows;
@@ -142,13 +166,31 @@ class PostgresHorarioRepository extends HorarioRepository {
     const dia_semana = diaResult.rows[0].dia;
 
     const valoresHorario = [medico_id, dia_semana];
-    let sqlHorario = `SELECT id, consultorio_id, hora_inicio, hora_fin FROM horarios
-                      WHERE medico_id = $1 AND dia_semana = $2 AND activo = true`;
+    let sqlHorario = `SELECT h.id, h.consultorio_id, h.hora_inicio, h.hora_fin FROM horarios h
+                      WHERE h.medico_id = $1 AND h.dia_semana = $2 AND h.activo = true
+                        AND EXISTS (
+                          SELECT 1 FROM medicos m
+                          JOIN usuarios u ON u.id = m.usuario_id
+                          JOIN estados_cuenta ec ON ec.id = u.estado_id
+                          WHERE m.id = h.medico_id
+                            AND m.deleted_at IS NULL AND m.activo = true
+                            AND u.deleted_at IS NULL AND ec.clave = 'activo'
+                        )
+                        AND EXISTS (
+                          SELECT 1 FROM consultorios c
+                          WHERE c.id = h.consultorio_id
+                            AND c.deleted_at IS NULL AND c.activo = true
+                        )
+                        AND EXISTS (
+                          SELECT 1 FROM medico_especialidades me
+                          JOIN especialidades e ON e.id = me.especialidad_id
+                          WHERE me.medico_id = h.medico_id AND e.activo = true
+                        )`;
     if (consultorio_id !== null) {
       valoresHorario.push(consultorio_id);
-      sqlHorario += ` AND consultorio_id = $${valoresHorario.length}`;
+      sqlHorario += ` AND h.consultorio_id = $${valoresHorario.length}`;
     }
-    sqlHorario += ' ORDER BY hora_inicio ASC';
+    sqlHorario += ' ORDER BY h.hora_inicio ASC';
     const bloques = await db.query(sqlHorario, valoresHorario);
 
     if (bloques.rows.length === 0) return [];
@@ -156,15 +198,18 @@ class PostgresHorarioRepository extends HorarioRepository {
     // Citas vigentes (pendiente, confirmada, reagendada) de ese médico en ese día.
     // TIMESTAMPTZ llega como objeto Date del driver pg: se formatea en la BD
     // con to_char para que enMinutos reciba siempre 'HH:MM:SS'.
+    // La fecha/hora se interpreta en la zona de la clínica, no en la zona
+    // horaria de la sesión de PostgreSQL (RN-083 / RN-084).
     const citasResult = await db.query(
-      `SELECT to_char(fecha_hora, 'HH24:MI:SS')  AS hora_inicio,
-              to_char(fecha_fin,   'HH24:MI:SS')  AS hora_fin
+      `SELECT to_char(fecha_hora AT TIME ZONE $3, 'HH24:MI:SS') AS hora_inicio,
+              to_char(fecha_fin   AT TIME ZONE $3, 'HH24:MI:SS') AS hora_fin
        FROM citas
        WHERE medico_id = $1
-         AND estado_id IN (1, 2, 3)
-         AND fecha_hora::date = $2::date
+         AND estado_id IN (SELECT id FROM estados_cita
+                           WHERE clave IN ('pendiente','confirmada','reagendada'))
+         AND (fecha_hora AT TIME ZONE $3)::date = $2::date
        ORDER BY fecha_hora ASC`,
-      [medico_id, fecha]
+      [medico_id, fecha, ZONA_HORARIA]
     );
 
     const enMinutos = (t) => {

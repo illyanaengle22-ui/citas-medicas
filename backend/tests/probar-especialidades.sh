@@ -1,6 +1,9 @@
 #!/bin/bash
-# Uso: ADMIN='token' PAC='token' bash probar-especialidades.sh
-BASE=http://localhost:4000/api/especialidades
+# Uso: ADMIN='token' PAC='token' [BASE_URL=http://localhost:4000] bash probar-especialidades.sh
+BASE_URL="${BASE_URL:-http://localhost:4000}"
+BASE_URL="${BASE_URL%/}"
+BASE="$BASE_URL/api/especialidades"
+NO_EXISTE="$BASE_URL/api/no-existe"
 S=$RANDOM
 ok=0; fail=0
 
@@ -50,7 +53,7 @@ check "Reactivada vuelve al listado"    true  $(en_lista $ADMIN $BASE $ID)
 
 echo "== Sin borrado físico y errores en JSON =="
 check "DELETE ya no existe → 404"       404 $(code "${A[@]}" -X DELETE $BASE/$ID)
-check "Ruta inexistente responde JSON ok=false" false $(curl -s http://localhost:4000/api/no-existe | jq -r '.ok' 2>/dev/null)
+check "Ruta inexistente responde JSON ok=false" false $(curl -s "$NO_EXISTE" | jq -r '.ok' 2>/dev/null)
 check "Ninguna respuesta de error expone 'error:' interno" true \
   $(curl -s "${A[@]}" $BASE/abc | jq 'has("error") | not' 2>/dev/null)
 

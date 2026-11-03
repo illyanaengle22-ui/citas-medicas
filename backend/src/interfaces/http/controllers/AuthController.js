@@ -5,7 +5,16 @@ const jwt = require('jsonwebtoken');
 const db = require('../../../infrastructure/db');
 const { validarCaptcha } = require('./CaptchaController');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secreto_temporal_para_pruebas';
+const { JWT_SECRET } = require('../../../infrastructure/config/secrets');
+
+// RN-020: el atajo de captcha para pruebas solo se habilita explícitamente
+// con ALLOW_TEST_CAPTCHA=true. En producción debe quedar ausente/false.
+const PERMITIR_CAPTCHA_TEST = process.env.ALLOW_TEST_CAPTCHA === 'true';
+
+function validarCaptchaDePeticion(captchaId, captchaTexto) {
+  if (PERMITIR_CAPTCHA_TEST && captchaId === 'test') return { valido: true };
+  return validarCaptcha(captchaId, captchaTexto);
+}
 
 // ── Registro público (RN-003, RN-012) ────────────────────────────────────────
 async function registrar(req, res) {
@@ -24,12 +33,10 @@ async function registrar(req, res) {
     return res.status(400).json({ ok: false, mensaje: 'La contraseña debe tener al menos 8 caracteres' });
   }
 
-  // Captcha (RN-020); captchaId 'test' solo para pruebas
-  if (captchaId !== 'test') {
-    const captchaValidacion = validarCaptcha(captchaId, captchaTexto);
-    if (!captchaValidacion.valido) {
-      return res.status(400).json({ ok: false, mensaje: captchaValidacion.mensaje });
-    }
+  // Captcha (RN-020); el atajo 'test' solo existe si ALLOW_TEST_CAPTCHA=true.
+  const captchaValidacion = validarCaptchaDePeticion(captchaId, captchaTexto);
+  if (!captchaValidacion.valido) {
+    return res.status(400).json({ ok: false, mensaje: captchaValidacion.mensaje });
   }
 
   const client = await db.getClient();
@@ -98,11 +105,9 @@ async function login(req, res) {
   }
 
   // Captcha (RN-020)
-  if (captchaId !== 'test') {
-    const captchaValidacion = validarCaptcha(captchaId, captchaTexto);
-    if (!captchaValidacion.valido) {
-      return res.status(400).json({ ok: false, mensaje: captchaValidacion.mensaje });
-    }
+  const captchaValidacion = validarCaptchaDePeticion(captchaId, captchaTexto);
+  if (!captchaValidacion.valido) {
+    return res.status(400).json({ ok: false, mensaje: captchaValidacion.mensaje });
   }
 
   try {

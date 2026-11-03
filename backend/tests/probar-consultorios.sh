@@ -1,6 +1,9 @@
 #!/bin/bash
-# Uso: ADMIN='token' PAC='token' bash probar-consultorios.sh
-BASE=http://localhost:4000/api/consultorios
+# Uso: ADMIN='token' PAC='token' [BASE_URL=http://localhost:4000] bash probar-consultorios.sh
+BASE_URL="${BASE_URL:-http://localhost:4000}"
+BASE_URL="${BASE_URL%/}"
+BASE="$BASE_URL/api/consultorios"
+NO_EXISTE="$BASE_URL/api/no-existe"
 S=$RANDOM
 ok=0; fail=0
 
@@ -93,7 +96,7 @@ echo "== Ids y errores en JSON =="
 check "Id inválido → 400"                     400 $(code "${A[@]}" $BASE/abc)
 check "Id fuera de rango (bigint) → 400"      400 $(code "${A[@]}" $BASE/99999999999999999999)
 check "Id grande válido (bigint) → 404"       404 $(code "${A[@]}" $BASE/3000000000)
-check "Ruta inexistente responde JSON ok=false" false $(curl -s http://localhost:4000/api/no-existe | jq -r '.ok' 2>/dev/null)
+check "Ruta inexistente responde JSON ok=false" false $(curl -s "$NO_EXISTE" | jq -r '.ok' 2>/dev/null)
 check "Ninguna respuesta de error expone 'error:' interno" true \
   $(curl -s "${A[@]}" $BASE/abc | jq 'has("error") | not' 2>/dev/null)
 

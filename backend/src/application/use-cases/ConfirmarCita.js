@@ -10,7 +10,7 @@ class ConfirmarCita {
     this.repo = citaRepository;
   }
 
-  async execute(id) {
+  async execute(id, { cambiadoPor = null, origen = 'web', comentario = null } = {}) {
     const row = await this.repo.obtenerPorId(id);
     if (!row) {
       return { success: false, mensaje: 'Cita no encontrada' };
@@ -26,7 +26,7 @@ class ConfirmarCita {
       return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "confirmada" [RN-080]` };
     }
 
-    const data = await this.repo.cambiarEstado(id, confirmada.id);
+    const data = await this.repo.cambiarEstado(id, confirmada.id, { cambiadoPor, origen, comentario });
     return { success: true, data, mensaje: 'Cita confirmada correctamente' };
   }
 }

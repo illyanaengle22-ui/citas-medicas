@@ -4,15 +4,17 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const db = require('../../../infrastructure/db');
 const { secretValido } = require('../utils/webhookSecret');
+const {
+  VincularTelegram,
+  normalizarChatId,
+} = require('../../../application/use-cases/VincularTelegram');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secreto_temporal_para_pruebas';
+const { JWT_SECRET } = require('../../../infrastructure/config/secrets');
 
 // RN-116: el código de vinculación vive 15 minutos y sirve una sola vez.
 const TTL_CODIGO_MINUTOS = 15;
 // Sin caracteres ambiguos (0/O, 1/I) para que se lea bien al escribirlo en Telegram.
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const RE_CHAT_ID = /^-?\d{1,30}$/;
-const RE_CODIGO = /^[A-Z0-9]{6}$/;
 
 function esErrorDeDatos(error) {
   return error?.code === '22003' || error?.code === '22P02';
@@ -26,27 +28,20 @@ function respuestaError500(res, mensaje, error) {
   return res.status(500).json({ ok: false, mensaje });
 }
 
+// Responde con el resultado de un caso de uso ({ status, ok, mensaje, data }).
+function responder(res, resultado) {
+  return res.status(resultado.status).json({
+    ok: resultado.ok,
+    mensaje: resultado.mensaje,
+    data: resultado.data,
+  });
+}
+
 function crearCodigo() {
   const bytes = crypto.randomBytes(6);
   let codigo = '';
   for (let i = 0; i < 6; i++) codigo += ALFABETO[bytes[i] % ALFABETO.length];
   return codigo;
-}
-
-function normalizarChatId(valor) {
-  if (valor === undefined || valor === null) return null;
-  const limpio = String(valor).trim();
-  return RE_CHAT_ID.test(limpio) ? limpio : null;
-}
-
-function normalizarCodigo(valor) {
-  if (typeof valor !== 'string') return '';
-  return valor
-    .trim()
-    .replace(/^["']+|["']+$/g, '')
-    .replace(/^\/START\s+/i, '')
-    .trim()
-    .toUpperCase();
 }
 
 // Mismos claims que el login normal (authMiddleware espera esta forma).
@@ -71,21 +66,6 @@ async function obtenerPacienteActivoPorUsuario(usuarioId) {
     [usuarioId]
   );
   return rows[0]?.paciente_id ?? null;
-}
-
-async function obtenerUsuarioPaciente(client, pacienteId) {
-  const { rows } = await client.query(
-    `SELECT u.id, u.uuid_publico, u.email, u.rol_id, u.nombre
-     FROM usuarios u
-     JOIN pacientes p ON p.usuario_id = u.id
-     JOIN estados_cuenta e ON e.id = u.estado_id
-     WHERE p.id = $1
-       AND p.deleted_at IS NULL
-       AND u.deleted_at IS NULL
-       AND e.clave = 'activo'`,
-    [pacienteId]
-  );
-  return rows[0] || null;
 }
 
 // POST /api/telegram/codigo — la webapp le da al paciente su código (RN-116).
@@ -184,6 +164,33 @@ async function estado(req, res) {
   }
 }
 
+// GET /api/telegram/estado/:chatId — n8n pregunta si un chat ya está vinculado.
+// Es la fuente de verdad cuando n8n se reinicia y pierde su memoria en proceso.
+async function estadoPorChat(req, res) {
+  if (!secretValido(req)) {
+    return res.status(401).json({ ok: false, mensaje: 'Secreto de webhook inválido' });
+  }
+
+  try {
+    const caso = new VincularTelegram(db);
+    const resultado = await caso.estadoPorChat(req.params.chatId);
+    if (!resultado.ok) {
+      return res.status(resultado.status).json({ ok: false, mensaje: resultado.mensaje });
+    }
+
+    return res.json({
+      ok: true,
+      mensaje: resultado.mensaje,
+      // Se expone también en la raíz para que n8n lo lea sin desanidar.
+      vinculado: resultado.data.vinculado,
+      paciente_id: resultado.data.paciente_id,
+      data: resultado.data,
+    });
+  } catch (error) {
+    return respuestaError500(res, 'Error al consultar la vinculación', error);
+  }
+}
+
 // POST /api/telegram/vincular — n8n recibe "/start <código>" y lo canjea (RN-116).
 //   body: { chatId, codigo }
 async function vincular(req, res) {
@@ -192,123 +199,49 @@ async function vincular(req, res) {
   }
 
   const chatId = normalizarChatId(req.body?.chatId);
-  if (!chatId) {
-    return res.status(400).json({ ok: false, mensaje: 'chatId inválido' });
-  }
 
-  const codigo = normalizarCodigo(req.body?.codigo);
-  if (!codigo) {
-    return res.status(400).json({ ok: false, mensaje: 'codigo es requerido' });
-  }
-  if (!RE_CODIGO.test(codigo)) {
-    return res.status(400).json({ ok: false, mensaje: 'Código inválido: debe tener 6 caracteres alfanuméricos' });
-  }
-
-  const client = await db.getClient();
   try {
-    await client.query('BEGIN');
+    const caso = new VincularTelegram(db);
+    const resultado = await caso.execute({ chatId, codigo: req.body?.codigo });
 
-    const { rows } = await client.query(
-      `SELECT codigo, paciente_id, creado_en, expira_en, usado_en, usado_chat_id
-       FROM telegram_codigos
-       WHERE codigo = $1
-       FOR UPDATE`,
-      [codigo]
-    );
-    const registro = rows[0];
-
-    if (!registro) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ ok: false, mensaje: 'Código no existe o no fue generado en esta webapp' });
+    const data = { chatId, paciente_id: resultado.data?.pacienteId ?? null };
+    if (resultado.data?.usuario) {
+      data.token = firmarJWT(resultado.data.usuario);
+      data.nombre = resultado.data.usuario.nombre;
     }
 
-    if (registro.usado_en) {
-      // Reintento del mismo chat con el mismo código: respuesta idempotente.
-      if (registro.usado_chat_id === chatId) {
-        const vinculado = await client.query(
-          'SELECT 1 FROM pacientes WHERE id = $1 AND telegram_chat_id = $2 AND deleted_at IS NULL',
-          [registro.paciente_id, chatId]
-        );
-        if (vinculado.rows.length > 0) {
-          const usuario = await obtenerUsuarioPaciente(client, registro.paciente_id);
-          if (!usuario) {
-            await client.query('ROLLBACK');
-            return res.status(409).json({ ok: false, mensaje: 'La cuenta del paciente no está activa; no se puede vincular' });
-          }
-          await client.query('COMMIT');
-          return res.json({
-            ok: true,
-            mensaje: 'La cuenta ya está vinculada',
-            data: { token: firmarJWT(usuario), chatId, nombre: usuario.nombre },
-          });
-        }
-      }
-
-      await client.query('ROLLBACK');
-      return res.status(409).json({ ok: false, mensaje: 'Este código ya fue utilizado; genera uno nuevo en la webapp' });
-    }
-
-    if (new Date(registro.expira_en).getTime() <= Date.now()) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ ok: false, mensaje: 'Código expirado; genera uno nuevo en la webapp' });
-    }
-
-    const chatEnUso = await client.query(
-      `SELECT id FROM pacientes
-       WHERE telegram_chat_id = $1 AND id <> $2 AND deleted_at IS NULL`,
-      [chatId, registro.paciente_id]
-    );
-    if (chatEnUso.rows.length > 0) {
-      await client.query('ROLLBACK');
-      return res.status(409).json({ ok: false, mensaje: 'Este chat ya está vinculado a otra cuenta [RN-051]' });
-    }
-
-    const usuario = await obtenerUsuarioPaciente(client, registro.paciente_id);
-    if (!usuario) {
-      await client.query('ROLLBACK');
-      return res.status(409).json({ ok: false, mensaje: 'La cuenta del paciente no está activa; no se puede vincular' });
-    }
-
-    const actualizado = await client.query(
-      `UPDATE pacientes
-       SET telegram_chat_id = $1, updated_at = now()
-       WHERE id = $2 AND deleted_at IS NULL
-       RETURNING id`,
-      [chatId, registro.paciente_id]
-    );
-    if (actualizado.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(409).json({ ok: false, mensaje: 'No se pudo vincular: el chat o la cuenta ya está en uso' });
-    }
-
-    const marcado = await client.query(
-      `UPDATE telegram_codigos
-       SET usado_en = now(), usado_chat_id = $1
-       WHERE codigo = $2 AND usado_en IS NULL
-       RETURNING codigo`,
-      [chatId, codigo]
-    );
-    if (marcado.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(409).json({ ok: false, mensaje: 'El código ya fue utilizado; genera uno nuevo en la webapp' });
-    }
-
-    await client.query('COMMIT');
-
-    return res.json({
-      ok: true,
-      mensaje: 'Cuenta vinculada correctamente',
-      data: { token: firmarJWT(usuario), chatId, nombre: usuario.nombre },
-    });
+    return responder(res, { ...resultado, data });
   } catch (error) {
-    try { await client.query('ROLLBACK'); } catch { /* ignore */ }
-    // RN-051: un chat no puede estar ligado a dos pacientes.
-    if (error.code === '23505') {
-      return res.status(409).json({ ok: false, mensaje: 'Este chat ya está vinculado a otra cuenta [RN-051]' });
-    }
     return respuestaError500(res, 'Error al vincular la cuenta', error);
-  } finally {
-    client.release();
+  }
+}
+
+// DELETE /api/telegram/vincular — el paciente desvincula su propia cuenta.
+async function desvincular(req, res) {
+  try {
+    const pacienteId = await obtenerPacienteActivoPorUsuario(req.usuario.id);
+    if (!pacienteId) {
+      return res.status(403).json({ ok: false, mensaje: 'Solo los pacientes activos pueden desvincular Telegram' });
+    }
+
+    const caso = new VincularTelegram(db);
+    return responder(res, await caso.desvincularPorPaciente(pacienteId));
+  } catch (error) {
+    return respuestaError500(res, 'Error al desvincular la cuenta', error);
+  }
+}
+
+// DELETE /api/telegram/vincular/:chatId — n8n desvincula un chat.
+async function desvincularPorChat(req, res) {
+  if (!secretValido(req)) {
+    return res.status(401).json({ ok: false, mensaje: 'Secreto de webhook inválido' });
+  }
+
+  try {
+    const caso = new VincularTelegram(db);
+    return responder(res, await caso.desvincularPorChat(req.params.chatId));
+  } catch (error) {
+    return respuestaError500(res, 'Error al desvincular el chat', error);
   }
 }
 
@@ -354,4 +287,12 @@ async function tokenPorChat(req, res) {
   }
 }
 
-module.exports = { generarCodigo, estado, vincular, tokenPorChat };
+module.exports = {
+  generarCodigo,
+  estado,
+  estadoPorChat,
+  vincular,
+  desvincular,
+  desvincularPorChat,
+  tokenPorChat,
+};

@@ -4,6 +4,7 @@ import {
   faCheckCircle,
   faCopy,
   faPaperPlane,
+  faUnlink,
 } from '@fortawesome/free-solid-svg-icons';
 import { apiFetch } from '../services/api';
 
@@ -13,6 +14,7 @@ export default function VincularTelegram() {
   const [vinculado, setVinculado] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [generando, setGenerando] = useState(false);
+  const [desvinculando, setDesvinculando] = useState(false);
   const [comando, setComando] = useState('');
   const [copiado, setCopiado] = useState(false);
   const [error, setError] = useState('');
@@ -39,6 +41,26 @@ export default function VincularTelegram() {
       setError(e.message);
     } finally {
       setGenerando(false);
+    }
+  }
+
+  async function desvincular() {
+    const confirmado = window.confirm(
+      '¿Desvincular tu cuenta de Telegram? El bot dejará de reconocerte y no recibirás recordatorios por ese medio.'
+    );
+    if (!confirmado) return;
+
+    setDesvinculando(true);
+    setError('');
+    try {
+      await apiFetch('/api/telegram/vincular', { method: 'DELETE' });
+      setVinculado(false);
+      setComando('');
+      setCopiado(false);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setDesvinculando(false);
     }
   }
 
@@ -73,10 +95,23 @@ export default function VincularTelegram() {
         )}
 
         {vinculado ? (
-          <p className="telegram-estado-ok">
-            <FontAwesomeIcon icon={faCheckCircle} aria-hidden="true" />
-            Tu cuenta ya está vinculada a Telegram.
-          </p>
+          <>
+            <p className="telegram-estado-ok">
+              <FontAwesomeIcon icon={faCheckCircle} aria-hidden="true" />
+              Tu cuenta ya está vinculada a Telegram.
+            </p>
+            <div className="dashboard-acciones-grandes">
+              <button
+                type="button"
+                className="btn btn-error"
+                onClick={desvincular}
+                disabled={desvinculando}
+              >
+                <FontAwesomeIcon icon={faUnlink} aria-hidden="true" />
+                {desvinculando ? 'Desvinculando...' : 'Desvincular cuenta'}
+              </button>
+            </div>
+          </>
         ) : (
           <>
             <div className="dashboard-acciones-grandes">

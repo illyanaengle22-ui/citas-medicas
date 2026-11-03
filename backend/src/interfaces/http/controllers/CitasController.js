@@ -31,6 +31,15 @@ function esErrorDeDatos(error) {
   return error?.code === '22003' || error?.code === '22P02';
 }
 
+// RN-091: toda mutación hecha por la API se registra como origen web y con
+// el usuario autenticado como actor del cambio de estado.
+function contextoWeb(req) {
+  return {
+    cambiadoPor: req.usuario?.id ?? null,
+    origen: 'web',
+  };
+}
+
 function respuestaError500(res, mensaje, error) {
   if (esErrorDeDatos(error)) {
     return res.status(400).json({ ok: false, mensaje: 'ID inválido' });
@@ -296,7 +305,7 @@ async function confirmar(req, res) {
     if (!(await exigirAccesoCita(req, res, cita))) return;
 
     const caso = new ConfirmarCita(citasRepo);
-    const resultado = await caso.execute(id);
+    const resultado = await caso.execute(id, contextoWeb(req));
     if (!resultado.success) {
       const conflicto = /traslap|ocupad/i.test(resultado.mensaje);
       return res.status(conflicto ? 409 : 400).json({ ok: false, mensaje: resultado.mensaje });
@@ -332,10 +341,10 @@ async function cambiarEstado(req, res) {
     let resultado;
     if (estado === 'cancelada') {
       const caso = new CancelarCita(citasRepo);
-      resultado = await caso.execute(id, { ignorarPlazo: ignorarPlazo && esAdmin(req.usuario) });
+      resultado = await caso.execute(id, { ignorarPlazo: ignorarPlazo && esAdmin(req.usuario), ...contextoWeb(req) });
     } else if (estado === 'completada' || estado === 'no_asistio') {
       const caso = new MarcarAsistencia(citasRepo);
-      resultado = await caso.execute(id, { asistio: estado === 'completada', actor });
+      resultado = await caso.execute(id, { asistio: estado === 'completada', actor, ...contextoWeb(req) });
     } else {
       return res.status(400).json({
         ok: false,
@@ -372,7 +381,7 @@ async function reagendar(req, res) {
     if (!(await exigirAccesoCita(req, res, cita))) return;
 
     const caso = new ReagendarCita(citasRepo, horariosRepo);
-    const resultado = await caso.execute(id, { fecha_hora: req.reagendamiento.fecha_hora });
+    const resultado = await caso.execute(id, { fecha_hora: req.reagendamiento.fecha_hora, ...contextoWeb(req) });
     if (!resultado.success) {
       const conflicto = /traslap|ocupad/i.test(resultado.mensaje);
       return res.status(conflicto ? 409 : 400).json({ ok: false, mensaje: resultado.mensaje });
@@ -421,7 +430,7 @@ async function eliminar(req, res) {
 
     const caso = new CancelarCita(citasRepo);
     const ignorarPlazo = req.query.ignorarPlazo === 'true' && esAdmin(req.usuario);
-    const resultado = await caso.execute(id, { ignorarPlazo });
+    const resultado = await caso.execute(id, { ignorarPlazo, ...contextoWeb(req) });
     if (!resultado.success) {
       const conflicto = /traslap|ocupad/i.test(resultado.mensaje);
       return res.status(conflicto ? 409 : 400).json({ ok: false, mensaje: resultado.mensaje });

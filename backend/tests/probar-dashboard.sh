@@ -119,9 +119,11 @@ echo "== Filtro personalizado: últimos 45 días =="
 R45=$(body "${A[@]}" "$BASE?fecha_inicio=$HACE_44&fecha_fin=$HOY")
 check "Rango de 45 días → 200"               200 $(code "${A[@]}" "$BASE?fecha_inicio=$HACE_44&fecha_fin=$HOY")
 check "rango.dias = 45"                      45  $(echo "$R45" | jq -r '.data.rango.dias' 2>/dev/null)
-check "Agrupación diaria hasta 60 días"      dia $(echo "$R45" | jq -r '.data.rango.agrupacionRegistros' 2>/dev/null)
-check "Registros de 45 días con campo fecha" true \
-  $(echo "$R45" | jq -r '.data.registrosPorMes | length == 45 and all((.fecha | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$")))' 2>/dev/null)
+# ObtenerResumenAdmin agrupa por mes cuando el rango supera 31 días;
+# hasta 31 días se agrupa por día (cubierto arriba con el rango de 7 días).
+check "Agrupación mensual con 45 días"       mes $(echo "$R45" | jq -r '.data.rango.agrupacionRegistros' 2>/dev/null)
+check "Registros de 45 días agrupados por mes" true \
+  $(echo "$R45" | jq -r '.data.registrosPorMes | length > 0 and length < 45 and all((.mes | test("^[0-9]{4}-[0-9]{2}$")))' 2>/dev/null)
 
 echo
 echo "== Filtro personalizado: últimos 90 días =="

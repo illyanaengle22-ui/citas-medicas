@@ -3,6 +3,14 @@
 const Cita = require('../../domain/entities/Cita');
 const Horario = require('../../domain/entities/Horario');
 const EstadoCita = require('../../domain/value-objects/EstadoCita');
+const {
+  formatearFechaHoraLocal,
+  formatearFechaLocal,
+  construirFechaHoraLocal,
+  diaSemanaLocal,
+} = require('../../domain/utils/fechaHoraLocal');
+
+const MS_POR_DIA = 24 * 60 * 60 * 1000;
 
 // RN-083: propone los 3 horarios libres más cercanos.
 // RN-084: al aplicar el cambio vuelve a validar disponibilidad (RN-072 y RN-074).
@@ -27,10 +35,10 @@ class ReagendarCita {
     const desde = Date.now() + anticipacionHoras * 60 * 60 * 1000;
     const propuestas = [];
 
+    const ahora = new Date();
     for (let i = 1; i <= diasBusqueda && propuestas.length < cantidad; i++) {
-      const dia = new Date();
-      dia.setDate(dia.getDate() + i);
-      const fecha = `${dia.getFullYear()}-${String(dia.getMonth() + 1).padStart(2, '0')}-${String(dia.getDate()).padStart(2, '0')}`;
+      const fecha = formatearFechaLocal(new Date(ahora.getTime() + i * MS_POR_DIA));
+      if (!fecha) continue;
 
       const huecos = await this.horarios.buscarHuecos({
         medico_id: cita.medico_id,
@@ -40,12 +48,15 @@ class ReagendarCita {
       });
 
       for (const hueco of huecos) {
-        const inicio = new Date(`${fecha}T${hueco.hora_inicio.slice(0, 5)}`);
+        const horaInicio = hueco.hora_inicio.slice(0, 5);
+        const fechaHoraLocal = construirFechaHoraLocal(fecha, horaInicio);
+        if (!fechaHoraLocal) continue;
+        const inicio = new Date(fechaHoraLocal);
         if (inicio.getTime() <= desde) continue; // aún muy pronto (RN-086 🔶)
         propuestas.push({
-          fecha_hora: inicio.toISOString(),
-          dia_semana: fecha,
-          hora_inicio: hueco.hora_inicio.slice(0, 5),
+          fecha_hora: fechaHoraLocal,
+          dia_semana: diaSemanaLocal(fechaHoraLocal),
+          hora_inicio: horaInicio,
           horario_id: hueco.horario_id,
           consultorio_id: hueco.consultorio_id
         });
@@ -63,7 +74,7 @@ class ReagendarCita {
   }
 
   // RN-084: valida de nuevo y aplica el cambio de fecha.
-  async execute(id, { fecha_hora }) {
+  async execute(id, { fecha_hora, cambiadoPor = null, origen = 'web', comentario = null } = {}) {
     if (!fecha_hora) {
       return { success: false, mensaje: 'Se requiere la nueva fecha y hora' };
     }
@@ -106,27 +117,46 @@ class ReagendarCita {
       return { success: false, mensaje: 'El horario ya fue ocupado para ese médico [RN-074]' };
     }
 
-    // La BD recalcula fecha_fin con su trigger y el EXCLUDE vuelve a verificar.
-    let data = await this.citas.actualizar(cita.id, { fecha_hora: nueva.fecha_hora });
-
-    // RN-080: pendiente o confirmada -> reagendada. Si ya era reagendada,
-    // solo se mueve la fecha (no hay transición 3 -> 3 en la tabla).
-    const reagendada = EstadoCita.fromClave('reagendada');
-    if (cita.estado.id !== reagendada.id) {
-      if (!cita.puedeTransicionarA(reagendada)) {
-        return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "reagendada" [RN-080]` };
-      }
-      data = await this.citas.cambiarEstado(cita.id, reagendada.id);
+    // RN-078: el paciente tampoco puede quedar con dos citas traslapadas,
+    // aunque el nuevo horario esté libre para el médico.
+    const traslapePaciente = await this.citas.buscarTraslapePaciente({
+      paciente_id: cita.paciente_id,
+      fecha_hora: nueva.fecha_hora,
+      fecha_fin: nueva.fecha_fin,
+      excluirId: cita.id
+    });
+    if (traslapePaciente) {
+      return { success: false, mensaje: 'El paciente ya tiene otra cita que se traslapa con ese horario [RN-078]' };
     }
+
+    // RN-080: validar la transición ANTES de tocar la fecha.
+    const reagendada = EstadoCita.fromClave('reagendada');
+    const cambiaEstado = Number(cita.estado.id) !== Number(reagendada.id);
+    if (cambiaEstado && !cita.puedeTransicionarA(reagendada)) {
+      return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "reagendada" [RN-080]` };
+    }
+
+    // RN-112: fecha y estado se actualizan en una sola operación atómica.
+    const data = await this.citas.reagendar(cita.id, {
+      fecha_hora: nueva.fecha_hora,
+      estado_id: cambiaEstado ? reagendada.id : null,
+      cambiadoPor,
+      origen,
+      comentario,
+    });
 
     return { success: true, data, mensaje: 'Cita reagendada correctamente' };
   }
 
   async _dentroDeHorario(cita) {
-    const bloques = await this.horarios.listarPorMedico(cita.medico_id);
-    const fecha = new Date(cita.fecha_hora);
-    const diaIso = ((fecha.getDay() + 6) % 7) + 1;
-    const hora = `${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}`;
+    const bloques = await this.horarios.listarPorMedico(cita.medico_id, {
+      soloActivos: true,
+      soloDisponibles: true,
+    });
+    const local = formatearFechaHoraLocal(cita.fecha_hora);
+    if (!local) return false;
+    const diaIso = diaSemanaLocal(cita.fecha_hora);
+    const hora = local.hora;
 
     return bloques.some((bloque) => {
       if (!bloque.activo) return false;

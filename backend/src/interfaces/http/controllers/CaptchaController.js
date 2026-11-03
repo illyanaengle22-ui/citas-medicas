@@ -56,7 +56,9 @@ function validarCaptcha(captchaId, texto) {
     return { valido: false, mensaje: 'Captcha expirado' };
   }
 
-  if (data.texto !== texto.toLowerCase()) {
+  // RN-023: el captcha no distingue mayúsculas ni espacios.
+  const normalizar = (valor) => String(valor ?? '').toLowerCase().replace(/\s+/g, '');
+  if (normalizar(data.texto) !== normalizar(texto)) {
     return { valido: false, mensaje: 'Texto del captcha incorrecto' };
   }
 

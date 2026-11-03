@@ -5,8 +5,9 @@
 // Compartido por el webhook de respuesta y los endpoints de Telegram.
 function secretValido(req) {
   const esperado = process.env.N8N_WEBHOOK_SECRET;
-  // Sin secreto configurado se acepta en desarrollo; en producción se debe definir.
-  if (!esperado) return true;
+  // RN-028: sin secreto configurado se rechaza la petición. Nunca se debe
+  // aceptar un webhook solo porque falta la variable de entorno.
+  if (!esperado) return false;
   return req.headers['x-webhook-secret'] === esperado;
 }
 

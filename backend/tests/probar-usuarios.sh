@@ -1,6 +1,9 @@
 #!/bin/bash
-# Uso: ADMIN='token' PAC='token' bash probar-usuarios.sh
-BASE=http://localhost:4000/api/usuarios
+# Uso: ADMIN='token' PAC='token' [BASE_URL=http://localhost:4000] bash probar-usuarios.sh
+BASE_URL="${BASE_URL:-http://localhost:4000}"
+BASE_URL="${BASE_URL%/}"
+BASE="$BASE_URL/api/usuarios"
+AUTH_URL="$BASE_URL/api/auth"
 S=$RANDOM
 ok=0; fail=0
 
@@ -68,14 +71,14 @@ check "Eliminar id inexistente → 404"   404 $(code "${A[@]}" -X DELETE $BASE/9
 echo "== Login bloqueado para eliminados y pendientes =="
 # Crear usuario pendiente vía registro público (estado_id=1 por defecto)
 PEND_EMAIL="pend$S@test.com"
-curl -s -X POST http://localhost:4000/api/auth/registrar -H "Content-Type: application/json" -d "{\"nombre\":\"Pendiente $S\",\"email\":\"$PEND_EMAIL\",\"password\":\"password123\",\"captchaId\":\"test\",\"captchaTexto\":\"test\"}" >/dev/null
-check "Login pendiente → 403" 403 $(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:4000/api/auth/login -H "Content-Type: application/json" -d "{\"email\":\"pend$S@test.com\",\"password\":\"password123\",\"captchaId\":\"test\",\"captchaTexto\":\"test\"}")
+curl -s -X POST "$AUTH_URL/registrar" -H "Content-Type: application/json" -d "{\"nombre\":\"Pendiente $S\",\"email\":\"$PEND_EMAIL\",\"password\":\"password123\",\"captchaId\":\"test\",\"captchaTexto\":\"test\"}" >/dev/null
+check "Login pendiente → 403" 403 $(curl -s -o /dev/null -w "%{http_code}" -X POST "$AUTH_URL/login" -H "Content-Type: application/json" -d "{\"email\":\"pend$S@test.com\",\"password\":\"password123\",\"captchaId\":\"test\",\"captchaTexto\":\"test\"}")
 
 # Crear y eliminar usuario (soft delete)
 DEL_EMAIL="del$S@test.com"
 DEL_ID=$(curl -s "${A[@]}" -X POST $BASE -d "{\"nombre\":\"Del $S\",\"email\":\"$DEL_EMAIL\",\"password\":\"password123\",\"rol_id\":3}" | jq -r '.data.id')
 curl -s -X DELETE "$BASE/$DEL_ID" "${A[@]}" >/dev/null
-check "Login eliminado → 401" 401 $(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:4000/api/auth/login -H "Content-Type: application/json" -d "{\"email\":\"$DEL_EMAIL\",\"password\":\"password123\",\"captchaId\":\"test\",\"captchaTexto\":\"test\"}")
+check "Login eliminado → 401" 401 $(curl -s -o /dev/null -w "%{http_code}" -X POST "$AUTH_URL/login" -H "Content-Type: application/json" -d "{\"email\":\"$DEL_EMAIL\",\"password\":\"password123\",\"captchaId\":\"test\",\"captchaTexto\":\"test\"}")
 
 echo "== Ausencia de password_hash en respuestas =="
 check "Listar no tiene password_hash" true $(curl -s "${A[@]}" $BASE | jq -e '(.data.data // [] | map(has("password_hash")) | any) | not')

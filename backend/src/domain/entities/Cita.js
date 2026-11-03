@@ -7,6 +7,7 @@ class Cita {
     id,
     uuid_publico,
     paciente_id,
+    paciente_usuario_id,
     medico_id,
     consultorio_id,
     fecha_hora,
@@ -21,6 +22,7 @@ class Cita {
     this.id = id;
     this.uuid_publico = uuid_publico;
     this.paciente_id = paciente_id;
+    this.paciente_usuario_id = paciente_usuario_id ?? null;
     this.medico_id = medico_id;
     this.consultorio_id = consultorio_id;
     this.fecha_hora = fecha_hora;
@@ -68,11 +70,16 @@ class Cita {
     return { inicio: new Date(this.fecha_hora), fin };
   }
 
-  // RN-074 / RN-078: dos citas vigentes del mismo médico o paciente no se traslapan
+  // RN-074 / RN-078: dos citas vigentes del mismo médico o del mismo paciente
+  // no se traslapan. El traslape es relevante si comparten médico O paciente.
   seSolapa(otra) {
     if (!(otra instanceof Cita)) return false;
-    if (this.medico_id !== otra.medico_id) return false;
     if (!this.esVigente() || !otra.esVigente()) return false;
+
+    const mismoMedico = Number(this.medico_id) === Number(otra.medico_id);
+    const mismoPaciente = Number(this.paciente_id) === Number(otra.paciente_id);
+    if (!mismoMedico && !mismoPaciente) return false;
+
     const uno = this.rango();
     const dos = otra.rango();
     return uno.inicio < dos.fin && dos.inicio < uno.fin;

@@ -16,7 +16,7 @@ class ProcesarRespuestaTelegram {
     this.reagendar = new ReagendarCita(citaRepository, horarioRepository);
   }
 
-  async execute({ chatId = null, uuidCita, respuesta, recordatorioId = null } = {}) {
+  async execute({ chatId = null, uuidCita, respuesta, recordatorioId = null, fecha_hora = null, origen = 'telegram', cambiadoPor = null } = {}) {
     if (!uuidCita) {
       return { success: false, mensaje: 'Falta el identificador de la cita' };
     }
@@ -30,30 +30,53 @@ class ProcesarRespuestaTelegram {
     }
     const cita = Cita.fromRow(row);
 
-    // RN-104: registra la respuesta en el recordatorio que originó el mensaje
-    await this._registrarRespuesta(cita.id, respuesta, recordatorioId);
-
+    let resultado;
     switch (respuesta) {
       case Recordatorio.RESPUESTAS.CONFIRMAR:
-        return this._confirmar(cita, chatId);
+        resultado = await this._confirmar(cita, chatId, { origen, cambiadoPor });
+        break;
 
       case Recordatorio.RESPUESTAS.CANCELAR:
-        return this._cancelar(cita, chatId);
+        resultado = await this._cancelar(cita, chatId, { origen, cambiadoPor });
+        break;
 
       case Recordatorio.RESPUESTAS.REAGENDAR:
-        // RN-083: no cambia el estado; devuelve las 3 opciones para que
-        // n8n las mande por Telegram y el paciente elija.
-        const propuestas = await this.reagendar.proponerHorarios(cita.id);
-        return {
-          ...propuestas,
-          mensaje: propuestas.success && propuestas.data.length
-            ? 'Elige una de estas opciones para reagendar [RN-083]'
-            : propuestas.mensaje
-        };
+        // RN-103: si n8n ya envía la nueva fecha elegida, se aplica el cambio.
+        // Si solo llega "reagendar", se devuelven las opciones para que el
+        // paciente elija y n8n vuelva a llamar con fecha_hora.
+        if (fecha_hora) {
+          const cambio = await this.reagendar.execute(cita.id, {
+            fecha_hora,
+            cambiadoPor: cambiadoPor ?? cita.paciente_usuario_id,
+            origen,
+          });
+          resultado = { ...cambio, chatId };
+        } else {
+          const propuestas = await this.reagendar.proponerHorarios(cita.id);
+          resultado = {
+            ...propuestas,
+            chatId,
+            mensaje: propuestas.success && propuestas.data.length
+              ? 'Elige una de estas opciones para reagendar [RN-083]'
+              : propuestas.mensaje
+          };
+        }
+        break;
 
       default:
-        return { success: false, mensaje: 'Respuesta no procesada' };
+        resultado = { success: false, mensaje: 'Respuesta no procesada' };
     }
+
+    // RN-104: la respuesta se registra solo cuando la acción fue aceptada.
+    if (resultado.success) {
+      try {
+        await this._registrarRespuesta(cita.id, respuesta, recordatorioId);
+      } catch (error) {
+        console.error('[Telegram] No se pudo registrar la respuesta:', error.message);
+      }
+    }
+
+    return resultado;
   }
 
   async _registrarRespuesta(citaId, respuesta, recordatorioId) {
@@ -71,7 +94,7 @@ class ProcesarRespuestaTelegram {
     }
   }
 
-  async _confirmar(cita, chatId) {
+  async _confirmar(cita, chatId, { origen = 'telegram', cambiadoPor = null } = {}) {
     const confirmada = EstadoCita.fromClave('confirmada');
     if (!cita.estado.esVigente()) {
       return { success: false, chatId, mensaje: `La cita ya no está vigente (estado "${cita.estado.clave}")` };
@@ -79,11 +102,14 @@ class ProcesarRespuestaTelegram {
     if (!cita.puedeTransicionarA(confirmada)) {
       return { success: false, chatId, mensaje: `No se puede pasar de "${cita.estado.clave}" a "confirmada" [RN-080]` };
     }
-    const data = await this.citas.cambiarEstado(cita.id, confirmada.id);
+    const data = await this.citas.cambiarEstado(cita.id, confirmada.id, {
+      cambiadoPor: cambiadoPor ?? cita.paciente_usuario_id,
+      origen,
+    });
     return { success: true, chatId, data, mensaje: 'Cita confirmada por Telegram' };
   }
 
-  async _cancelar(cita, chatId) {
+  async _cancelar(cita, chatId, { origen = 'telegram', cambiadoPor = null } = {}) {
     if (!cita.estado.esVigente()) {
       return { success: false, chatId, mensaje: `La cita ya no está vigente (estado "${cita.estado.clave}")` };
     }
@@ -95,7 +121,10 @@ class ProcesarRespuestaTelegram {
     if (cita.fueraDePlazoCancelacion(2)) {
       return { success: false, chatId, mensaje: 'Faltan menos de 2 horas para la cita; no es posible cancelarla [RN-086]' };
     }
-    const data = await this.citas.cambiarEstado(cita.id, cancelada.id);
+    const data = await this.citas.cambiarEstado(cita.id, cancelada.id, {
+      cambiadoPor: cambiadoPor ?? cita.paciente_usuario_id,
+      origen,
+    });
     return { success: true, chatId, data, mensaje: 'Cita cancelada por Telegram; el horario quedó libre' };
   }
 }

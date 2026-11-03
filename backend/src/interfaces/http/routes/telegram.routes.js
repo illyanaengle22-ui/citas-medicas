@@ -10,6 +10,8 @@ const { secretValido } = require('../utils/webhookSecret');
 // Webapp: el paciente (autenticado con JWT) pide su código de vinculación.
 router.post('/codigo', authMiddleware, roleMiddleware('paciente'), ctrl.generarCodigo);
 router.get('/estado', authMiddleware, roleMiddleware('paciente'), ctrl.estado);
+// El paciente desvincula su propia cuenta desde la webapp.
+router.delete('/vincular', authMiddleware, roleMiddleware('paciente'), ctrl.desvincular);
 
 // n8n/Telegram: autenticación por secreto compartido (RN-107), sin JWT de usuario.
 function exigirSecret(req, res, next) {
@@ -21,5 +23,9 @@ function exigirSecret(req, res, next) {
 
 router.post('/vincular', exigirSecret, ctrl.vincular);
 router.post('/token', exigirSecret, ctrl.tokenPorChat);
+// n8n consulta si un chat ya está vinculado (útil cuando pierde su memoria).
+router.get('/estado/:chatId', exigirSecret, ctrl.estadoPorChat);
+// n8n desvincula un chat (por ejemplo ante el comando /desvincular del bot).
+router.delete('/vincular/:chatId', exigirSecret, ctrl.desvincularPorChat);
 
 module.exports = router;

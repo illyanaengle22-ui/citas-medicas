@@ -22,7 +22,7 @@ class CitaRepository {
 
   // RN-080: la transición se valida en domain antes de llegar aquí;
   // el trigger trg_citas_historial registra el cambio en historial_estados_cita (RN-090)
-  async cambiarEstado(id, estado_id) {
+  async cambiarEstado(id, estado_id, contexto = {}) {
     throw new Error('Método no implementado');
   }
 
@@ -31,9 +31,19 @@ class CitaRepository {
     throw new Error('Método no implementado');
   }
 
+  // RN-112: mueve fecha_hora y estado en una sola transacción
+  async reagendar(id, cambios = {}) {
+    throw new Error('Método no implementado');
+  }
+
   // RN-075: pre-check de traslape para responder "El horario ya fue ocupado"
   // en vez de un error técnico (la BD lo garantiza con EXCLUDE USING gist, RN-074)
   async buscarTraslape({ medico_id, fecha_hora, fecha_fin, excluirId = null }) {
+    throw new Error('Método no implementado');
+  }
+
+  // RN-078: pre-check de traslape del paciente con cualquier médico
+  async buscarTraslapePaciente({ paciente_id, fecha_hora, fecha_fin, excluirId = null }) {
     throw new Error('Método no implementado');
   }
 

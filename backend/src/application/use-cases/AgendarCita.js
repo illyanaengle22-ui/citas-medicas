@@ -2,6 +2,7 @@
 
 const Cita = require('../../domain/entities/Cita');
 const Horario = require('../../domain/entities/Horario');
+const { formatearFechaHoraLocal, diaSemanaLocal } = require('../../domain/utils/fechaHoraLocal');
 
 // RN-077: la cita nace pendiente; RN-071 / RN-073 / RN-072 / RN-074 / RN-078
 // se validan ANTES de insertar. El EXCLUDE de la BD es la última red por si
@@ -44,12 +45,15 @@ class AgendarCita {
       return { success: false, mensaje: 'El horario ya fue ocupado para ese médico [RN-074]' };
     }
 
-    // RN-078: el paciente no puede tener dos citas vigentes traslapadas
-    const mias = await this.citas.listar({ paciente_id: cita.paciente_id, page: 1, limit: 200 });
-    const choque = mias.data
-      .map((row) => Cita.fromRow(row))
-      .some((otra) => otra.id !== cita.id && otra.estado.esVigente() && otra.esFutura() && cita.seSolapa(otra));
-    if (choque) {
+    // RN-078: el paciente no puede tener dos citas vigentes traslapadas,
+    // aunque sean con médicos distintos. La BD también lo garantiza con un
+    // EXCLUDE por paciente (migración 006).
+    const traslapePaciente = await this.citas.buscarTraslapePaciente({
+      paciente_id: cita.paciente_id,
+      fecha_hora: cita.fecha_hora,
+      fecha_fin: cita.fecha_fin
+    });
+    if (traslapePaciente) {
       return { success: false, mensaje: 'El paciente ya tiene una cita que se traslapa con ese horario [RN-078]' };
     }
 
@@ -67,13 +71,19 @@ class AgendarCita {
     return { success: true, data: creada, mensaje: 'Cita agendada correctamente' };
   }
 
-  // RN-072: existe un bloque activo de ese médico, ese día, esa consultorio
-  // y con la hora dentro del rango [inicio, fin)
+  // RN-072: existe un bloque activo de ese médico, ese día, ese consultorio
+  // y con la hora dentro del rango [inicio, fin). La fecha/hora se interpreta
+  // siempre en la zona de la clínica, no en la zona del proceso de Node.
   async _dentroDeHorario(cita) {
-    const bloques = await this.horarios.listarPorMedico(cita.medico_id);
-    const fecha = new Date(cita.fecha_hora);
-    const diaIso = ((fecha.getDay() + 6) % 7) + 1; // 1 = lunes ... 7 = domingo
-    const hora = `${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}`;
+    const bloques = await this.horarios.listarPorMedico(cita.medico_id, {
+      soloActivos: true,
+      soloDisponibles: true,
+    });
+    const local = formatearFechaHoraLocal(cita.fecha_hora);
+    if (!local) return false;
+
+    const diaIso = diaSemanaLocal(cita.fecha_hora);
+    const hora = local.hora;
 
     return bloques.some((bloque) => {
       if (!bloque.activo) return false;

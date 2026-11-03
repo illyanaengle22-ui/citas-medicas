@@ -12,7 +12,7 @@ class CancelarCita {
   }
 
   // ignorarPlazo: solo un administrador puede saltarse el plazo (RN-086 🔶)
-  async execute(id, { ignorarPlazo = false, anticipacionHoras = 2 } = {}) {
+  async execute(id, { ignorarPlazo = false, anticipacionHoras = 2, cambiadoPor = null, origen = 'web', comentario = null } = {}) {
     const row = await this.repo.obtenerPorId(id);
     if (!row) {
       return { success: false, mensaje: 'Cita no encontrada' };
@@ -33,7 +33,7 @@ class CancelarCita {
       return { success: false, mensaje: `Faltan menos de ${anticipacionHoras} horas para la cita; no es posible cancelarla [RN-086]` };
     }
 
-    const data = await this.repo.cambiarEstado(id, cancelada.id);
+    const data = await this.repo.cambiarEstado(id, cancelada.id, { cambiadoPor, origen, comentario });
     return { success: true, data, mensaje: 'Cita cancelada; el horario quedó libre [RN-085]' };
   }
 }

@@ -2,7 +2,7 @@
 
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secreto_temporal_para_pruebas';
+const { JWT_SECRET } = require('../../../infrastructure/config/secrets');
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
