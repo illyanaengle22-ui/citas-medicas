@@ -1,9 +1,7 @@
-// En producción la app y la API viven en el mismo dominio: las rutas
-// relativas (/api, /uploads) las resuelve nginx. En desarrollo, Vite hace
-// proxy de /api y /uploads hacia el backend (ver vite.config.js), así que
-// tampoco hace falta una URL absoluta. VITE_API_URL queda como escape para
-// escenarios donde el backend esté en otro origen.
-const API_URL = import.meta.env.VITE_API_URL || '';
+// En producción la app y la API viven en el mismo dominio bajo nginx (/api, /uploads).
+// En desarrollo, el proxy de Vite reenvía las rutas relativas (/api, /uploads) al backend local.
+// No se usan URLs absolutas ni VITE_API_URL para garantizar portabilidad sin recompilar.
+const API_URL = '';
 
 class ApiError extends Error {
   constructor(mensaje, status) {

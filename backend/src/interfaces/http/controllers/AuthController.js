@@ -8,8 +8,8 @@ const { validarCaptcha } = require('./CaptchaController');
 const { JWT_SECRET } = require('../../../infrastructure/config/secrets');
 
 // RN-020: el atajo de captcha para pruebas solo se habilita explícitamente
-// con ALLOW_TEST_CAPTCHA=true. En producción debe quedar ausente/false.
-const PERMITIR_CAPTCHA_TEST = process.env.ALLOW_TEST_CAPTCHA === 'true';
+// con ALLOW_TEST_CAPTCHA=true y SIEMPRE se ignora si NODE_ENV=production.
+const PERMITIR_CAPTCHA_TEST = process.env.NODE_ENV !== 'production' && process.env.ALLOW_TEST_CAPTCHA === 'true';
 
 function validarCaptchaDePeticion(captchaId, captchaTexto) {
   if (PERMITIR_CAPTCHA_TEST && captchaId === 'test') return { valido: true };

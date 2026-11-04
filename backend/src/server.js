@@ -1,7 +1,21 @@
 'use strict';
 
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+const fs = require('fs');
+
+// Carga .env: busca primero junto al archivo (__dirname/.env), luego en la raíz de la rama (../.env) o cwd/.env
+const envCandidates = [
+  path.join(__dirname, '.env'),
+  path.join(__dirname, '..', '.env'),
+  path.join(process.cwd(), '.env'),
+];
+for (const envPath of envCandidates) {
+  if (fs.existsSync(envPath)) {
+    require('dotenv').config({ path: envPath });
+    break;
+  }
+}
+
 const express = require('express');
 const cors = require('cors');
 
@@ -26,12 +40,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Sirve el frontend de prueba (login-test.html) directo desde el backend
-app.use(express.static(path.join(__dirname, '..', '..', 'frontend')));
+// Sirve el frontend estático solo si existe la carpeta (desarrollo local)
+const frontendPath = path.join(__dirname, '..', '..', 'frontend');
+if (fs.existsSync(frontendPath)) {
+  app.use(express.static(frontendPath));
+}
 
 // Sirve imágenes de perfil/médicos subidas por multer.
-// UPLOADS_DIR permite una ruta absoluta en producción; en desarrollo usa backend/uploads.
-const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
+// UPLOADS_DIR por env o process.cwd()/uploads con mkdir recursivo al arrancar.
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 app.use('/api/auth', authRoutes);
@@ -71,4 +91,4 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor escuchando en http://localhost:${PORT}`);
   iniciarRecordatorios();
   iniciarCitasVencidasScheduler();
-});
+});

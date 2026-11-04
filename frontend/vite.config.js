@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  build: {
+    sourcemap: false,
+  },
   server: {
     watch: {
       usePolling: true,
