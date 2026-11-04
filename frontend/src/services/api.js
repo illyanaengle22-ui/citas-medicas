@@ -1,4 +1,9 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+// En producción la app y la API viven en el mismo dominio: las rutas
+// relativas (/api, /uploads) las resuelve nginx. En desarrollo, Vite hace
+// proxy de /api y /uploads hacia el backend (ver vite.config.js), así que
+// tampoco hace falta una URL absoluta. VITE_API_URL queda como escape para
+// escenarios donde el backend esté en otro origen.
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 class ApiError extends Error {
   constructor(mensaje, status) {

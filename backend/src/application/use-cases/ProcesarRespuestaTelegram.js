@@ -117,6 +117,10 @@ class ProcesarRespuestaTelegram {
     if (!cita.puedeTransicionarA(cancelada)) {
       return { success: false, chatId, mensaje: `No se puede pasar de "${cita.estado.clave}" a "cancelada" [RN-080]` };
     }
+    // La cita ya pasó: no se cancela, se marca como completada/no_asistio.
+    if (!cita.esFutura()) {
+      return { success: false, chatId, mensaje: 'No puedes cancelar una cita que ya pasó. Contacta a la clínica para más información.' };
+    }
     // RN-086 🔶: el plazo mínimo aplica también por Telegram
     if (cita.fueraDePlazoCancelacion(2)) {
       return { success: false, chatId, mensaje: 'Faltan menos de 2 horas para la cita; no es posible cancelarla [RN-086]' };

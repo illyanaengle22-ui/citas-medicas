@@ -526,11 +526,11 @@ El usuario se obtiene del JWT (`req.usuario.id`) y se cruza con `pacientes.usuar
 | GET | `/api/citas/mis-pacientes` | medico | Pacientes distintos de su agenda, con conteos y última visita |
 | GET | `/api/citas/:id` | dueño, médico de la cita, admin | Detalle |
 | GET | `/api/citas/:id/historial` | dueño, médico de la cita, admin | Historial de estados (RN-090) |
-| GET | `/api/citas/:id/propuestas` | dueño, médico de la cita, admin | Los 3 horarios libres más cercanos para reagendar (RN-083) |
+| GET | `/api/citas/:id/propuestas` | dueño, médico de la cita, admin | Los 3 horarios libres más cercanos para reagendar (RN-083). Acepta `?medico_id=` para proponer horarios de otro médico de la misma especialidad |
 | POST | `/api/citas` | paciente, admin | Agendar. El paciente agenda para sí mismo; el admin puede indicar `paciente_id` |
 | PUT | `/api/citas/:id/confirmar` | dueño, médico de la cita, admin | `pendiente`/`reagendada` → `confirmada` (RN-080) |
 | PUT | `/api/citas/:id/estado` | dueño, médico de la cita, admin | `{ estado, ignorarPlazo? }` — `cancelada`, `completada`, `no_asistio` |
-| PUT | `/api/citas/:id` | dueño, médico de la cita, admin | Reagendar: `{ fecha_hora }` (RN-084) |
+| PUT | `/api/citas/:id` | dueño, médico de la cita, admin | Reagendar: `{ fecha_hora, medico_id?, consultorio_id? }` (RN-084). El nuevo médico debe estar activo y compartir al menos una especialidad con el original; el consultorio puede cambiar al del hueco elegido |
 | DELETE | `/api/citas/:id` | dueño, médico de la cita, admin | **Cancela** la cita (RN-087: nunca borrado físico). `?ignorarPlazo=true` solo admin |
 
 ### Parámetros de consulta GET `/api/citas`
@@ -684,6 +684,7 @@ BD (aunque el código falte, sea inválido, haya expirado o ya se haya usado).
 | GET | `/api/telegram/estado/:chatId` | `x-webhook-secret` | `{ vinculado, paciente_id }` consultando `pacientes.telegram_chat_id` |
 | DELETE | `/api/telegram/vincular` | JWT rol `paciente` | Desvincula mi cuenta (`telegram_chat_id = NULL`). Idempotente |
 | DELETE | `/api/telegram/vincular/:chatId` | `x-webhook-secret` | Desvincula ese chat desde n8n. Idempotente |
+| POST | `/api/telegram/sesion` | `x-webhook-secret` | `{ chatId }` (body o query) → `{ ok, vinculado, token }`. Si el chat no está vinculado devuelve `ok: false` |
 | POST | `/api/telegram/token` | `x-webhook-secret` | Canjea `{ chatId }` → JWT fresco del paciente vinculado |
 
 ```http
@@ -744,6 +745,23 @@ Errores: 400 chatId no numérico · 401 secreto inválido o ausente
 
 Al desvincular también se eliminan los códigos pendientes de ese paciente, para
 que un `/start CÓDIGO` viejo no vuelva a vincular el chat sin pasar por la webapp.
+
+```http
+POST /api/telegram/sesion
+x-webhook-secret: <N8N_WEBHOOK_SECRET>
+
+{ "chatId": "999888777" }
+
+Chat vinculado:
+→ { "ok": true, "vinculado": true, "token": "<JWT 24h>" }
+
+Chat sin vincular (siempre 200, para que n8n pueda ramificar):
+→ { "ok": false, "vinculado": false }
+
+Errores: 400 chatId inválido · 401 secreto inválido o ausente
+```
+El `chatId` también se acepta como query param: `POST /api/telegram/sesion?chatId=999888777`.
+Solo se emite token si la cuenta del paciente está **activa** (misma regla que el login).
 
 ```http
 POST /api/telegram/token

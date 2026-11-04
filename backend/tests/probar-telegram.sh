@@ -286,6 +286,41 @@ check "DELETE con chatId inválido → 400" 400 \
   "$(code "${W[@]}" -X DELETE "$API/telegram/vincular/abc")"
 
 echo
+echo "== (h) POST /telegram/sesion (n8n consulta si el chat ya está vinculado) =="
+# El chat 2 sigue vinculado al paciente 2; el chat 1 se desvinculó en (g).
+request "${W[@]}" -X POST "$API/telegram/sesion" -d "{\"chatId\":\"$CHAT2\"}"
+check "Sesión de un chat vinculado → 200" 200 "$RESP_CODE"
+check "ok = true" true \
+  "$(printf '%s' "$RESP_BODY" | jq -r '.ok == true' 2>/dev/null)"
+check "vinculado = true" true \
+  "$(printf '%s' "$RESP_BODY" | jq -r '.vinculado == true' 2>/dev/null)"
+TOK_SES="$(printf '%s' "$RESP_BODY" | jq -r '.token // empty' 2>/dev/null)"
+check "Devuelve un JWT (3 partes)" 3 \
+  "$(printf '%s' "$TOK_SES" | awk -F. '{print NF}')"
+check "El JWT sirve para llamar a la API" 200 \
+  "$(code -H "Authorization: Bearer $TOK_SES" "$API/citas?limit=1")"
+
+request "${W[@]}" -X POST "$API/telegram/sesion?chatId=$CHAT2"
+check "Acepta chatId por query param → 200" 200 "$RESP_CODE"
+check "Query param → ok = true" true \
+  "$(printf '%s' "$RESP_BODY" | jq -r '.ok == true' 2>/dev/null)"
+
+request "${W[@]}" -X POST "$API/telegram/sesion" -d "{\"chatId\":\"$CHAT\"}"
+check "Sesión de un chat sin vincular → 200" 200 "$RESP_CODE"
+check "ok = false" false \
+  "$(printf '%s' "$RESP_BODY" | jq -r '.ok' 2>/dev/null)"
+check "vinculado = false" false \
+  "$(printf '%s' "$RESP_BODY" | jq -r '.vinculado' 2>/dev/null)"
+
+check "Sesión sin secreto → 401" 401 \
+  "$(code -H 'Content-Type: application/json' -X POST "$API/telegram/sesion" \
+     -d "{\"chatId\":\"$CHAT2\"}")"
+check "Sesión con chatId inválido → 400" 400 \
+  "$(code "${W[@]}" -X POST "$API/telegram/sesion" -d '{"chatId":"abc"}')"
+check "Sesión sin chatId → 400" 400 \
+  "$(code "${W[@]}" -X POST "$API/telegram/sesion" -d '{}')"
+
+echo
 echo "Resultado: $ok ✅  $fail ❌"
 if [ "$fail" -gt 0 ]; then
   exit 1

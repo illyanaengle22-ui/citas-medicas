@@ -22,6 +22,7 @@ function exigirSecret(req, res, next) {
 }
 
 router.post('/vincular', exigirSecret, ctrl.vincular);
+router.post('/sesion', exigirSecret, ctrl.obtenerSesionPorChat);
 router.post('/token', exigirSecret, ctrl.tokenPorChat);
 // n8n consulta si un chat ya está vinculado (útil cuando pierde su memoria).
 router.get('/estado/:chatId', exigirSecret, ctrl.estadoPorChat);

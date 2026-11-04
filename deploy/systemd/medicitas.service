@@ -1,0 +1,38 @@
+# ============================================================================
+# MediCitas — servicio systemd del backend
+#
+# Instalación (una sola vez, con el repo copiado en /opt/medicitas):
+#   sudo useradd --system --home /opt/medicitas --shell /usr/sbin/nologin medicitas
+#   sudo chown -R medicitas:medicitas /opt/medicitas
+#   sudo cp deploy/systemd/medicitas.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now medicitas
+#
+# El .env debe estar en /opt/medicitas/backend/src/.env (dotenv lo lee desde
+# el directorio de trabajo). Los uploads viven en backend/uploads o en la
+# ruta absoluta indicada por UPLOADS_DIR.
+# ============================================================================
+
+[Unit]
+Description=MediCitas backend (Node.js)
+Documentation=file:///opt/medicitas/README.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=medicitas
+Group=medicitas
+WorkingDirectory=/opt/medicitas/backend/src
+EnvironmentFile=/opt/medicitas/backend/src/.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -54,6 +54,14 @@ export function puedeMarcarCompletada(fechaHora, toleranciaMinutos = 5) {
   return Date.now() >= inicio - toleranciaMinutos * 60 * 1000;
 }
 
+// true si la fecha/hora ya pasó (o es exactamente ahora). Se usa para no
+// ofrecer acciones que el backend rechaza, como cancelar una cita pasada.
+export function yaPaso(fechaHora) {
+  if (!fechaHora) return false;
+  const momento = new Date(fechaHora).getTime();
+  return !Number.isNaN(momento) && momento <= Date.now();
+}
+
 // 2026-10-26T16:00:00.000Z → "26 oct 2026, 10:00"
 export function formatearFechaHora(fecha) {
   if (!fecha) return '—';

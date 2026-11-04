@@ -7,11 +7,12 @@ import { useNavigate } from 'react-router-dom';
 import CrudTable from '../../components/CrudTable';
 import FormModal from '../../components/FormModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import ReagendarCitaModal from '../../components/ReagendarCitaModal';
 import { apiFetch } from '../../services/api';
 import { obtenerTodasLasCitas } from '../../services/citas';
 import {
   ESTADOS_CITA, ESTADOS_VIGENTES, claseEstado, etiquetaEstado, formatearFechaHora,
-  formatearDuracion, esVigente,
+  formatearDuracion, esVigente, yaPaso,
 } from '../../components/citasHelpers';
 
 const columnas = [
@@ -85,8 +86,6 @@ export default function MisCitas() {
   const [confirmacion, setConfirmacion] = useState(null);
   const [enConfirmacion, setEnConfirmacion] = useState(false);
   const [reagendando, setReagendando] = useState(null);
-  const [propuestas, setPropuestas] = useState([]);
-  const [guardando, setGuardando] = useState(false);
   const [toast, setToast] = useState(null);
   const navigate = useNavigate();
 
@@ -167,14 +166,8 @@ export default function MisCitas() {
     }
   }
 
-  async function abrirReagendar(fila) {
-    try {
-      const data = await apiFetch(`/api/citas/${fila.id}/propuestas`);
-      setPropuestas(Array.isArray(data) ? data : []);
-      setReagendando({ fila, usarOtra: false });
-    } catch (err) {
-      mostrarToast(err.message, 'error');
-    }
+  function abrirReagendar(fila) {
+    setReagendando(fila);
   }
 
   const acciones = (fila) => {
@@ -182,11 +175,18 @@ export default function MisCitas() {
       { icono: faClipboardList, titulo: 'Ver detalle e historial', clase: 'btn-ver', onClick: () => abrirHistorial(fila) },
     ];
     if (esVigente(fila.estado)) {
+      const paso = yaPaso(fila.fecha_hora);
       if (fila.estado !== 'confirmada') {
         lista.push({ icono: faCheck, titulo: 'Confirmar', clase: 'btn-aprobar', onClick: () => pedirConfirmacion(fila, 'confirmar') });
       }
       lista.push({ icono: faRotateRight, titulo: 'Reagendar', clase: 'btn-editar', onClick: () => abrirReagendar(fila) });
-      lista.push({ icono: faBan, titulo: 'Cancelar', clase: 'btn-rechazar', onClick: () => pedirConfirmacion(fila, 'cancelar') });
+      lista.push({
+        icono: faBan,
+        titulo: paso ? 'No puedes cancelar una cita que ya pasó' : 'Cancelar',
+        clase: 'btn-rechazar',
+        onClick: () => pedirConfirmacion(fila, 'cancelar'),
+        disabled: paso,
+      });
     }
     return lista;
   };
@@ -274,60 +274,11 @@ export default function MisCitas() {
       )}
 
       {reagendando && (
-        <FormModal
-          titulo="Reagendar cita"
-          campos={[
-            ...(propuestas.length > 0 ? [{
-              nombre: 'propuesta',
-              etiqueta: 'Horarios disponibles (RN-083)',
-              tipo: 'select',
-              requerido: true,
-              opciones: [
-                ...propuestas.map((p, i) => ({
-                  valor: String(i),
-                  etiqueta: `${formatearFechaHora(p.fecha_hora)} (${p.hora_inicio?.slice(0, 5)})`,
-                })),
-                { valor: 'otra', etiqueta: 'Elegir otra fecha y hora…' },
-              ],
-            }] : []),
-            ...(reagendando.usarOtra ? [{
-              nombre: 'fecha_hora',
-              etiqueta: 'Nueva fecha y hora',
-              tipo: 'datetime-local',
-              requerido: true,
-              ayuda: 'Debe caer dentro de un horario activo del médico [RN-072]',
-            }] : []),
-          ]}
-          valoresIniciales={reagendando.usarOtra ? { fecha_hora: '' } : { propuesta: '0' }}
-          onSubmit={async (valores) => {
-            if (valores.propuesta === 'otra') {
-              setReagendando((prev) => ({ ...prev, usarOtra: true }));
-              return;
-            }
-            const propuesta = propuestas[Number(valores.propuesta)];
-            if (!propuesta) {
-              mostrarToast('Selecciona un horario válido', 'error');
-              return;
-            }
-            setGuardando(true);
-            try {
-              await apiFetch(`/api/citas/${reagendando.fila.id}`, {
-                method: 'PUT',
-                body: { fecha_hora: propuesta.fecha_hora },
-              });
-              mostrarToast('Cita reagendada correctamente');
-              setReagendando(null);
-              setPropuestas([]);
-              cargarDatos();
-            } catch (err) {
-              mostrarToast(err.message, 'error');
-            } finally {
-              setGuardando(false);
-            }
-          }}
-          onCerrar={() => { setReagendando(null); setPropuestas([]); }}
-          guardando={guardando}
-          errores={{}}
+        <ReagendarCitaModal
+          cita={reagendando}
+          onCerrar={() => setReagendando(null)}
+          onReagendada={() => { setReagendando(null); cargarDatos(); }}
+          mostrarToast={mostrarToast}
         />
       )}
 

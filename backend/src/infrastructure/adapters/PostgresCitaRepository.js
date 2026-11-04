@@ -173,7 +173,15 @@ class PostgresCitaRepository extends CitaRepository {
 
   // RN-112: mueve la fecha y, si aplica, cambia el estado en una sola
   // transacción. El trigger de historial registra el cambio de estado.
-  async reagendar(id, { fecha_hora, estado_id = null, cambiadoPor = null, origen = 'web', comentario = null } = {}) {
+  async reagendar(id, {
+    fecha_hora,
+    medico_id = null,
+    consultorio_id = null,
+    estado_id = null,
+    cambiadoPor = null,
+    origen = 'web',
+    comentario = null,
+  } = {}) {
     const client = await db.getClient();
     try {
       await client.query('BEGIN');
@@ -186,6 +194,14 @@ class PostgresCitaRepository extends CitaRepository {
 
       const campos = ['fecha_hora = $1'];
       const valores = [fecha_hora];
+      if (medico_id !== null && medico_id !== undefined) {
+        valores.push(medico_id);
+        campos.push(`medico_id = $${valores.length}`);
+      }
+      if (consultorio_id !== null && consultorio_id !== undefined) {
+        valores.push(consultorio_id);
+        campos.push(`consultorio_id = $${valores.length}`);
+      }
       if (estado_id !== null && estado_id !== undefined) {
         valores.push(estado_id);
         campos.push(`estado_id = $${valores.length}`);

@@ -15,14 +15,22 @@ const MS_POR_DIA = 24 * 60 * 60 * 1000;
 // RN-083: propone los 3 horarios libres más cercanos.
 // RN-084: al aplicar el cambio vuelve a validar disponibilidad (RN-072 y RN-074).
 class ReagendarCita {
-  constructor(citaRepository, horarioRepository) {
+  constructor(citaRepository, horarioRepository, medicoRepository = null) {
     this.citas = citaRepository;
     this.horarios = horarioRepository;
+    this.medicos = medicoRepository;
   }
 
-  // Devuelve próximos huecos libres del mismo médico, mismo consultorio,
-  // con la misma duración, a partir de ahora + anticipacionHoras.
-  async proponerHorarios(id, { cantidad = 3, diasBusqueda = 14, anticipacionHoras = 2 } = {}) {
+  // Devuelve próximos huecos libres del mismo médico (o del médico elegido
+  // dentro de la misma especialidad), con la misma duración, a partir de
+  // ahora + anticipacionHoras.
+  async proponerHorarios(id, {
+    cantidad = 3,
+    diasBusqueda = 14,
+    anticipacionHoras = 2,
+    medico_id = null,
+    consultorio_id = null,
+  } = {}) {
     const row = await this.citas.obtenerPorId(id);
     if (!row) {
       return { success: false, mensaje: 'Cita no encontrada' };
@@ -31,6 +39,15 @@ class ReagendarCita {
     if (!cita.estado.esVigente()) {
       return { success: false, mensaje: `Solo se reagendan citas vigentes; la cita está "${cita.estado.clave}" [RN-076]` };
     }
+
+    const cambio = await this._validarCambioMedico(cita, medico_id);
+    if (!cambio.success) return cambio;
+
+    const medicoObjetivo = cambio.medico_id;
+    const mismoMedico = String(medicoObjetivo) === String(cita.medico_id);
+    // Al cambiar de médico no restringimos al consultorio original: el
+    // médico nuevo puede atender en otro consultorio.
+    const consultorioObjetivo = consultorio_id ?? (mismoMedico ? cita.consultorio_id : null);
 
     const desde = Date.now() + anticipacionHoras * 60 * 60 * 1000;
     const propuestas = [];
@@ -41,10 +58,10 @@ class ReagendarCita {
       if (!fecha) continue;
 
       const huecos = await this.horarios.buscarHuecos({
-        medico_id: cita.medico_id,
+        medico_id: medicoObjetivo,
         fecha,
         duracion_minutos: cita.duracion_minutos,
-        consultorio_id: cita.consultorio_id
+        consultorio_id: consultorioObjetivo
       });
 
       for (const hueco of huecos) {
@@ -73,8 +90,16 @@ class ReagendarCita {
     };
   }
 
-  // RN-084: valida de nuevo y aplica el cambio de fecha.
-  async execute(id, { fecha_hora, cambiadoPor = null, origen = 'web', comentario = null } = {}) {
+  // RN-084: valida de nuevo y aplica el cambio de fecha (y, opcionalmente,
+  // de médico dentro de la misma especialidad y de consultorio).
+  async execute(id, {
+    fecha_hora,
+    medico_id = null,
+    consultorio_id = null,
+    cambiadoPor = null,
+    origen = 'web',
+    comentario = null,
+  } = {}) {
     if (!fecha_hora) {
       return { success: false, mensaje: 'Se requiere la nueva fecha y hora' };
     }
@@ -94,7 +119,20 @@ class ReagendarCita {
       return { success: false, mensaje: 'Faltan menos de 2 horas para la cita; no es posible reagendarla [RN-086]' };
     }
 
-    const nueva = Cita.fromRow({ ...row, fecha_hora, duracion_minutos: cita.duracion_minutos, estado_id: cita.estado_id });
+    const cambio = await this._validarCambioMedico(cita, medico_id);
+    if (!cambio.success) return cambio;
+
+    const medicoObjetivo = cambio.medico_id;
+    const consultorioObjetivo = consultorio_id ?? cita.consultorio_id;
+
+    const nueva = Cita.fromRow({
+      ...row,
+      fecha_hora,
+      medico_id: medicoObjetivo,
+      consultorio_id: consultorioObjetivo,
+      duracion_minutos: cita.duracion_minutos,
+      estado_id: cita.estado_id
+    });
     if (!nueva.esFutura()) {
       return { success: false, mensaje: 'La nueva fecha debe ser futura [RN-073]' };
     }
@@ -108,7 +146,7 @@ class ReagendarCita {
 
     // RN-074 / RN-075: sin traslape con otras citas vigentes (excluyendo la propia)
     const traslape = await this.citas.buscarTraslape({
-      medico_id: cita.medico_id,
+      medico_id: nueva.medico_id,
       fecha_hora: nueva.fecha_hora,
       fecha_fin: nueva.fecha_fin,
       excluirId: cita.id
@@ -136,9 +174,16 @@ class ReagendarCita {
       return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "reagendada" [RN-080]` };
     }
 
-    // RN-112: fecha y estado se actualizan en una sola operación atómica.
+    const cambiaMedico = String(nueva.medico_id) !== String(cita.medico_id);
+    const cambiaConsultorio = String(nueva.consultorio_id) !== String(cita.consultorio_id);
+
+    // RN-112: fecha, médico, consultorio y estado se actualizan en una sola
+    // operación atómica. Los campos que no cambian se dejan en NULL para no
+    // tocarlos.
     const data = await this.citas.reagendar(cita.id, {
       fecha_hora: nueva.fecha_hora,
+      medico_id: cambiaMedico ? nueva.medico_id : null,
+      consultorio_id: cambiaConsultorio ? nueva.consultorio_id : null,
       estado_id: cambiaEstado ? reagendada.id : null,
       cambiadoPor,
       origen,
@@ -146,6 +191,42 @@ class ReagendarCita {
     });
 
     return { success: true, data, mensaje: 'Cita reagendada correctamente' };
+  }
+
+  // Cambiar de médico solo dentro de la misma especialidad: el paciente
+  // conserva el tipo de atención que reservó. El médico nuevo debe estar activo.
+  async _validarCambioMedico(cita, medicoId) {
+    if (medicoId == null || String(medicoId) === String(cita.medico_id)) {
+      return { success: true, medico_id: cita.medico_id };
+    }
+
+    if (!this.medicos) {
+      return { success: false, mensaje: 'No se puede cambiar de médico en este momento' };
+    }
+
+    const nuevo = await this.medicos.obtenerPorId(medicoId, { soloActivo: true });
+    if (!nuevo) {
+      return { success: false, mensaje: 'El médico seleccionado no existe o no está activo [RN-031]' };
+    }
+
+    const original = await this.medicos.obtenerPorId(cita.medico_id, { soloActivo: true });
+    if (!original) {
+      // Si el médico original ya no está disponible, permitimos elegir otro
+      // médico activo para no dejar la cita atorada.
+      return { success: true, medico_id: nuevo.id };
+    }
+
+    const especialidadesOriginal = new Set(
+      (original.especialidades ?? []).map((e) => String(e.id))
+    );
+    const comparte = (nuevo.especialidades ?? []).some((e) =>
+      especialidadesOriginal.has(String(e.id))
+    );
+    if (!comparte) {
+      return { success: false, mensaje: 'Solo puedes cambiar a un médico de la misma especialidad' };
+    }
+
+    return { success: true, medico_id: nuevo.id };
   }
 
   async _dentroDeHorario(cita) {

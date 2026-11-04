@@ -1036,6 +1036,162 @@ select.input {
   min-height: 44px;
 }
 
+/* ── Modal de reagendamiento ─────────────────────────────────────────────── */
+.modal.modal-reagendar {
+  max-width: 760px;
+}
+
+.reagendar-cuerpo {
+  padding: 1.25rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.reagendar-actual {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--suave);
+}
+
+.reagendar-actual-etiqueta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primario);
+}
+
+.reagendar-actual-linea {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--texto);
+}
+
+.reagendar-actual-linea svg {
+  width: 0.95rem;
+  color: var(--primario);
+  flex-shrink: 0;
+}
+
+.reagendar-seccion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.reagendar-seccion-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--texto);
+}
+
+.reagendar-seccion-titulo svg {
+  color: var(--primario);
+}
+
+.reagendar-fecha-fila {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.reagendar-fecha-fila .input {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.reagendar-fecha-fila .btn {
+  min-height: 44px;
+}
+
+.reagendar-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.6rem;
+}
+
+.reagendar-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.6rem 0.85rem;
+  border: 1.5px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transicion);
+}
+
+.reagendar-slot:hover {
+  border-color: var(--primario);
+  background: var(--suave);
+}
+
+.reagendar-slot.activo {
+  border-color: var(--primario);
+  background: var(--primario);
+  color: #fff;
+}
+
+.reagendar-slot-hora {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.reagendar-slot-lugar {
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+.reagendar-slot.activo .reagendar-slot-lugar {
+  opacity: 0.9;
+}
+
+.reagendar-resumen {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radio);
+  background: var(--suave);
+  color: var(--texto);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.reagendar-resumen svg {
+  color: var(--primario);
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  .reagendar-cuerpo {
+    padding: 1rem 1.1rem;
+  }
+  .reagendar-fecha-fila .btn {
+    flex: 1 1 auto;
+  }
+}
+
 .confirmacion-mensaje {
   font-size: 1rem;
   color: var(--texto);

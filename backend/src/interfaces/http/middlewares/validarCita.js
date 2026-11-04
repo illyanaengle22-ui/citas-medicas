@@ -86,13 +86,32 @@ function validarCreacionCita(req, res, next) {
   next();
 }
 
-// PUT /api/citas/:id — reagendamiento.
+// PUT /api/citas/:id — reagendamiento. Permite cambiar fecha/hora y,
+// opcionalmente, médico (misma especialidad) y consultorio.
 function validarReagendamiento(req, res, next) {
   const body = req.body || {};
   const fecha = normalizarFechaHora(body.fecha_hora);
   if (fecha.error) return responder400(res, fecha.error);
 
-  req.reagendamiento = { fecha_hora: fecha.fechaISO };
+  const medicoId = body.medico_id === undefined || body.medico_id === null || body.medico_id === ''
+    ? null
+    : validarId(body.medico_id, 'bigint');
+  if (body.medico_id !== undefined && body.medico_id !== null && body.medico_id !== '' && !medicoId) {
+    return responder400(res, 'medico_id inválido');
+  }
+
+  const consultorioId = body.consultorio_id === undefined || body.consultorio_id === null || body.consultorio_id === ''
+    ? null
+    : validarId(body.consultorio_id, 'bigint');
+  if (body.consultorio_id !== undefined && body.consultorio_id !== null && body.consultorio_id !== '' && !consultorioId) {
+    return responder400(res, 'consultorio_id inválido');
+  }
+
+  req.reagendamiento = {
+    fecha_hora: fecha.fechaISO,
+    medico_id: medicoId,
+    consultorio_id: consultorioId,
+  };
   next();
 }
 

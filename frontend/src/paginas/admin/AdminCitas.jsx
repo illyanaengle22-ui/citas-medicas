@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import CrudTable from '../../components/CrudTable';
 import FormModal from '../../components/FormModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import ReagendarCitaModal from '../../components/ReagendarCitaModal';
 import { apiFetch, construirQuery } from '../../services/api';
 import {
   ESTADOS_CITA, claseEstado, etiquetaEstado, formatearFechaHora, formatearDuracion,
@@ -79,8 +80,6 @@ export default function AdminCitas() {
   const [confirmacion, setConfirmacion] = useState(null);
   const [enConfirmacion, setEnConfirmacion] = useState(false);
   const [reagendando, setReagendando] = useState(null);
-  const [propuestas, setPropuestas] = useState([]);
-  const [guardando, setGuardando] = useState(false);
   const [toast, setToast] = useState(null);
 
   const cargarDatos = useCallback(async () => {
@@ -183,14 +182,8 @@ export default function AdminCitas() {
   }
 
   // ── Reagendar (RN-083: propone los 3 horarios libres más cercanos) ─────────
-  async function abrirReagendar(fila) {
-    try {
-      const data = await apiFetch(`/api/citas/${fila.id}/propuestas`);
-      setPropuestas(Array.isArray(data) ? data : []);
-      setReagendando({ fila, fecha: '', usarOtra: false });
-    } catch (err) {
-      mostrarToast(err.message, 'error');
-    }
+  function abrirReagendar(fila) {
+    setReagendando(fila);
   }
 
   // ── Acciones por fila ─────────────────────────────────────────────────────
@@ -326,61 +319,13 @@ export default function AdminCitas() {
       )}
 
       {reagendando && (
-        <FormModal
-          titulo={`Reagendar cita de ${reagendando.fila.paciente_nombre ?? ''}`}
-          campos={[
-            ...(propuestas.length > 0 ? [{
-              nombre: 'propuesta',
-              etiqueta: 'Horarios disponibles (RN-083)',
-              tipo: 'select',
-              requerido: !reagendando.usarOtra,
-              opciones: [
-                ...propuestas.map((p, i) => ({
-                  valor: String(i),
-                  etiqueta: `${formatearFechaHora(p.fecha_hora)} (${p.hora_inicio?.slice(0, 5)})`,
-                })),
-                { valor: 'otra', etiqueta: 'Elegir otra fecha y hora…' },
-              ],
-            }] : []),
-            ...(reagendando.usarOtra ? [{
-              nombre: 'fecha_hora',
-              etiqueta: 'Nueva fecha y hora',
-              tipo: 'datetime-local',
-              requerido: true,
-              ayuda: 'Debe caer dentro de un horario activo del médico [RN-072]',
-            }] : []),
-          ]}
-          valoresIniciales={reagendando.usarOtra ? { fecha_hora: reagendando.fecha ?? '' } : { propuesta: '0' }}
-          onSubmit={async (valores) => {
-            if (valores.propuesta === 'otra') {
-              setReagendando((prev) => ({ ...prev, usarOtra: true, fecha: prev.fecha ?? '' }));
-              return;
-            }
-            const indice = Number(valores.propuesta);
-            const propuesta = propuestas[indice];
-            if (!propuesta) {
-              mostrarToast('Selecciona un horario válido', 'error');
-              return;
-            }
-            setGuardando(true);
-            try {
-              await apiFetch(`/api/citas/${reagendando.fila.id}`, {
-                method: 'PUT',
-                body: { fecha_hora: propuesta.fecha_hora },
-              });
-              mostrarToast('Cita reagendada correctamente');
-              setReagendando(null);
-              setPropuestas([]);
-              cargarDatos();
-            } catch (err) {
-              mostrarToast(err.message, 'error');
-            } finally {
-              setGuardando(false);
-            }
-          }}
-          onCerrar={() => { setReagendando(null); setPropuestas([]); }}
-          guardando={guardando}
-          errores={{}}
+        <ReagendarCitaModal
+          cita={reagendando}
+          titulo={`Reagendar cita de ${reagendando.paciente_nombre ?? ''}`.trim()}
+          mostrarPaciente
+          onCerrar={() => setReagendando(null)}
+          onReagendada={() => { setReagendando(null); cargarDatos(); }}
+          mostrarToast={mostrarToast}
         />
       )}
 

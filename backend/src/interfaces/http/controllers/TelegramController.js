@@ -245,6 +245,51 @@ async function desvincularPorChat(req, res) {
   }
 }
 
+// Paciente activo dueño de un chat de Telegram (misma regla que el login:
+// las cuentas pendientes o rechazadas no reciben JWT).
+async function buscarPacienteActivoPorChat(chatId) {
+  const { rows } = await db.query(
+    `SELECT p.id AS paciente_id, u.id, u.uuid_publico, u.email, u.rol_id, u.nombre
+     FROM pacientes p
+     JOIN usuarios u ON u.id = p.usuario_id
+     WHERE p.telegram_chat_id = $1
+       AND p.deleted_at IS NULL
+       AND u.deleted_at IS NULL
+       AND u.estado_id = (SELECT id FROM estados_cuenta WHERE clave = 'activo')`,
+    [chatId]
+  );
+  return rows[0] || null;
+}
+
+// POST /api/telegram/sesion — n8n pregunta si un chat ya está vinculado y, si
+// lo está, recibe un JWT fresco del paciente (misma lógica que el login).
+//   body o query: { chatId }
+async function obtenerSesionPorChat(req, res) {
+  if (!secretValido(req)) {
+    return res.status(401).json({ ok: false, vinculado: false, mensaje: 'Secreto de webhook inválido' });
+  }
+
+  const chatId = normalizarChatId(req.body?.chatId ?? req.query?.chatId);
+  if (!chatId) {
+    return res.status(400).json({ ok: false, vinculado: false, mensaje: 'chatId inválido' });
+  }
+
+  try {
+    const fila = await buscarPacienteActivoPorChat(chatId);
+    if (!fila) {
+      return res.json({ ok: false, vinculado: false });
+    }
+
+    return res.json({
+      ok: true,
+      vinculado: true,
+      token: firmarJWT(fila),
+    });
+  } catch (error) {
+    return respuestaError500(res, 'Error al consultar la sesión', error);
+  }
+}
+
 // POST /api/telegram/token — n8n canjea el chatId por un JWT fresco antes de
 // cada conversación; así las tools del agente llaman a la API como el paciente.
 async function tokenPorChat(req, res) {
@@ -258,25 +303,14 @@ async function tokenPorChat(req, res) {
       return res.status(400).json({ ok: false, mensaje: 'chatId inválido' });
     }
 
-    const result = await db.query(
-      `SELECT p.id AS paciente_id, u.id, u.uuid_publico, u.email, u.rol_id, u.nombre
-       FROM pacientes p
-       JOIN usuarios u ON u.id = p.usuario_id
-       WHERE p.telegram_chat_id = $1
-         AND p.deleted_at IS NULL
-         AND u.deleted_at IS NULL
-         AND u.estado_id = (SELECT id FROM estados_cuenta WHERE clave = 'activo')`,
-      [chatId]
-    );
-
-    if (result.rows.length === 0) {
+    const fila = await buscarPacienteActivoPorChat(chatId);
+    if (!fila) {
       return res.status(404).json({
         ok: false,
         mensaje: 'Este chat no está vinculado a una cuenta. Escribe /start con tu código para vincularlo.',
       });
     }
 
-    const fila = result.rows[0];
     return res.json({
       ok: true,
       mensaje: 'Token generado',
@@ -294,5 +328,6 @@ module.exports = {
   vincular,
   desvincular,
   desvincularPorChat,
+  obtenerSesionPorChat,
   tokenPorChat,
 };

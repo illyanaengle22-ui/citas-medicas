@@ -2,6 +2,7 @@
 
 const PostgresCitaRepository = require('../../../infrastructure/adapters/PostgresCitaRepository');
 const PostgresHorarioRepository = require('../../../infrastructure/adapters/PostgresHorarioRepository');
+const { PostgresMedicoRepository } = require('../../../infrastructure/adapters/PostgresMedicoRepository');
 const AgendarCita = require('../../../application/use-cases/AgendarCita');
 const ConfirmarCita = require('../../../application/use-cases/ConfirmarCita');
 const CancelarCita = require('../../../application/use-cases/CancelarCita');
@@ -23,6 +24,7 @@ const {
 
 const citasRepo = new PostgresCitaRepository();
 const horariosRepo = new PostgresHorarioRepository();
+const medicosRepo = new PostgresMedicoRepository();
 
 // RN-113: los catálogos se referencian por clave, no por id numérico fijo.
 const ESTADOS_VALIDOS = ['pendiente', 'confirmada', 'reagendada', 'cancelada', 'completada', 'no_asistio'];
@@ -370,7 +372,8 @@ async function cambiarEstado(req, res) {
   }
 }
 
-// PUT /api/citas/:id — reagendar: { fecha_hora } (RN-083/RN-084).
+// PUT /api/citas/:id — reagendar: { fecha_hora, medico_id?, consultorio_id? }
+// (RN-083/RN-084). El médico, si se envía, debe ser de la misma especialidad.
 async function reagendar(req, res) {
   try {
     const id = validarId(req.params.id, 'bigint');
@@ -380,8 +383,13 @@ async function reagendar(req, res) {
     if (!cita) return res.status(404).json({ ok: false, mensaje: 'Cita no encontrada' });
     if (!(await exigirAccesoCita(req, res, cita))) return;
 
-    const caso = new ReagendarCita(citasRepo, horariosRepo);
-    const resultado = await caso.execute(id, { fecha_hora: req.reagendamiento.fecha_hora, ...contextoWeb(req) });
+    const caso = new ReagendarCita(citasRepo, horariosRepo, medicosRepo);
+    const resultado = await caso.execute(id, {
+      fecha_hora: req.reagendamiento.fecha_hora,
+      medico_id: req.reagendamiento.medico_id,
+      consultorio_id: req.reagendamiento.consultorio_id,
+      ...contextoWeb(req),
+    });
     if (!resultado.success) {
       const conflicto = /traslap|ocupad/i.test(resultado.mensaje);
       return res.status(conflicto ? 409 : 400).json({ ok: false, mensaje: resultado.mensaje });
@@ -401,6 +409,8 @@ async function reagendar(req, res) {
 }
 
 // GET /api/citas/:id/propuestas — los 3 horarios libres más cercanos (RN-083).
+// Acepta ?medico_id= para proponer horarios de otro médico de la misma
+// especialidad (cambio de médico al reagendar).
 async function propuestasReagendamiento(req, res) {
   try {
     const id = validarId(req.params.id, 'bigint');
@@ -410,8 +420,28 @@ async function propuestasReagendamiento(req, res) {
     if (!cita) return res.status(404).json({ ok: false, mensaje: 'Cita no encontrada' });
     if (!(await exigirAccesoCita(req, res, cita))) return;
 
-    const caso = new ReagendarCita(citasRepo, horariosRepo);
-    const resultado = await caso.proponerHorarios(id);
+    const medicoId = req.query.medico_id === undefined || req.query.medico_id === ''
+      ? null
+      : validarId(req.query.medico_id, 'bigint');
+    if (req.query.medico_id !== undefined && req.query.medico_id !== '' && !medicoId) {
+      return res.status(400).json({ ok: false, mensaje: 'medico_id inválido' });
+    }
+
+    const consultorioId = req.query.consultorio_id === undefined || req.query.consultorio_id === ''
+      ? null
+      : validarId(req.query.consultorio_id, 'bigint');
+    if (req.query.consultorio_id !== undefined && req.query.consultorio_id !== '' && !consultorioId) {
+      return res.status(400).json({ ok: false, mensaje: 'consultorio_id inválido' });
+    }
+
+    const caso = new ReagendarCita(citasRepo, horariosRepo, medicosRepo);
+    const resultado = await caso.proponerHorarios(id, {
+      medico_id: medicoId,
+      consultorio_id: consultorioId,
+    });
+    if (!resultado.success) {
+      return res.status(400).json({ ok: false, mensaje: resultado.mensaje });
+    }
     return res.json({ ok: true, mensaje: resultado.mensaje, data: resultado.data });
   } catch (error) {
     return respuestaError500(res, 'Error al proponer horarios', error);

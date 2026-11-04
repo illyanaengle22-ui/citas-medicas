@@ -2,8 +2,7 @@ import { useAuth } from '../context/AuthContext';
 import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { NavLink } from 'react-router-dom';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+import { API_URL } from '../services/api';
 
 const roles = { 1: 'Admin', 2: 'Médico', 3: 'Paciente' };
 

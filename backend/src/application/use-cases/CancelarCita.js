@@ -28,7 +28,14 @@ class CancelarCita {
       return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "cancelada" [RN-080]` };
     }
 
-    // RN-086 🔶: plazo mínimo de anticipación para cancelar
+    // Caso B: la cita ya pasó. No es una cancelación futura: el registro debe
+    // marcarse como completada/no_asistio, no cancelarse. Aplica incluso al
+    // admin (ignorarPlazo solo salta el plazo de 2 horas del Caso A).
+    if (!cita.esFutura()) {
+      return { success: false, mensaje: 'No puedes cancelar una cita que ya pasó. Contacta a la clínica para más información.' };
+    }
+
+    // Caso A: RN-086 🔶: plazo mínimo de anticipación para cancelar.
     if (!ignorarPlazo && cita.fueraDePlazoCancelacion(anticipacionHoras)) {
       return { success: false, mensaje: `Faltan menos de ${anticipacionHoras} horas para la cita; no es posible cancelarla [RN-086]` };
     }

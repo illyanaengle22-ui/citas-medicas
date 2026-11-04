@@ -2,9 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { faCamera, faSave, faUser, faEnvelope, faLock, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useAuth } from '../context/AuthContext';
-import { obtenerToken } from '../services/api';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+import { obtenerToken, API_URL } from '../services/api';
 
 function iniciales(nombre = '') {
   return nombre
