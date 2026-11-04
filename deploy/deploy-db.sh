@@ -71,7 +71,7 @@ fi
 if [ -d "$MIGRATIONS_DIR" ]; then
   for mig in $(ls "$MIGRATIONS_DIR"/*.sql | sort); do
     echo "   Aplicando: $(basename "$mig")"
-    sudo -u postgres psql -d "$DB_NAME" -f "$mig" > /dev/null
+    sudo -u postgres psql -d "$DB_NAME" -v ON_ERROR_STOP=1 < "$mig" > /dev/null
   done
 else
   echo "⚠️ No se encontró carpeta de migraciones en $MIGRATIONS_DIR"
@@ -99,7 +99,7 @@ if [ "$CARGAR_DEMO" = "1" ]; then
   SEED_FILE="$(pwd)/db/seed_demo.sql"
   if [ -f "$SEED_FILE" ]; then
     echo "🌱 Cargando datos de demostración (CARGAR_DEMO=1)..."
-    sudo -u postgres psql -d "$DB_NAME" -f "$SEED_FILE"
+    sudo -u postgres psql -d "$DB_NAME" -v ON_ERROR_STOP=1 < "$SEED_FILE"
   fi
 fi
 
