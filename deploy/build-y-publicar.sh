@@ -30,10 +30,14 @@ cd "$REPO_ROOT/frontend"
 npm install --silent
 npm run build
 
-# Verificación de fugas de IP o localhost en el bundle de frontend
-echo "🔍 Verificando que dist no contenga IPs privadas ni localhost..."
-if grep -rn "http://localhost" dist/ 2>/dev/null || grep -rn "127.0.0.1" dist/ 2>/dev/null; then
-  echo "❌ Error: Se detectaron referencias a localhost o 127.0.0.1 en dist/."
+# Verificación de fugas de IP o URLs de backend en el bundle de frontend
+# (Nota: react-router-dom incluye internamente un fallback 'new URL("http://localhost")', por lo que
+# validamos que no existan puertos :4000 ni IPs privadas/locales de backend).
+echo "🔍 Verificando que dist no contenga IPs privadas ni llamadas a backend en localhost..."
+if grep -rnE "http://localhost:[0-9]+" dist/ 2>/dev/null || \
+   grep -rnE "http://127\.0\.0\.1:[0-9]+" dist/ 2>/dev/null || \
+   grep -rnE "http://(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)" dist/ 2>/dev/null; then
+  echo "❌ Error: Se detectaron URLs de backend con puerto o IPs privadas en dist/."
   exit 1
 fi
 echo "✅ Frontend compilado sin referencias hardcodeadas."
