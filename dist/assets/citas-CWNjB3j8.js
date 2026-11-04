@@ -1,0 +1,1 @@
+import{$ as e,et as t}from"./index-YCiZzd2e.js";var n=100;async function r(r={}){let i=[],a=1,o=null;for(;o===null||i.length<o;){let s=await e(`/api/citas${t({...r,page:a,limit:n})}`),c=Array.isArray(s?.citas)?s.citas:[];i.push(...c);let l=Number(s?.total);if(o=Number.isFinite(l)?l:i.length,c.length===0||c.length<n)break;a+=1}return i}export{r as t};
