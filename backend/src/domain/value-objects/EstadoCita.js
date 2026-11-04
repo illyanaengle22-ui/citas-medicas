@@ -10,13 +10,14 @@ const estadosValidos = {
 };
 
 // RN-080: transiciones permitidas (propuesta 🔶)
+// Se permite corrección entre completada (5) y no_asistio (6) por médico/admin
 const transicionesPermitidas = {
-  1: [2, 3, 4],
+  1: [2, 3, 4, 5, 6],
   2: [3, 4, 5, 6],
   3: [2, 4, 5, 6],
   4: [],
-  5: [],
-  6: []
+  5: [6],
+  6: [5]
 };
 
 class EstadoCita {
@@ -44,8 +45,8 @@ class EstadoCita {
   // RN-076: pendiente, confirmada o reagendada ocupan agenda
   esVigente() { return this.id === 1 || this.id === 2 || this.id === 3; }
 
-  // RN-081: cancelada, completada y no_asistio no se modifican
-  esFinal() { return this.id === 4 || this.id === 5 || this.id === 6; }
+  // RN-081: cancelada no se modifica. completada y no_asistio admiten corrección de asistencia
+  esFinal() { return this.id === 4; }
 
   // RN-080: solo las transiciones de la tabla están permitidas
   puedeTransicionarA(nuevo) {

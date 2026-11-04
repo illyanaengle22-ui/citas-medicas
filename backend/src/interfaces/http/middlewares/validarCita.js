@@ -86,32 +86,47 @@ function validarCreacionCita(req, res, next) {
   next();
 }
 
-// PUT /api/citas/:id — reagendamiento. Permite cambiar fecha/hora y,
-// opcionalmente, médico (misma especialidad) y consultorio.
+// PUT /api/citas/:id — reagendamiento (fecha_hora) o notas médicas.
 function validarReagendamiento(req, res, next) {
   const body = req.body || {};
-  const fecha = normalizarFechaHora(body.fecha_hora);
-  if (fecha.error) return responder400(res, fecha.error);
 
-  const medicoId = body.medico_id === undefined || body.medico_id === null || body.medico_id === ''
-    ? null
-    : validarId(body.medico_id, 'bigint');
-  if (body.medico_id !== undefined && body.medico_id !== null && body.medico_id !== '' && !medicoId) {
-    return responder400(res, 'medico_id inválido');
+  // Soporte para notas médicas de la consulta
+  if (body.notas !== undefined) {
+    const notas = normalizarTexto(body.notas);
+    if (notas && notas.error) return responder400(res, `notas: ${notas.error}`);
+    req.notasActualizadas = notas || null;
   }
 
-  const consultorioId = body.consultorio_id === undefined || body.consultorio_id === null || body.consultorio_id === ''
-    ? null
-    : validarId(body.consultorio_id, 'bigint');
-  if (body.consultorio_id !== undefined && body.consultorio_id !== null && body.consultorio_id !== '' && !consultorioId) {
-    return responder400(res, 'consultorio_id inválido');
+  // Si viene fecha_hora, valida reagendamiento
+  if (body.fecha_hora !== undefined) {
+    const fecha = normalizarFechaHora(body.fecha_hora);
+    if (fecha.error) return responder400(res, fecha.error);
+
+    const medicoId = body.medico_id === undefined || body.medico_id === null || body.medico_id === ''
+      ? null
+      : validarId(body.medico_id, 'bigint');
+    if (body.medico_id !== undefined && body.medico_id !== null && body.medico_id !== '' && !medicoId) {
+      return responder400(res, 'medico_id inválido');
+    }
+
+    const consultorioId = body.consultorio_id === undefined || body.consultorio_id === null || body.consultorio_id === ''
+      ? null
+      : validarId(body.consultorio_id, 'bigint');
+    if (body.consultorio_id !== undefined && body.consultorio_id !== null && body.consultorio_id !== '' && !consultorioId) {
+      return responder400(res, 'consultorio_id inválido');
+    }
+
+    req.reagendamiento = {
+      fecha_hora: fecha.fechaISO,
+      medico_id: medicoId,
+      consultorio_id: consultorioId,
+    };
   }
 
-  req.reagendamiento = {
-    fecha_hora: fecha.fechaISO,
-    medico_id: medicoId,
-    consultorio_id: consultorioId,
-  };
+  if (req.notasActualizadas === undefined && !req.reagendamiento) {
+    return responder400(res, 'Se requiere fecha_hora para reagendar o notas para actualizar');
+  }
+
   next();
 }
 

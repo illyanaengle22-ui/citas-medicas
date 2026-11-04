@@ -10,7 +10,7 @@ import ReagendarCitaModal from '../../components/ReagendarCitaModal';
 import { apiFetch, construirQuery } from '../../services/api';
 import {
   ESTADOS_CITA, claseEstado, etiquetaEstado, formatearFechaHora, formatearDuracion,
-  esVigente,
+  esVigente, yaPaso,
 } from '../../components/citasHelpers';
 
 const FILA_POR_PAGINA = 10;
@@ -162,17 +162,21 @@ export default function AdminCitas() {
       } else if (accion === 'completada') {
         await apiFetch(`/api/citas/${fila.id}/estado`, {
           method: 'PUT',
-          body: { estado: 'completada' },
+          body: { estado: 'completada', ignorarPlazo: true },
         });
-        mostrarToast('Cita marcada como completada');
+        mostrarToast('Cita marcada como completada con éxito');
       } else if (accion === 'no_asistio') {
         await apiFetch(`/api/citas/${fila.id}/estado`, {
           method: 'PUT',
-          body: { estado: 'no_asistio' },
+          body: { estado: 'no_asistio', ignorarPlazo: true },
         });
-        mostrarToast('Cita marcada como no asistió');
+        mostrarToast('Cita marcada como no asistió con éxito');
       }
       setConfirmacion(null);
+      if (detalle && detalle.id === fila.id) {
+        setDetalle(null);
+        setHistorial(null);
+      }
       cargarDatos();
     } catch (err) {
       mostrarToast(err.message, 'error');
@@ -195,13 +199,36 @@ export default function AdminCitas() {
     if (vigente && fila.estado !== 'confirmada') {
       lista.push({ icono: faCheck, titulo: 'Confirmar', clase: 'btn-aprobar', onClick: () => pedirConfirmacion(fila, 'confirmar') });
     }
-    if (vigente) {
+    if (vigente && !yaPaso(fila.fecha_hora)) {
       lista.push({ icono: faRotateRight, titulo: 'Reagendar', clase: 'btn-editar', onClick: () => abrirReagendar(fila) });
-      lista.push({ icono: faBan, titulo: 'Cancelar', clase: 'btn-rechazar', onClick: () => pedirConfirmacion(fila, 'cancelar') });
     }
-    if (fila.estado === 'confirmada' || fila.estado === 'reagendada') {
-      lista.push({ icono: faCheck, titulo: 'Completada', clase: 'btn-aprobar', onClick: () => pedirConfirmacion(fila, 'completada') });
-      lista.push({ icono: faUserSlash, titulo: 'No asistió', clase: 'btn-eliminar', onClick: () => pedirConfirmacion(fila, 'no_asistio') });
+    // Admin tiene poder absoluto: puede cancelar CUALQUIER cita no cancelada sin restricciones de tiempo
+    if (fila.estado !== 'cancelada') {
+      lista.push({
+        icono: faBan,
+        titulo: 'Cancelar cita',
+        clase: 'btn-rechazar',
+        onClick: () => pedirConfirmacion(fila, 'cancelar'),
+      });
+    }
+    // Admin puede cambiar el estado manualmente (Completada / No Asistió) en cualquier cita no cancelada (pasada o futura)
+    if (fila.estado !== 'cancelada') {
+      if (fila.estado !== 'completada') {
+        lista.push({
+          icono: faCheck,
+          titulo: fila.estado === 'no_asistio' ? 'Cambiar a completada (corregir)' : 'Marcar completada',
+          clase: 'btn-aprobar',
+          onClick: () => pedirConfirmacion(fila, 'completada'),
+        });
+      }
+      if (fila.estado !== 'no_asistio') {
+        lista.push({
+          icono: faUserSlash,
+          titulo: fila.estado === 'completada' ? 'Cambiar a no asistió (corregir)' : 'Marcar no asistió',
+          clase: 'btn-eliminar',
+          onClick: () => pedirConfirmacion(fila, 'no_asistio'),
+        });
+      }
     }
     return lista;
   };
@@ -290,6 +317,36 @@ export default function AdminCitas() {
           renderVerUsuario={() => (
             <div>
               <CitaDetalle cita={detalle} />
+              {detalle.estado !== 'cancelada' && (
+                <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Cambiar estado:</span>
+                  {detalle.estado !== 'completada' && (
+                    <button
+                      type="button"
+                      className="btn btn-primario btn-sm"
+                      onClick={() => pedirConfirmacion(detalle, 'completada')}
+                    >
+                      <FontAwesomeIcon icon={faCheck} /> {detalle.estado === 'no_asistio' ? 'Cambiar a completada' : 'Marcar completada'}
+                    </button>
+                  )}
+                  {detalle.estado !== 'no_asistio' && (
+                    <button
+                      type="button"
+                      className="btn btn-peligro btn-sm"
+                      onClick={() => pedirConfirmacion(detalle, 'no_asistio')}
+                    >
+                      <FontAwesomeIcon icon={faUserSlash} /> {detalle.estado === 'completada' ? 'Cambiar a no asistió' : 'Marcar no asistió'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-rechazar btn-sm"
+                    onClick={() => pedirConfirmacion(detalle, 'cancelar')}
+                  >
+                    <FontAwesomeIcon icon={faBan} /> Cancelar cita
+                  </button>
+                </div>
+              )}
               <h3 className="dash-graficas-titulo">Historial de estados</h3>
               {cargandoHistorial ? (
                 <p className="panel-vacio">Cargando historial…</p>

@@ -6,7 +6,7 @@ import FormModal from '../../components/FormModal';
 import { apiFetch } from '../../services/api';
 import { obtenerTodasLasCitas } from '../../services/citas';
 import {
-  ESTADOS_FINALES, claseEstado, etiquetaEstado, formatearFechaHora, formatearDuracion,
+  ESTADOS_FINALES, claseEstado, etiquetaEstado, formatearFechaHora, formatearDuracion, yaPaso,
 } from '../../components/citasHelpers';
 
 const columnas = [
@@ -83,11 +83,9 @@ export default function MiHistorial() {
     try {
       const citas = await obtenerTodasLasCitas({
         estado: filtroEstado,
-        // Sin filtro explícito, el historial solo trae citas finalizadas.
-        estados: filtroEstado ? '' : ESTADOS_FINALES.join(','),
       });
-      // Filtro defensivo por si el frontend se despliega antes que el backend.
-      setDatos(citas.filter((cita) => ESTADOS_FINALES.includes(cita.estado)));
+      // Muestra citas finalizadas (cancelada, completada, no_asistio) o citas pasadas
+      setDatos(citas.filter((cita) => ESTADOS_FINALES.includes(cita.estado) || yaPaso(cita.fecha_hora)));
     } catch (err) {
       setToast({ mensaje: err.message, tipo: 'error' });
       setTimeout(() => setToast(null), 3000);

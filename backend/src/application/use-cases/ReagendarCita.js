@@ -167,11 +167,13 @@ class ReagendarCita {
       return { success: false, mensaje: 'El paciente ya tiene otra cita que se traslapa con ese horario [RN-078]' };
     }
 
-    // RN-080: validar la transición ANTES de tocar la fecha.
-    const reagendada = EstadoCita.fromClave('reagendada');
-    const cambiaEstado = Number(cita.estado.id) !== Number(reagendada.id);
-    if (cambiaEstado && !cita.puedeTransicionarA(reagendada)) {
-      return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "reagendada" [RN-080]` };
+    // RN-089: al reagendar (actualizar fecha_hora), el estado de la cita debe pasar
+    // DIRECTAMENTE a 'confirmada' (estado_id = 2) o mantenerse como 'confirmada',
+    // confirmándola tácitamente si estaba en 'pendiente'.
+    const confirmada = EstadoCita.fromClave('confirmada');
+    const cambiaEstado = Number(cita.estado.id) !== Number(confirmada.id);
+    if (cambiaEstado && !cita.puedeTransicionarA(confirmada)) {
+      return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "confirmada" [RN-080]` };
     }
 
     const cambiaMedico = String(nueva.medico_id) !== String(cita.medico_id);
@@ -179,18 +181,22 @@ class ReagendarCita {
 
     // RN-112: fecha, médico, consultorio y estado se actualizan en una sola
     // operación atómica. Los campos que no cambian se dejan en NULL para no
-    // tocarlos.
+    // tocarlos. RN-089: fuerza estado_id = 2 ('confirmada').
     const data = await this.citas.reagendar(cita.id, {
       fecha_hora: nueva.fecha_hora,
       medico_id: cambiaMedico ? nueva.medico_id : null,
       consultorio_id: cambiaConsultorio ? nueva.consultorio_id : null,
-      estado_id: cambiaEstado ? reagendada.id : null,
+      estado_id: confirmada.id,
       cambiadoPor,
       origen,
-      comentario,
+      comentario: comentario || 'RN-089: Cita confirmada tácitamente al reagendar',
     });
 
-    return { success: true, data, mensaje: 'Cita reagendada correctamente' };
+    return {
+      success: true,
+      data,
+      mensaje: 'Cita reagendada con éxito. Tu nuevo horario está confirmado.',
+    };
   }
 
   // Cambiar de médico solo dentro de la misma especialidad: el paciente

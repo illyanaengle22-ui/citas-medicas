@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { faCalendarAlt, faRotateRight } from '@fortawesome/free-solid-svg-icons';
+import {
+  faCalendarAlt, faRotateRight, faCheck, faBan, faUserSlash,
+} from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import CalendarioCitas from '../../components/CalendarioCitas';
 import FormModal from '../../components/FormModal';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import { apiFetch } from '../../services/api';
 import { obtenerTodasLasCitas } from '../../services/citas';
 import '../agenda.css';
@@ -42,6 +45,52 @@ export default function AdminCalendario() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [detalle, setDetalle] = useState(null);
+  const [confirmacion, setConfirmacion] = useState(null);
+  const [enConfirmacion, setEnConfirmacion] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  function mostrarToast(mensaje, tipo = 'exito') {
+    setToast({ mensaje, tipo });
+    setTimeout(() => setToast(null), 4000);
+  }
+
+  function pedirConfirmacion(cita, accion) {
+    setConfirmacion({ cita, accion });
+  }
+
+  async function ejecutarAccion() {
+    if (!confirmacion) return;
+    const { cita, accion } = confirmacion;
+    setEnConfirmacion(true);
+    try {
+      if (accion === 'cancelar') {
+        await apiFetch(`/api/citas/${cita.id}/estado`, {
+          method: 'PUT',
+          body: { estado: 'cancelada', ignorarPlazo: true },
+        });
+        mostrarToast('Cita cancelada; el horario quedó libre');
+      } else if (accion === 'completada') {
+        await apiFetch(`/api/citas/${cita.id}/estado`, {
+          method: 'PUT',
+          body: { estado: 'completada', ignorarPlazo: true },
+        });
+        mostrarToast('Cita marcada como completada con éxito');
+      } else if (accion === 'no_asistio') {
+        await apiFetch(`/api/citas/${cita.id}/estado`, {
+          method: 'PUT',
+          body: { estado: 'no_asistio', ignorarPlazo: true },
+        });
+        mostrarToast('Cita marcada como no asistió con éxito');
+      }
+      setConfirmacion(null);
+      setDetalle(null);
+      cargarDatos();
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      setEnConfirmacion(false);
+    }
+  }
 
   const cargarDatos = useCallback(async () => {
     setCargando(true);
@@ -149,8 +198,76 @@ export default function AdminCalendario() {
           onSubmit={() => {}}
           onCerrar={() => setDetalle(null)}
           soloLectura
-          renderVerUsuario={() => <DetalleCita cita={detalle} />}
+          renderVerUsuario={() => (
+            <div>
+              <DetalleCita cita={detalle} />
+              {detalle.estado !== 'cancelada' && (
+                <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Cambiar estado:</span>
+                  {detalle.estado !== 'completada' && (
+                    <button
+                      type="button"
+                      className="btn btn-primario btn-sm"
+                      onClick={() => pedirConfirmacion(detalle, 'completada')}
+                    >
+                      <FontAwesomeIcon icon={faCheck} /> {detalle.estado === 'no_asistio' ? 'Cambiar a completada' : 'Marcar completada'}
+                    </button>
+                  )}
+                  {detalle.estado !== 'no_asistio' && (
+                    <button
+                      type="button"
+                      className="btn btn-peligro btn-sm"
+                      onClick={() => pedirConfirmacion(detalle, 'no_asistio')}
+                    >
+                      <FontAwesomeIcon icon={faUserSlash} /> {detalle.estado === 'completada' ? 'Cambiar a no asistió' : 'Marcar no asistió'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-rechazar btn-sm"
+                    onClick={() => pedirConfirmacion(detalle, 'cancelar')}
+                  >
+                    <FontAwesomeIcon icon={faBan} /> Cancelar cita
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         />
+      )}
+
+      {confirmacion && (
+        <ConfirmDialog
+          titulo={
+            confirmacion.accion === 'cancelar'
+              ? 'Cancelar cita'
+              : confirmacion.accion === 'completada'
+                ? 'Marcar como completada'
+                : 'Marcar como no asistió'
+          }
+          mensaje={`¿Deseas ${
+            confirmacion.accion === 'cancelar'
+              ? 'cancelar'
+              : confirmacion.accion === 'completada'
+                ? 'marcar como completada'
+                : 'marcar como no asistió'
+          } la cita de ${confirmacion.cita.paciente_nombre ?? 'este paciente'} con ${confirmacion.cita.medico_nombre ?? 'el médico'}?`}
+          textoConfirmar={
+            confirmacion.accion === 'cancelar'
+              ? 'cancelar'
+              : confirmacion.accion === 'completada'
+                ? 'completada'
+                : 'no_asistió'
+          }
+          enConfirmacion={enConfirmacion}
+          onConfirmar={ejecutarAccion}
+          onCancelar={() => setConfirmacion(null)}
+          tipo={confirmacion.accion === 'completada' ? 'primario' : 'peligro'}
+        />
+      )}
+
+      {toast && (
+        <div className={`toast toast-${toast.tipo}`}>{toast.mensaje}</div>
       )}
     </div>
   );

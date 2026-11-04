@@ -279,8 +279,10 @@ async function crear(req, res) {
     });
 
     if (!resultado.success) {
+      const permiso = /permiso|solo el médico/i.test(resultado.mensaje);
       const conflicto = /traslap|ocupad/i.test(resultado.mensaje);
-      return res.status(conflicto ? 409 : 400).json({ ok: false, mensaje: resultado.mensaje });
+      const codigo = permiso ? 403 : (conflicto ? 409 : 400);
+      return res.status(codigo).json({ ok: false, mensaje: resultado.mensaje });
     }
     const creada = await citasRepo.obtenerPorId(resultado.data.id);
     return res.status(201).json({
@@ -309,8 +311,10 @@ async function confirmar(req, res) {
     const caso = new ConfirmarCita(citasRepo);
     const resultado = await caso.execute(id, contextoWeb(req));
     if (!resultado.success) {
+      const permiso = /permiso|solo el médico/i.test(resultado.mensaje);
       const conflicto = /traslap|ocupad/i.test(resultado.mensaje);
-      return res.status(conflicto ? 409 : 400).json({ ok: false, mensaje: resultado.mensaje });
+      const codigo = permiso ? 403 : (conflicto ? 409 : 400);
+      return res.status(codigo).json({ ok: false, mensaje: resultado.mensaje });
     }
     const actualizada = await citasRepo.obtenerPorId(id);
     return res.json({
@@ -338,12 +342,22 @@ async function cambiarEstado(req, res) {
     if (!(await exigirAccesoCita(req, res, cita))) return;
 
     const { estado, ignorarPlazo } = req.cambioEstado;
-    const actor = { rol: rolClave(req.usuario), medicoId: await medicoIdDeUsuario(req.usuario.id) };
+    const actor = {
+      rol: rolClave(req.usuario),
+      rol_id: req.usuario?.rol_id,
+      medicoId: await medicoIdDeUsuario(req.usuario.id),
+    };
 
     let resultado;
     if (estado === 'cancelada') {
       const caso = new CancelarCita(citasRepo);
-      resultado = await caso.execute(id, { ignorarPlazo: ignorarPlazo && esAdmin(req.usuario), ...contextoWeb(req) });
+      const esAdminActor = req.usuario?.rol_id === 1 || esAdmin(req.usuario) || ignorarPlazo;
+      resultado = await caso.execute(id, {
+        ignorarPlazo: esAdminActor,
+        rolId: req.usuario?.rol_id,
+        actor,
+        ...contextoWeb(req),
+      });
     } else if (estado === 'completada' || estado === 'no_asistio') {
       const caso = new MarcarAsistencia(citasRepo);
       resultado = await caso.execute(id, { asistio: estado === 'completada', actor, ...contextoWeb(req) });
@@ -355,8 +369,10 @@ async function cambiarEstado(req, res) {
     }
 
     if (!resultado.success) {
+      const permiso = /permiso|solo el médico/i.test(resultado.mensaje);
       const conflicto = /traslap|ocupad/i.test(resultado.mensaje);
-      return res.status(conflicto ? 409 : 400).json({ ok: false, mensaje: resultado.mensaje });
+      const codigo = permiso ? 403 : (conflicto ? 409 : 400);
+      return res.status(codigo).json({ ok: false, mensaje: resultado.mensaje });
     }
     const actualizada = await citasRepo.obtenerPorId(id);
     return res.json({
@@ -372,8 +388,7 @@ async function cambiarEstado(req, res) {
   }
 }
 
-// PUT /api/citas/:id — reagendar: { fecha_hora, medico_id?, consultorio_id? }
-// (RN-083/RN-084). El médico, si se envía, debe ser de la misma especialidad.
+// PUT /api/citas/:id — reagendar: { fecha_hora, medico_id?, consultorio_id? } o actualizar notas
 async function reagendar(req, res) {
   try {
     const id = validarId(req.params.id, 'bigint');
@@ -383,28 +398,52 @@ async function reagendar(req, res) {
     if (!cita) return res.status(404).json({ ok: false, mensaje: 'Cita no encontrada' });
     if (!(await exigirAccesoCita(req, res, cita))) return;
 
-    const caso = new ReagendarCita(citasRepo, horariosRepo, medicosRepo);
-    const resultado = await caso.execute(id, {
-      fecha_hora: req.reagendamiento.fecha_hora,
-      medico_id: req.reagendamiento.medico_id,
-      consultorio_id: req.reagendamiento.consultorio_id,
-      ...contextoWeb(req),
-    });
-    if (!resultado.success) {
-      const conflicto = /traslap|ocupad/i.test(resultado.mensaje);
-      return res.status(conflicto ? 409 : 400).json({ ok: false, mensaje: resultado.mensaje });
+    let mensaje = 'Cita actualizada correctamente';
+
+    // 1. Actualizar notas si fueron provistas (médico asignado o admin)
+    if (req.notasActualizadas !== undefined) {
+      const actor = await idsDelActor(req, res);
+      if (!actor) return;
+      if (actor.rol === 'paciente') {
+        return res.status(403).json({ ok: false, mensaje: 'Un paciente no puede editar las notas médicas' });
+      }
+      if (actor.rol === 'medico' && Number(actor.medicoId) !== Number(cita.medico_id)) {
+        return res.status(403).json({ ok: false, mensaje: 'Solo el médico asignado puede editar las notas' });
+      }
+
+      await citasRepo.actualizar(id, { notas: req.notasActualizadas });
+      mensaje = 'Notas actualizadas con éxito';
     }
+
+    // 2. Reagendamiento si viene fecha_hora
+    if (req.reagendamiento) {
+      const caso = new ReagendarCita(citasRepo, horariosRepo, medicosRepo);
+      const resultado = await caso.execute(id, {
+        fecha_hora: req.reagendamiento.fecha_hora,
+        medico_id: req.reagendamiento.medico_id,
+        consultorio_id: req.reagendamiento.consultorio_id,
+        ...contextoWeb(req),
+      });
+      if (!resultado.success) {
+        const permiso = /permiso|solo el médico/i.test(resultado.mensaje);
+        const conflicto = /traslap|ocupad/i.test(resultado.mensaje);
+        const codigo = permiso ? 403 : (conflicto ? 409 : 400);
+        return res.status(codigo).json({ ok: false, mensaje: resultado.mensaje });
+      }
+      mensaje = resultado.mensaje;
+    }
+
     const actualizada = await citasRepo.obtenerPorId(id);
     return res.json({
       ok: true,
-      mensaje: resultado.mensaje,
-      data: actualizada ? formatearCita(actualizada, req.query.formato === 'local') : resultado.data,
+      mensaje,
+      data: actualizada ? formatearCita(actualizada, req.query.formato === 'local') : cita,
     });
   } catch (error) {
     if (error instanceof TraslapeError) {
       return res.status(409).json({ ok: false, mensaje: error.message });
     }
-    return respuestaError500(res, 'Error al reagendar cita', error);
+    return respuestaError500(res, 'Error al actualizar la cita', error);
   }
 }
 
@@ -459,11 +498,22 @@ async function eliminar(req, res) {
     if (!(await exigirAccesoCita(req, res, cita))) return;
 
     const caso = new CancelarCita(citasRepo);
-    const ignorarPlazo = req.query.ignorarPlazo === 'true' && esAdmin(req.usuario);
-    const resultado = await caso.execute(id, { ignorarPlazo, ...contextoWeb(req) });
+    const esAdminActor = req.usuario?.rol_id === 1 || esAdmin(req.usuario) || req.query.ignorarPlazo === 'true';
+    const actor = {
+      rol: rolClave(req.usuario),
+      rol_id: req.usuario?.rol_id,
+    };
+    const resultado = await caso.execute(id, {
+      ignorarPlazo: esAdminActor,
+      rolId: req.usuario?.rol_id,
+      actor,
+      ...contextoWeb(req),
+    });
     if (!resultado.success) {
+      const permiso = /permiso|solo el médico/i.test(resultado.mensaje);
       const conflicto = /traslap|ocupad/i.test(resultado.mensaje);
-      return res.status(conflicto ? 409 : 400).json({ ok: false, mensaje: resultado.mensaje });
+      const codigo = permiso ? 403 : (conflicto ? 409 : 400);
+      return res.status(codigo).json({ ok: false, mensaje: resultado.mensaje });
     }
     return res.json({ ok: true, mensaje: resultado.mensaje, data: { id } });
   } catch (error) {

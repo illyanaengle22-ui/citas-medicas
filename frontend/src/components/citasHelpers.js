@@ -13,17 +13,27 @@ export const DIAS_SEMANA = [
 ];
 
 // RN-113: se trabaja por clave, no por id numérico.
+// RN-089: las citas reagendadas pasan directamente a 'confirmada', por lo que
+// 'reagendada' ya no se expone como filtro activo en las vistas.
 export const ESTADOS_CITA = [
   { clave: 'pendiente', etiqueta: 'Pendiente' },
   { clave: 'confirmada', etiqueta: 'Confirmada' },
-  { clave: 'reagendada', etiqueta: 'Reagendada' },
   { clave: 'cancelada', etiqueta: 'Cancelada' },
   { clave: 'completada', etiqueta: 'Completada' },
   { clave: 'no_asistio', etiqueta: 'No asistió' },
 ];
 
-// RN-076: pendiente, confirmada y reagendada ocupan agenda y son modificables.
-export const ESTADOS_VIGENTES = ['pendiente', 'confirmada', 'reagendada'];
+const ETIQUETAS_ESTADO = {
+  pendiente: 'Pendiente',
+  confirmada: 'Confirmada',
+  reagendada: 'Reagendada',
+  cancelada: 'Cancelada',
+  completada: 'Completada',
+  no_asistio: 'No asistió',
+};
+
+// RN-076: pendiente y confirmada ocupan agenda y son modificables (RN-089 las reagendadas van a confirmada).
+export const ESTADOS_VIGENTES = ['pendiente', 'confirmada'];
 export const ESTADOS_FINALES = ['cancelada', 'completada', 'no_asistio'];
 
 export function claseEstado(estado) {
@@ -34,7 +44,7 @@ export function claseEstado(estado) {
 }
 
 export function etiquetaEstado(estado) {
-  return ESTADOS_CITA.find((e) => e.clave === estado)?.etiqueta ?? estado ?? '—';
+  return ETIQUETAS_ESTADO[estado] ?? ESTADOS_CITA.find((e) => e.clave === estado)?.etiqueta ?? estado ?? '—';
 }
 
 export function esVigente(estado) {
@@ -60,6 +70,22 @@ export function yaPaso(fechaHora) {
   if (!fechaHora) return false;
   const momento = new Date(fechaHora).getTime();
   return !Number.isNaN(momento) && momento <= Date.now();
+}
+
+// true si la cita es estrictamente en el futuro
+export function esFutura(fechaHora) {
+  if (!fechaHora) return false;
+  const momento = new Date(fechaHora).getTime();
+  return !Number.isNaN(momento) && momento > Date.now();
+}
+
+// RN-086: true si faltan menos de X horas para el inicio de la cita
+export function faltanMenosDeHoras(fechaHora, horas = 2) {
+  if (!fechaHora) return false;
+  const momento = new Date(fechaHora).getTime();
+  if (Number.isNaN(momento)) return false;
+  const limiteMs = horas * 60 * 60 * 1000;
+  return momento - Date.now() < limiteMs;
 }
 
 // 2026-10-26T16:00:00.000Z → "26 oct 2026, 10:00"

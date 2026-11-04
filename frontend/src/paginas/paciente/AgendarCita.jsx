@@ -150,8 +150,11 @@ export default function AgendarCita() {
           motivo: motivo.trim() || undefined,
         },
       });
-      mostrarToast('Cita agendada correctamente');
-      navigate('/paciente/citas');
+      navigate('/paciente/citas', {
+        state: {
+          aviso: "¡Cita reservada! Tienes 30 minutos para confirmarla en 'Mis Citas'. Si no lo haces, el horario será liberado.",
+        },
+      });
     } catch (err) {
       // 409 = traslape (RN-074/RN-078): refrescar los huecos para no
       // dejar al usuario con un horario que ya no existe.

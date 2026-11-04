@@ -11,12 +11,14 @@ class CancelarCita {
     this.repo = citaRepository;
   }
 
-  // ignorarPlazo: solo un administrador puede saltarse el plazo (RN-086 🔶)
-  async execute(id, { ignorarPlazo = false, anticipacionHoras = 2, cambiadoPor = null, origen = 'web', comentario = null } = {}) {
+  // ignorarPlazo / rolId / actor: Administrador (rol_id = 1) no tiene restricciones de tiempo (RN-086 🔶)
+  async execute(id, { ignorarPlazo = false, rolId = null, actor = {}, anticipacionHoras = 2, cambiadoPor = null, origen = 'web', comentario = null } = {}) {
     const row = await this.repo.obtenerPorId(id);
     if (!row) {
       return { success: false, mensaje: 'Cita no encontrada' };
     }
+
+    const esAdmin = rolId === 1 || actor?.rol_id === 1 || actor?.rol === 'admin' || Boolean(ignorarPlazo);
 
     const cita = Cita.fromRow(row);
     const cancelada = EstadoCita.fromClave('cancelada');
@@ -28,15 +30,16 @@ class CancelarCita {
       return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "cancelada" [RN-080]` };
     }
 
-    // Caso B: la cita ya pasó. No es una cancelación futura: el registro debe
-    // marcarse como completada/no_asistio, no cancelarse. Aplica incluso al
-    // admin (ignorarPlazo solo salta el plazo de 2 horas del Caso A).
+    // Si la cita ya pasó (la fecha es menor o igual a la actual)
     if (!cita.esFutura()) {
-      return { success: false, mensaje: 'No puedes cancelar una cita que ya pasó. Contacta a la clínica para más información.' };
+      if (!esAdmin) {
+        return { success: false, mensaje: 'No puedes cancelar una cita que ya pasó.' };
+      }
     }
 
-    // Caso A: RN-086 🔶: plazo mínimo de anticipación para cancelar.
-    if (!ignorarPlazo && cita.fueraDePlazoCancelacion(anticipacionHoras)) {
+    // RN-086: Si el usuario es Paciente o Médico, NO puede cancelar si faltan menos de 2 horas para la cita.
+    // Si el usuario es Administrador (esAdmin = true), se permite sin importar el tiempo.
+    if (!esAdmin && cita.fueraDePlazoCancelacion(anticipacionHoras)) {
       return { success: false, mensaje: `Faltan menos de ${anticipacionHoras} horas para la cita; no es posible cancelarla [RN-086]` };
     }
 

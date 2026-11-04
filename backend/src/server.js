@@ -20,6 +20,7 @@ const perfilRoutes = require('./interfaces/http/routes/perfil.routes');
 const n8nWebhookRoutes = require('./interfaces/webhooks/n8nWebhook.routes');
 const telegramRoutes = require('./interfaces/http/routes/telegram.routes');
 const { iniciarRecordatorios } = require('./infrastructure/jobs/recordatorioScheduler');
+const { iniciarCitasVencidasScheduler } = require('./infrastructure/jobs/citasVencidasScheduler');
 
 const app = express();
 app.use(cors());
@@ -69,4 +70,5 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor escuchando en http://localhost:${PORT}`);
   iniciarRecordatorios();
+  iniciarCitasVencidasScheduler();
 });

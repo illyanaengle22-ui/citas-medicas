@@ -261,8 +261,9 @@ export default function ReagendarCitaModal({
           consultorio_id: Number(seleccion.consultorio_id),
         },
       });
-      mostrarToast?.('Cita reagendada correctamente');
-      onReagendada();
+      const mensajeExito = 'Cita reagendada con éxito. Tu nuevo horario está confirmado.';
+      mostrarToast?.(mensajeExito);
+      onReagendada(mensajeExito);
     } catch (e) {
       setError(e.message);
       if (e.status === 409) setRefresco((n) => n + 1);

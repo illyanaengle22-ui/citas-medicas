@@ -3,7 +3,7 @@ import {
   faCheck, faBan, faRotateRight, faClipboardList, faCalendarPlus,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import CrudTable from '../../components/CrudTable';
 import FormModal from '../../components/FormModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
@@ -12,7 +12,7 @@ import { apiFetch } from '../../services/api';
 import { obtenerTodasLasCitas } from '../../services/citas';
 import {
   ESTADOS_CITA, ESTADOS_VIGENTES, claseEstado, etiquetaEstado, formatearFechaHora,
-  formatearDuracion, esVigente, yaPaso,
+  formatearDuracion, esVigente, yaPaso, esFutura, faltanMenosDeHoras,
 } from '../../components/citasHelpers';
 
 const columnas = [
@@ -39,7 +39,26 @@ const columnas = [
     clave: 'estado',
     titulo: 'Estado',
     render: (fila) => (
-      <span className={claseEstado(fila.estado)}>{etiquetaEstado(fila.estado)}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+        <span className={claseEstado(fila.estado)}>{etiquetaEstado(fila.estado)}</span>
+        {fila.estado === 'pendiente' && (
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              backgroundColor: '#fef3c7',
+              color: '#92400e',
+              border: '1px solid #fcd34d',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              display: 'inline-flex',
+              alignItems: 'center',
+            }}
+          >
+            Expira en 30 min
+          </span>
+        )}
+      </div>
     ),
   },
 ];
@@ -88,6 +107,14 @@ export default function MisCitas() {
   const [reagendando, setReagendando] = useState(null);
   const [toast, setToast] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.aviso) {
+      mostrarToast(location.state.aviso, 'exito');
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const cargarDatos = useCallback(async () => {
     setCargando(true);
@@ -97,8 +124,17 @@ export default function MisCitas() {
         // Sin filtro explícito, el backend devuelve solo estados vigentes.
         estados: filtroEstado ? '' : ESTADOS_VIGENTES.join(','),
       });
-      // Filtro defensivo por si el frontend se despliega antes que el backend.
-      setDatos(citas.filter((cita) => ESTADOS_VIGENTES.includes(cita.estado)));
+      // Filtra las citas pasadas o canceladas para que solo se vean en "Mi Historial"
+      const activas = citas.filter((cita) => {
+        if (cita.estado === 'cancelada' || cita.estado === 'completada' || cita.estado === 'no_asistio') {
+          return false;
+        }
+        if (yaPaso(cita.fecha_hora)) {
+          return false;
+        }
+        return ESTADOS_VIGENTES.includes(cita.estado);
+      });
+      setDatos(activas);
     } catch (err) {
       mostrarToast(err.message, 'error');
     } finally {
@@ -175,17 +211,42 @@ export default function MisCitas() {
       { icono: faClipboardList, titulo: 'Ver detalle e historial', clase: 'btn-ver', onClick: () => abrirHistorial(fila) },
     ];
     if (esVigente(fila.estado)) {
-      const paso = yaPaso(fila.fecha_hora);
-      if (fila.estado !== 'confirmada') {
-        lista.push({ icono: faCheck, titulo: 'Confirmar', clase: 'btn-aprobar', onClick: () => pedirConfirmacion(fila, 'confirmar') });
+      // RN-086: calcular restricciones de cancelación para el paciente
+      const citaEsFutura = esFutura(fila.fecha_hora);
+      const menosDe2Horas = faltanMenosDeHoras(fila.fecha_hora, 2);
+
+      if (fila.estado === 'pendiente') {
+        lista.push({
+          icono: faCheck,
+          titulo: 'Confirmar cita (Expira en 30 min)',
+          clase: 'btn-aprobar',
+          onClick: () => pedirConfirmacion(fila, 'confirmar'),
+        });
+      } else if (fila.estado === 'reagendada') {
+        lista.push({
+          icono: faCheck,
+          titulo: 'Confirmar cita',
+          clase: 'btn-aprobar',
+          onClick: () => pedirConfirmacion(fila, 'confirmar'),
+        });
       }
-      lista.push({ icono: faRotateRight, titulo: 'Reagendar', clase: 'btn-editar', onClick: () => abrirReagendar(fila) });
+
+      // Reagendar solo para citas futuras (no tiene sentido reagendar una cita que ya pasó)
+      if (citaEsFutura) {
+        lista.push({ icono: faRotateRight, titulo: 'Reagendar', clase: 'btn-editar', onClick: () => abrirReagendar(fila) });
+      }
+
+      // RN-086: botón Cancelar — deshabilitado si ya pasó o si faltan < 2 horas
       lista.push({
         icono: faBan,
-        titulo: paso ? 'No puedes cancelar una cita que ya pasó' : 'Cancelar',
+        titulo: !citaEsFutura
+          ? 'No puedes cancelar una cita que ya pasó [RN-086]'
+          : menosDe2Horas
+            ? 'No puedes cancelar con menos de 2 horas de anticipación [RN-086]'
+            : 'Cancelar cita',
         clase: 'btn-rechazar',
         onClick: () => pedirConfirmacion(fila, 'cancelar'),
-        disabled: paso,
+        disabled: !citaEsFutura || menosDe2Horas,
       });
     }
     return lista;
@@ -277,7 +338,11 @@ export default function MisCitas() {
         <ReagendarCitaModal
           cita={reagendando}
           onCerrar={() => setReagendando(null)}
-          onReagendada={() => { setReagendando(null); cargarDatos(); }}
+          onReagendada={(msg) => {
+            setReagendando(null);
+            cargarDatos();
+            mostrarToast(msg || 'Cita reagendada con éxito. Tu nuevo horario está confirmado.', 'exito');
+          }}
           mostrarToast={mostrarToast}
         />
       )}

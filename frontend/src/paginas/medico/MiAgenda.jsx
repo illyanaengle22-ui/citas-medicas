@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   faCheck, faBan, faUserSlash, faClipboardList, faCalendarCheck, faCalendarAlt, faList,
+  faPenToSquare, faSave,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import CalendarioCitas from '../../components/CalendarioCitas';
@@ -12,7 +13,7 @@ import { obtenerTodasLasCitas } from '../../services/citas';
 import '../agenda.css';
 import {
   ESTADOS_CITA, claseEstado, etiquetaEstado, formatearFechaHora, formatearDuracion,
-  esVigente, puedeMarcarCompletada,
+  esVigente, puedeMarcarCompletada, yaPaso, fechaISO, esFutura, faltanMenosDeHoras,
 } from '../../components/citasHelpers';
 
 const columnas = [
@@ -45,6 +46,7 @@ const columnas = [
 ];
 
 const opcionesEstado = [
+  { valor: 'proximas', etiqueta: 'Próximas (Pendientes y Confirmadas)' },
   { valor: '', etiqueta: 'Todos los estados' },
   ...ESTADOS_CITA.map((e) => ({ valor: e.clave, etiqueta: e.etiqueta })),
 ];
@@ -58,7 +60,6 @@ function CitaDetalle({ cita }) {
     ['Duración', formatearDuracion(cita.duracion_minutos)],
     ['Estado', <span key="e" className={claseEstado(cita.estado)}>{etiquetaEstado(cita.estado)}</span>],
     ['Motivo', cita.motivo || <span key="m" className="celda-vacia">—</span>],
-    ['Notas', cita.notas || <span key="n" className="celda-vacia">—</span>],
   ];
   return (
     <dl className="ver-usuario-lista">
@@ -76,8 +77,9 @@ export default function MiAgenda() {
   const [datos, setDatos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [vista, setVista] = useState('calendario');
-  const [filtroEstado, setFiltroEstado] = useState('');
-  const [filtroDesde, setFiltroDesde] = useState('');
+  // Tarea 1: por defecto filtrar pendientes y confirmadas de hoy o del futuro
+  const [filtroEstado, setFiltroEstado] = useState('proximas');
+  const [filtroDesde, setFiltroDesde] = useState(fechaISO(new Date()));
   const [filtroHasta, setFiltroHasta] = useState('');
   const [detalle, setDetalle] = useState(null);
   const [historial, setHistorial] = useState(null);
@@ -86,15 +88,44 @@ export default function MiAgenda() {
   const [enConfirmacion, setEnConfirmacion] = useState(false);
   const [toast, setToast] = useState(null);
 
+  // Tarea 2: edición de notas de la consulta
+  const [editandoNotas, setEditandoNotas] = useState(false);
+  const [textoNotas, setTextoNotas] = useState('');
+  const [guardandoNotas, setGuardandoNotas] = useState(false);
+
   const cargarDatos = useCallback(async () => {
     setCargando(true);
     try {
-      const citas = await obtenerTodasLasCitas({
-        estado: filtroEstado,
-        fecha_desde: filtroDesde,
-        fecha_hasta: filtroHasta,
-      });
-      setDatos(citas);
+      const hoy = fechaISO(new Date());
+      const params = {};
+
+      if (filtroEstado === 'proximas') {
+        params.estados = 'pendiente,confirmada';
+        params.fecha_desde = filtroDesde || hoy;
+      } else if (filtroEstado) {
+        params.estado = filtroEstado;
+        if (filtroDesde) params.fecha_desde = filtroDesde;
+      } else {
+        if (filtroDesde) params.fecha_desde = filtroDesde;
+      }
+
+      if (filtroHasta) {
+        params.fecha_hasta = filtroHasta;
+      }
+
+      const citas = await obtenerTodasLasCitas(params);
+
+      let resultado = citas;
+      if (filtroEstado === 'proximas') {
+        const inicioHoyMs = new Date(`${filtroDesde || hoy}T00:00:00`).getTime();
+        resultado = citas.filter((c) => {
+          if (c.estado !== 'pendiente' && c.estado !== 'confirmada') return false;
+          const citaInicioMs = new Date(c.fecha_hora).getTime();
+          return !Number.isNaN(citaInicioMs) && citaInicioMs >= inicioHoyMs;
+        });
+      }
+
+      setDatos(resultado);
     } catch (err) {
       mostrarToast(err.message, 'error');
     } finally {
@@ -115,6 +146,8 @@ export default function MiAgenda() {
     try {
       const cita = await apiFetch(`/api/citas/${fila.id}`);
       setDetalle(cita);
+      setTextoNotas(cita.notas || '');
+      setEditandoNotas(false);
       setHistorial(null);
     } catch (err) {
       mostrarToast(err.message, 'error');
@@ -134,11 +167,31 @@ export default function MiAgenda() {
     }
   }
 
+  // Guardar notas médicas vía PUT /api/citas/:id
+  async function guardarNotas() {
+    if (!detalle) return;
+    setGuardandoNotas(true);
+    try {
+      await apiFetch(`/api/citas/${detalle.id}`, {
+        method: 'PUT',
+        body: { notas: textoNotas },
+      });
+      setDetalle((prev) => ({ ...prev, notas: textoNotas }));
+      setDatos((prev) => prev.map((c) => (c.id === detalle.id ? { ...c, notas: textoNotas } : c)));
+      setEditandoNotas(false);
+      mostrarToast('Notas guardadas con éxito');
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      setGuardandoNotas(false);
+    }
+  }
+
   function pedirConfirmacion(fila, accion) {
     setConfirmacion({ fila, accion });
   }
 
-  // RN-082: el médico solo marca asistencia (completada / no_asistio).
+  // RN-082: el médico marca asistencia (completada / no_asistio).
   async function ejecutarAccion() {
     if (!confirmacion) return;
     const { fila, accion } = confirmacion;
@@ -149,13 +202,13 @@ export default function MiAgenda() {
           method: 'PUT',
           body: { estado: 'completada' },
         });
-        mostrarToast('Cita marcada como completada');
+        mostrarToast('Cita marcada como completada con éxito');
       } else if (accion === 'no_asistio') {
         await apiFetch(`/api/citas/${fila.id}/estado`, {
           method: 'PUT',
           body: { estado: 'no_asistio' },
         });
-        mostrarToast('Cita marcada como no asistió');
+        mostrarToast('Cita marcada como no asistió con éxito');
       } else if (accion === 'cancelar') {
         await apiFetch(`/api/citas/${fila.id}/estado`, {
           method: 'PUT',
@@ -164,6 +217,10 @@ export default function MiAgenda() {
         mostrarToast('Cita cancelada; el horario quedó libre');
       }
       setConfirmacion(null);
+      if (detalle && detalle.id === fila.id) {
+        setDetalle(null);
+        setHistorial(null);
+      }
       cargarDatos();
     } catch (err) {
       mostrarToast(err.message, 'error');
@@ -172,23 +229,47 @@ export default function MiAgenda() {
     }
   }
 
+  // Tarea 3: Acciones de citas y validaciones RN-082 y RN-086
   const acciones = (fila) => {
     const lista = [
       { icono: faClipboardList, titulo: 'Ver detalle e historial', clase: 'btn-ver', onClick: () => abrirHistorial(fila) },
     ];
-    if (fila.estado === 'confirmada' || fila.estado === 'reagendada') {
-      const puedeCompletar = puedeMarcarCompletada(fila.fecha_hora);
+
+    const esFinalizada = fila.estado === 'completada' || fila.estado === 'no_asistio' || fila.estado === 'cancelada';
+    if (!esFinalizada) {
+      const citaEsFutura = esFutura(fila.fecha_hora);
+      const menosDe2Horas = faltanMenosDeHoras(fila.fecha_hora, 2);
+
       lista.push({
         icono: faCheck,
-        titulo: puedeCompletar ? 'Completada' : 'Aún no es la hora de la cita',
+        titulo: citaEsFutura
+          ? 'No puedes marcar la asistencia de una cita que aún no ha comenzado [RN-082]'
+          : 'Marcar completada',
         clase: 'btn-aprobar',
-        disabled: !puedeCompletar,
+        disabled: citaEsFutura,
         onClick: () => pedirConfirmacion(fila, 'completada'),
       });
-      lista.push({ icono: faUserSlash, titulo: 'No asistió', clase: 'btn-eliminar', onClick: () => pedirConfirmacion(fila, 'no_asistio') });
-    }
-    if (esVigente(fila.estado)) {
-      lista.push({ icono: faBan, titulo: 'Cancelar', clase: 'btn-rechazar', onClick: () => pedirConfirmacion(fila, 'cancelar') });
+      lista.push({
+        icono: faUserSlash,
+        titulo: citaEsFutura
+          ? 'No puedes marcar la asistencia de una cita que aún no ha comenzado [RN-082]'
+          : 'Marcar no asistió',
+        clase: 'btn-eliminar',
+        disabled: citaEsFutura,
+        onClick: () => pedirConfirmacion(fila, 'no_asistio'),
+      });
+
+      if (citaEsFutura) {
+        lista.push({
+          icono: faBan,
+          titulo: menosDe2Horas
+            ? 'No puedes cancelar con menos de 2 horas de anticipación [RN-086]'
+            : 'Cancelar cita',
+          clase: 'btn-rechazar',
+          disabled: menosDe2Horas,
+          onClick: () => pedirConfirmacion(fila, 'cancelar'),
+        });
+      }
     }
     return lista;
   };
@@ -200,7 +281,7 @@ export default function MiAgenda() {
   };
   const [tituloAccion, textoConfirmar, tipoAccion] = textosAccion[confirmacion?.accion] ?? ['', '', 'primario'];
 
-  const hayFiltros = filtroEstado || filtroDesde || filtroHasta;
+  const hayFiltros = (filtroEstado && filtroEstado !== 'proximas') || filtroDesde || filtroHasta;
 
   return (
     <div className="medico-agenda">
@@ -264,9 +345,8 @@ export default function MiAgenda() {
       </div>
 
       {cargando ? (
-        <div className="crud-cargando">
-          <div className="spinner" />
-          <span>Cargando citas...</span>
+        <div className="panel-vacio" role="status" aria-live="polite">
+          Cargando citas…
         </div>
       ) : vista === 'calendario' ? (
         <CalendarioCitas citas={datos} onEventClick={abrirDetalle} />
@@ -276,7 +356,7 @@ export default function MiAgenda() {
           datos={datos}
           cargando={false}
           acciones={acciones}
-          mensajeVacio="No tienes citas registradas"
+          mensajeVacio="No tienes citas registradas para este filtro"
           buscar={false}
         />
       )}
@@ -287,11 +367,106 @@ export default function MiAgenda() {
           campos={[]}
           valoresIniciales={{}}
           onSubmit={() => {}}
-          onCerrar={() => { setDetalle(null); setHistorial(null); }}
+          onCerrar={() => {
+            setDetalle(null);
+            setHistorial(null);
+            setEditandoNotas(false);
+          }}
           soloLectura
           renderVerUsuario={() => (
             <div>
               <CitaDetalle cita={detalle} />
+
+              {/* Tarea 2: Sección de Notas Médicas con Textarea y botón Editar */}
+              <div style={{ marginTop: '1.25rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <label htmlFor="cita-notas-medicas" style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>
+                    Notas de la consulta / Evolución
+                  </label>
+                  {!editandoNotas ? (
+                    <button
+                      type="button"
+                      className="btn btn-secundario btn-sm"
+                      onClick={() => setEditandoNotas(true)}
+                    >
+                      <FontAwesomeIcon icon={faPenToSquare} /> Editar Notas
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secundario btn-sm"
+                        onClick={() => {
+                          setTextoNotas(detalle.notas || '');
+                          setEditandoNotas(false);
+                        }}
+                        disabled={guardandoNotas}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primario btn-sm"
+                        onClick={guardarNotas}
+                        disabled={guardandoNotas}
+                      >
+                        <FontAwesomeIcon icon={faSave} /> {guardandoNotas ? 'Guardando…' : 'Guardar'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <textarea
+                  id="cita-notas-medicas"
+                  className="input"
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    resize: 'vertical',
+                    backgroundColor: editandoNotas ? '#ffffff' : '#f1f5f9',
+                    cursor: editandoNotas ? 'text' : 'not-allowed',
+                    color: '#334155',
+                    fontFamily: 'inherit',
+                  }}
+                  placeholder={editandoNotas ? 'Escribe aquí el diagnóstico, observaciones o evolución del paciente...' : 'Sin notas registradas.'}
+                  value={textoNotas}
+                  onChange={(e) => setTextoNotas(e.target.value)}
+                  disabled={!editandoNotas}
+                />
+              </div>
+
+              {/* Botones de cambio de estado en el modal si no está cancelada */}
+              {detalle.estado !== 'cancelada' && (
+                <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Cambiar estado:</span>
+                  {detalle.estado !== 'completada' && (
+                    <button
+                      type="button"
+                      className="btn btn-primario btn-sm"
+                      onClick={() => pedirConfirmacion(detalle, 'completada')}
+                      disabled={esFutura(detalle.fecha_hora) && detalle.estado !== 'no_asistio'}
+                      title={esFutura(detalle.fecha_hora) && detalle.estado !== 'no_asistio'
+                        ? 'No puedes marcar la asistencia de una cita que aún no ha comenzado [RN-082]'
+                        : (detalle.estado === 'no_asistio' ? 'Cambiar a completada' : 'Marcar completada')}
+                    >
+                      <FontAwesomeIcon icon={faCheck} /> {detalle.estado === 'no_asistio' ? 'Cambiar a completada' : 'Marcar completada'}
+                    </button>
+                  )}
+                  {detalle.estado !== 'no_asistio' && (
+                    <button
+                      type="button"
+                      className="btn btn-peligro btn-sm"
+                      onClick={() => pedirConfirmacion(detalle, 'no_asistio')}
+                      disabled={esFutura(detalle.fecha_hora) && detalle.estado !== 'completada'}
+                      title={esFutura(detalle.fecha_hora) && detalle.estado !== 'completada'
+                        ? 'No puedes marcar la asistencia de una cita que aún no ha comenzado [RN-082]'
+                        : (detalle.estado === 'completada' ? 'Cambiar a no asistió' : 'Marcar no asistió')}
+                    >
+                      <FontAwesomeIcon icon={faUserSlash} /> {detalle.estado === 'completada' ? 'Cambiar a no asistió' : 'Marcar no asistió'}
+                    </button>
+                  )}
+                </div>
+              )}
+
               <h3 className="dash-graficas-titulo">Historial de estados</h3>
               {cargandoHistorial ? (
                 <p className="panel-vacio">Cargando historial…</p>
