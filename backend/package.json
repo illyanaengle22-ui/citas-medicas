@@ -9,7 +9,7 @@
     "db:test": "node src/infrastructure/db.js --test",
     "db:seed": "node src/infrastructure/seed.js",
     "db:migrate": "node src/infrastructure/migrar.js",
-    "build": "esbuild src/server.js --bundle --platform=node --target=node22 --format=cjs --external:pg-native --external:svg-captcha --outfile=dist/server.js"
+    "build": "esbuild src/server.js --bundle --platform=node --target=node22 --format=cjs --packages=external --outfile=dist/server.js"
   },
   "keywords": [],
   "author": "",

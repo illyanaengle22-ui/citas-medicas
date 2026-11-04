@@ -69,8 +69,7 @@ npx esbuild src/server.js \
   --platform=node \
   --target=node22 \
   --format=cjs \
-  --external:pg-native \
-  --external:svg-captcha \
+  --packages=external \
   --outfile=dist/server.js
 
 echo "🔍 Verificando sintaxis del bundle de backend..."
@@ -108,6 +107,13 @@ cat << 'EOF' > "$TMP_DIR/artifacts/back/package.json"
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.4.0",
+    "pg": "^8.23.1",
     "svg-captcha": "^1.4.0"
   }
 }
