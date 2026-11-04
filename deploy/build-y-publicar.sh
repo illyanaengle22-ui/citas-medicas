@@ -4,10 +4,12 @@
 # ==============================================================================
 # ESTRATEGIA:
 #   1. Compila frontend (Vite) y backend (esbuild) IN-PLACE.
-#   2. Copia artefactos a /tmp (ext4 nativo).
-#   3. Clona el repo LOCAL a /tmp/repo_clone (sin node_modules, rápido).
-#   4. En /tmp/repo_clone crea las 4 ramas orphan y hace push.
-#   5. NUNCA cambia de rama en /mnt/c/... → el working tree queda intacto.
+#   2. Copia artefactos a /tmp/artifacts.
+#   3. Clona el repo LOCAL a /tmp/repo_clone (ext4, sin node_modules).
+#   4. En /tmp/repo_clone crea las 4 ramas orphan con commits.
+#   5. Desde el REPO ORIGINAL (que tiene credenciales) hace fetch del clon
+#      y luego push a origin. Así no necesita credenciales en /tmp.
+#   6. NUNCA cambia de rama en /mnt/c/... → el working tree queda intacto.
 #
 # Ejecutar en WSL / Linux:
 #   bash deploy/build-y-publicar.sh
@@ -148,7 +150,7 @@ EOF
 echo "✅ Artefactos aislados en $TMP_DIR/artifacts."
 
 echo "=========================================================="
-echo "  🌿 [3/5] Clonando repo a /tmp y publicando ramas orphan..."
+echo "  🌿 [3/5] Creando ramas orphan en clon temporal..."
 echo "=========================================================="
 
 # Clonar repo localmente a /tmp (ext4 nativo — sin problemas con DrvFs)
@@ -156,21 +158,18 @@ CLONE_DIR="$TMP_DIR/repo_clone"
 git clone --no-checkout "$REPO_ROOT" "$CLONE_DIR"
 cd "$CLONE_DIR"
 
-# Configurar remote para que push vaya al repositorio real, no al local
-git remote set-url origin "$REMOTE_URL"
-
-# Configurar identidad git (hereda del repo principal)
+# Configurar identidad git
 GIT_USER="$(cd "$REPO_ROOT" && git config user.name 2>/dev/null || echo "MediCitas Deploy")"
 GIT_EMAIL="$(cd "$REPO_ROOT" && git config user.email 2>/dev/null || echo "deploy@medicitas.local")"
 git config user.name "$GIT_USER"
 git config user.email "$GIT_EMAIL"
 
-publicar_rama() {
+crear_rama_orphan() {
   local RAMA="$1"
   local ORIGEN_DIR="$2"
 
   echo ""
-  echo "--- Publicando rama orphan: $RAMA ---"
+  echo "--- Creando rama orphan: $RAMA ---"
   cd "$CLONE_DIR"
 
   # Crear rama orphan limpia
@@ -206,24 +205,47 @@ publicar_rama() {
 
   echo "   Contenido de $RAMA:"
   git ls-tree -r --name-only HEAD
-
-  git push origin "$RAMA" --force
-  echo "✅ Rama $RAMA publicada exitosamente."
+  echo "✅ Rama $RAMA creada localmente."
 }
 
-publicar_rama "deploy/db"    "$TMP_DIR/artifacts/db"
-publicar_rama "deploy/back"  "$TMP_DIR/artifacts/back"
-publicar_rama "deploy/front" "$TMP_DIR/artifacts/front"
-publicar_rama "deploy/n8n"   "$TMP_DIR/artifacts/n8n"
+crear_rama_orphan "deploy/db"    "$TMP_DIR/artifacts/db"
+crear_rama_orphan "deploy/back"  "$TMP_DIR/artifacts/back"
+crear_rama_orphan "deploy/front" "$TMP_DIR/artifacts/front"
+crear_rama_orphan "deploy/n8n"   "$TMP_DIR/artifacts/n8n"
 
 echo "=========================================================="
-echo "  🧹 [4/5] Limpiando archivos temporales..."
+echo "  📤 [4/5] Publicando ramas a GitHub (desde repo original)..."
+echo "=========================================================="
+
+# Volver al repo original que SÍ tiene credenciales configuradas
+cd "$REPO_ROOT"
+
+# Registrar el clon como remote temporal
+git remote remove tmp_deploy 2>/dev/null || true
+git remote add tmp_deploy "$CLONE_DIR"
+
+# Fetch y push cada rama
+for RAMA in deploy/db deploy/back deploy/front deploy/n8n; do
+  echo "📤 Publicando $RAMA..."
+  git fetch tmp_deploy "$RAMA":"$RAMA" --force
+  git push origin "$RAMA" --force
+  echo "✅ $RAMA publicada."
+done
+
+# Limpiar remote temporal y ramas locales
+git remote remove tmp_deploy
+for RAMA in deploy/db deploy/back deploy/front deploy/n8n; do
+  git branch -D "$RAMA" 2>/dev/null || true
+done
+
+echo "=========================================================="
+echo "  🧹 [5/5] Limpiando archivos temporales..."
 echo "=========================================================="
 rm -rf "$TMP_DIR"
 echo "✅ Directorio temporal eliminado."
 
 echo "=========================================================="
-echo "  🎉 [5/5] ¡Proceso completado con éxito!"
+echo "  🎉 ¡Proceso completado con éxito!"
 echo "=========================================================="
 echo ""
 echo "Las 4 ramas orphan han sido compiladas y empujadas a GitHub:"
