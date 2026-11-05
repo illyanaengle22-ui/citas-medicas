@@ -181,8 +181,9 @@ sudo docker compose exec -T n8n n8n import:workflow --input=/tmp/workflow.json
 sudo docker compose exec -u root -T n8n rm -f /tmp/workflow.json 2>/dev/null || true
 
 echo "🔹 [6/7] Activando workflows en n8n..."
-# n8n v2 usa publish:workflow; fallback a update:workflow para v1
-sudo docker compose exec -T n8n n8n publish:workflow --all 2>/dev/null || \
+# En n8n v2 publish:workflow requiere el ID del workflow (en MediCitas.json es GLIxoBsZqn5Tb9bT o 1)
+sudo docker compose exec -T n8n n8n publish:workflow --id=GLIxoBsZqn5Tb9bT 2>/dev/null || \
+sudo docker compose exec -T n8n n8n publish:workflow --id=1 2>/dev/null || \
 sudo docker compose exec -T n8n n8n update:workflow --all --active=true 2>/dev/null || true
 
 # Limpieza estricta de temporales con secretos en el host
