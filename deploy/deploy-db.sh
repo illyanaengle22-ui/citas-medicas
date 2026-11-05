@@ -103,6 +103,12 @@ if [ "$CARGAR_DEMO" = "1" ]; then
   fi
 fi
 
+# Otorgar permisos completos al usuario de la aplicación sobre todas las tablas y secuencias
+sudo -u postgres psql -d "$DB_NAME" -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DB_USER;"
+sudo -u postgres psql -d "$DB_NAME" -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $DB_USER;"
+sudo -u postgres psql -d "$DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $DB_USER;"
+sudo -u postgres psql -d "$DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $DB_USER;"
+
 echo ""
 echo "✅ Base de datos configurada y lista en el puerto 5432."
 echo "   Verificación rápida de tablas:"
