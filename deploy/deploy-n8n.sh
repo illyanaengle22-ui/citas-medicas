@@ -155,8 +155,9 @@ cat <<EOF > "$CRED_FILE"
 EOF
 
 sudo docker compose cp "$CRED_FILE" n8n:/tmp/credentials.json
+sudo docker compose exec -u root -T n8n chown node:node /tmp/credentials.json
 sudo docker compose exec -T n8n n8n import:credentials --input=/tmp/credentials.json
-sudo docker compose exec -T n8n rm -f /tmp/credentials.json
+sudo docker compose exec -u root -T n8n rm -f /tmp/credentials.json 2>/dev/null || true
 
 echo "🔹 [5/7] Procesando e importando workflows de n8n..."
 WORKFLOW_SRC="$APP_DIR/MediCitas.json"
@@ -175,8 +176,9 @@ sed -e "s|http://localhost:4000|http://${BACKEND_IP}:4000|g" \
     "$WORKFLOW_SRC" > "$WORKFLOW_TMP"
 
 sudo docker compose cp "$WORKFLOW_TMP" n8n:/tmp/workflow.json
+sudo docker compose exec -u root -T n8n chown node:node /tmp/workflow.json
 sudo docker compose exec -T n8n n8n import:workflow --input=/tmp/workflow.json
-sudo docker compose exec -T n8n rm -f /tmp/workflow.json
+sudo docker compose exec -u root -T n8n rm -f /tmp/workflow.json 2>/dev/null || true
 
 echo "🔹 [6/7] Activando workflows en n8n..."
 # n8n v2 usa publish:workflow; fallback a update:workflow para v1
