@@ -5,17 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { randomUUID } = require('crypto');
 
-// UPLOADS_DIR permite usar una ruta absoluta en producción o relativa en desarrollo.
-const UPLOADS_ROOT = path.resolve(process.cwd(), process.env.UPLOADS_DIR || 'uploads');
-
-const DIR_PERFILES = path.join(UPLOADS_ROOT, 'perfiles');
-const DIR_MEDICOS  = path.join(UPLOADS_ROOT, 'medicos');
-
-for (const dir of [DIR_PERFILES, DIR_MEDICOS]) {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
+const { DIR_PERFILES, DIR_MEDICOS } = require('../../../config/uploads');
 
 // La extensión se deriva del MIME real, no del nombre que manda el cliente.
 const EXT_POR_MIME = {

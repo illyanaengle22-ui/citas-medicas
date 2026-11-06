@@ -47,14 +47,8 @@ if (fs.existsSync(frontendPath)) {
 }
 
 // Sirve imágenes de perfil/médicos subidas por multer.
-// UPLOADS_DIR por env o process.cwd()/uploads con mkdir recursivo al arrancar.
-const UPLOADS_DIR = path.resolve(process.cwd(), process.env.UPLOADS_DIR || 'uploads');
-for (const sub of ['', 'perfiles', 'medicos']) {
-  const dir = path.join(UPLOADS_DIR, sub);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
+const { UPLOADS_DIR, asegurarDirectoriosUploads } = require('./config/uploads');
+asegurarDirectoriosUploads();
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 app.use('/api/auth', authRoutes);
