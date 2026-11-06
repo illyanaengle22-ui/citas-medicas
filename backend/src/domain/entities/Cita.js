@@ -1,6 +1,7 @@
 'use strict';
 
 const EstadoCita = require('../value-objects/EstadoCita');
+const { normalizarFechaEntrada } = require('../utils/fechaHoraLocal');
 
 class Cita {
   constructor({
@@ -25,9 +26,9 @@ class Cita {
     this.paciente_usuario_id = paciente_usuario_id ?? null;
     this.medico_id = medico_id;
     this.consultorio_id = consultorio_id;
-    this.fecha_hora = fecha_hora;
+    this.fecha_hora = normalizarFechaEntrada(fecha_hora);
     this.duracion_minutos = duracion_minutos;
-    this.fecha_fin = fecha_fin;
+    this.fecha_fin = fecha_fin ? normalizarFechaEntrada(fecha_fin) : fecha_fin;
     this.estado_id = estado_id;
     this.motivo = motivo;
     this.notas = notas;

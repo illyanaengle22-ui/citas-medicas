@@ -23,6 +23,8 @@ export default function Topbar() {
     window.location.href = '/login';
   };
 
+  const [fotoError, setFotoError] = useState(false);
+
   // Leer foto_url del localStorage (se guarda tras actualizar perfil)
   const fotoUrl = user?.foto_url ? `${API_URL}${user.foto_url}` : null;
 
@@ -42,8 +44,13 @@ export default function Topbar() {
 
         {/* Mini avatar con link a perfil */}
         <NavLink to="/perfil" className="topbar-avatar" title="Mi Perfil">
-          {fotoUrl ? (
-            <img src={fotoUrl} alt="Perfil" className="topbar-avatar-img" />
+          {fotoUrl && !fotoError ? (
+            <img
+              src={fotoUrl}
+              alt="Perfil"
+              className="topbar-avatar-img"
+              onError={() => setFotoError(true)}
+            />
           ) : (
             <span className="topbar-avatar-iniciales">
               {iniciales(user?.nombre || '')}

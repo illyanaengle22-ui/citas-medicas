@@ -31,6 +31,7 @@ export default function MiPerfil() {
   // Foto
   const [fotoPreview, setFotoPreview] = useState(null);
   const [fotoFile, setFotoFile] = useState(null);
+  const [fotoError, setFotoError] = useState(false);
   const inputFotoRef = useRef(null);
 
   function mostrarToast(mensaje, tipo = 'exito') {
@@ -60,6 +61,7 @@ export default function MiPerfil() {
           setNombre(p.nombre || '');
           setEmail(p.email || '');
           if (p.foto_url) {
+            setFotoError(false);
             setFotoPreview(`${API_URL}${p.foto_url}`);
           }
         }
@@ -82,6 +84,7 @@ export default function MiPerfil() {
       e.target.value = '';
       return;
     }
+    setFotoError(false);
     setFotoFile(file);
     setFotoPreview(URL.createObjectURL(file));
   }
@@ -122,6 +125,7 @@ export default function MiPerfil() {
 
       // Actualiza preview si hay nueva foto_url
       if (json.data?.foto_url) {
+        setFotoError(false);
         setFotoPreview(`${API_URL}${json.data.foto_url}`);
       }
 
@@ -183,11 +187,12 @@ export default function MiPerfil() {
           {/* Avatar / foto */}
           <div className="perfil-avatar-wrapper">
             <div className="perfil-avatar">
-              {fotoPreview ? (
+              {fotoPreview && !fotoError ? (
                 <img
                   src={fotoPreview}
                   alt="Foto de perfil"
                   className="perfil-avatar-img"
+                  onError={() => setFotoError(true)}
                 />
               ) : (
                 <span className="perfil-avatar-iniciales">

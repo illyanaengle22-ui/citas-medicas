@@ -86,7 +86,7 @@ export default function Login() {
 
         <div className="auth-decor-panel">
         <img
-          src="../public/Online Doctor-pana.png"
+          src="/Online Doctor-pana.png"
           alt="Ilustración de doctor"
           className="auth-ilustracion"
         />

@@ -13,8 +13,39 @@ function normalizarOffset(valor) {
   return `${partes[1]}${partes[2].padStart(2, '0')}:${partes[3] || '00'}`;
 }
 
+// Construye un ISO 8601 con el offset de la clínica para una fecha/hora local.
+// Se toma el offset del mediodía de ese día; para México no hay DST desde 2022.
+function construirFechaHoraLocal(fecha, hora) {
+  const [anio, mes, dia] = String(fecha).split('-').map(Number);
+  const [hh, mm] = String(hora).split(':').map(Number);
+  if ([anio, mes, dia, hh, mm].some((n) => !Number.isInteger(n))) return null;
+
+  const referencia = new Date(Date.UTC(anio, mes - 1, dia, 12, 0, 0));
+  const partes = partesFechaHoraLocal(referencia);
+  if (!partes) return null;
+  const offset = partes.iso.slice(-6);
+
+  return `${String(anio).padStart(4, '0')}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
+    + `T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00${offset}`;
+}
+
+// Normaliza strings de fecha/hora que vienen sin offset (ej: '2026-11-06T08:00:00' o '2026-11-06T08:00')
+// interpretándolos en la zona de la clínica para no depender del TZ del proceso (UTC en EC2).
+function normalizarFechaEntrada(fecha) {
+  if (typeof fecha === 'string') {
+    const match = fecha.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::\d{2})?$/);
+    if (match) {
+      const [, dia, hora] = match;
+      const conOffset = construirFechaHoraLocal(dia, hora);
+      if (conOffset) return conOffset;
+    }
+  }
+  return fecha;
+}
+
 function partesFechaHoraLocal(fecha) {
-  const valor = fecha instanceof Date ? fecha : new Date(fecha);
+  const normalizada = normalizarFechaEntrada(fecha);
+  const valor = normalizada instanceof Date ? normalizada : new Date(normalizada);
   if (Number.isNaN(valor.getTime())) return null;
 
   const partes = new Intl.DateTimeFormat('en-CA', {
@@ -109,4 +140,5 @@ module.exports = {
   formatearTextoLocal,
   diaSemanaLocal,
   construirFechaHoraLocal,
+  normalizarFechaEntrada,
 };

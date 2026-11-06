@@ -6,9 +6,9 @@ const fs = require('fs');
 const { randomUUID } = require('crypto');
 
 // UPLOADS_DIR permite usar una ruta absoluta en producción (bundle/PM2).
-// En desarrollo cae a backend/uploads.
+// En desarrollo cae a uploads relativo al directorio de ejecución.
 const UPLOADS_ROOT = process.env.UPLOADS_DIR ||
-  path.join(__dirname, '..', '..', '..', '..', 'uploads');
+  path.resolve(process.cwd(), 'uploads');
 
 const DIR_PERFILES = path.join(UPLOADS_ROOT, 'perfiles');
 const DIR_MEDICOS  = path.join(UPLOADS_ROOT, 'medicos');

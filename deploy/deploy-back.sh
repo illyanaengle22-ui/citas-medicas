@@ -44,11 +44,11 @@ if ! command -v pm2 >/dev/null 2>&1; then
 fi
 
 echo "🔹 [2/5] Instalando dependencias de producción..."
-# Creamos la carpeta de uploads con permisos adecuados
-mkdir -p "$APP_DIR/uploads"
-chmod 755 "$APP_DIR/uploads"
+# Creamos las carpetas de uploads con permisos adecuados
+mkdir -p "$APP_DIR/uploads/perfiles" "$APP_DIR/uploads/medicos"
+chmod -R 777 "$APP_DIR/uploads"
 
-# Solo svg-captcha y dependencias de ejecución; NO npm ci
+# Solo dependencias de ejecución; NO npm ci
 npm install --omit=dev
 
 echo "🔹 [3/5] Generando configuración de entorno (.env)..."
@@ -56,6 +56,7 @@ cat <<EOF > "$APP_DIR/.env"
 PORT=4000
 NODE_ENV=production
 ALLOW_TEST_CAPTCHA=false
+TZ=America/Mexico_City
 
 DB_HOST=$DB_HOST
 DB_PORT=5432
@@ -75,7 +76,7 @@ REMINDERS_ENABLED=true
 REMINDERS_INTERVAL_MS=300000
 EOF
 
-chmod 600 "$APP_DIR/.env"
+chmod 644 "$APP_DIR/.env"
 
 echo "🔹 [4/5] Iniciando aplicación con PM2 (Modo Fork, 1 instancia)..."
 pm2 delete api 2>/dev/null || true
