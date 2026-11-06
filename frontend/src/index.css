@@ -1339,13 +1339,72 @@ select.input {
   overflow: hidden;
 }
 
-.crud-buscar {
-  padding: 1rem 1.5rem;
+.crud-barra-superior {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
   border-bottom: 1px solid var(--borde);
+  background: #fbfcfe;
+  flex-wrap: wrap;
+}
+
+.crud-buscar {
+  flex: 1;
+  min-width: 200px;
 }
 
 .crud-buscar-input {
   padding-left: 1.25rem;
+}
+
+.crud-orden-fecha {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.crud-orden-icono {
+  color: var(--primario);
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.crud-orden-select {
+  padding: 0.4rem 2rem 0.4rem 0.85rem;
+  font-size: 0.825rem;
+  font-weight: 500;
+  color: var(--texto);
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pildora);
+  cursor: pointer;
+  min-width: 190px;
+}
+
+.crud-th-ordenable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--transicion), color var(--transicion);
+}
+
+.crud-th-ordenable:hover {
+  background: var(--suave);
+  color: var(--primario);
+}
+
+.crud-th-contenido {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.crud-th-icono-orden {
+  color: var(--primario);
+  font-size: 0.8rem;
+  opacity: 0.85;
 }
 
 .crud-table-scroll {
@@ -2046,8 +2105,9 @@ select.input {
   pointer-events: none;
 }
 
-.admin-medicos-busqueda .input {
-  padding-left: 2.7rem;
+.admin-medicos-busqueda .input,
+.admin-medicos-filtros .admin-medicos-busqueda .input {
+  padding-left: 2.75rem !important;
 }
 
 .admin-medicos-filtros .input {
@@ -3651,6 +3711,17 @@ select.input {
 .telegram-codigo-nota {
   font-size: 0.8rem;
   opacity: 0.7;
+}
+
+.telegram-link {
+  color: var(--primario);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: opacity var(--transicion);
+}
+
+.telegram-link:hover {
+  opacity: 0.85;
 }
 
 .dash-error-inline {

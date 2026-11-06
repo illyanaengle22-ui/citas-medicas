@@ -129,7 +129,16 @@ export default function VincularTelegram() {
             {comando && (
               <div className="telegram-codigo-caja">
                 <p>
-                  Abre <strong>@CitaFacilBot</strong> en Telegram y envía este comando:
+                  Abre{' '}
+                  <a
+                    href="https://t.me/medicitasAppBot"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="telegram-link"
+                  >
+                    <strong>@medicitasAppBot</strong> (Medicitas Bot)
+                  </a>{' '}
+                  en Telegram y envía este comando:
                 </p>
                 <div className="telegram-codigo-fila">
                   <code className="telegram-codigo">{comando}</code>
