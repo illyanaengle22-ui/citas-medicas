@@ -2,6 +2,7 @@
 
 const db = require('../../infrastructure/db');
 const DashboardRepository = require('../../domain/ports/DashboardRepository');
+const { ZONA_HORARIA } = require('../../domain/utils/fechaHoraLocal');
 
 class PostgresDashboardRepository extends DashboardRepository {
   async obtenerTotales(fechaInicio, fechaFin) {
@@ -147,6 +148,27 @@ class PostgresDashboardRepository extends DashboardRepository {
     return result.rows;
   }
 
+  // Mejora SQL: GROUP BY + HAVING para especialidades con más de un médico activo.
+  async obtenerEspecialidadesConMasDeUnMedico() {
+    const result = await db.query(`
+      SELECT e.id,
+             e.nombre AS especialidad,
+             COUNT(DISTINCT m.id)::int AS total_medicos
+        FROM especialidades e
+        JOIN medico_especialidades me ON me.especialidad_id = e.id
+        JOIN medicos m ON m.id = me.medico_id
+        JOIN usuarios u ON u.id = m.usuario_id
+       WHERE e.activo = TRUE
+         AND m.deleted_at IS NULL
+         AND m.activo = TRUE
+         AND u.deleted_at IS NULL
+       GROUP BY e.id, e.nombre
+      HAVING COUNT(DISTINCT m.id) > 1
+       ORDER BY total_medicos DESC, especialidad ASC
+    `);
+    return result.rows;
+  }
+
   async obtenerMedicosPorConsultorio() {
     const result = await db.query(`
       SELECT c.nombre AS consultorio, COUNT(DISTINCT m.id)::int AS total
@@ -201,6 +223,68 @@ class PostgresDashboardRepository extends DashboardRepository {
       GROUP BY d.dia
       ORDER BY d.dia
     `, [fechaInicio, fechaFin]);
+    return result.rows;
+  }
+
+  // Mejora SQL: UNION ALL de dos consultas (citas de la mañana y de la tarde).
+  async obtenerCitasMananaTarde(fechaInicio, fechaFin) {
+    const result = await db.query(`
+      SELECT 'Mañana' AS franja,
+             1 AS orden_franja,
+             c.id,
+             c.fecha_hora,
+             to_char(c.fecha_hora AT TIME ZONE $3, 'YYYY-MM-DD HH24:MI') AS fecha_local,
+             um.nombre AS medico,
+             ec.clave AS estado
+        FROM citas c
+        JOIN medicos m ON m.id = c.medico_id AND m.deleted_at IS NULL
+        JOIN usuarios um ON um.id = m.usuario_id AND um.deleted_at IS NULL
+        JOIN estados_cita ec ON ec.id = c.estado_id
+       WHERE (c.fecha_hora AT TIME ZONE $3)::date >= $1::date
+         AND (c.fecha_hora AT TIME ZONE $3)::date <= $2::date
+         AND EXTRACT(HOUR FROM c.fecha_hora AT TIME ZONE $3) < 12
+      UNION ALL
+      SELECT 'Tarde' AS franja,
+             2 AS orden_franja,
+             c.id,
+             c.fecha_hora,
+             to_char(c.fecha_hora AT TIME ZONE $3, 'YYYY-MM-DD HH24:MI') AS fecha_local,
+             um.nombre AS medico,
+             ec.clave AS estado
+        FROM citas c
+        JOIN medicos m ON m.id = c.medico_id AND m.deleted_at IS NULL
+        JOIN usuarios um ON um.id = m.usuario_id AND um.deleted_at IS NULL
+        JOIN estados_cita ec ON ec.id = c.estado_id
+       WHERE (c.fecha_hora AT TIME ZONE $3)::date >= $1::date
+         AND (c.fecha_hora AT TIME ZONE $3)::date <= $2::date
+         AND EXTRACT(HOUR FROM c.fecha_hora AT TIME ZONE $3) >= 12
+       ORDER BY orden_franja, fecha_hora
+    `, [fechaInicio, fechaFin, ZONA_HORARIA]);
+    return result.rows;
+  }
+
+  // Mejora SQL: CASE WHEN para clasificar las citas por franja horaria local.
+  async obtenerCitasPorFranjaHoraria(fechaInicio, fechaFin) {
+    const result = await db.query(`
+      SELECT franja, COUNT(*)::int AS total
+      FROM (
+        SELECT
+          CASE
+            WHEN EXTRACT(HOUR FROM c.fecha_hora AT TIME ZONE $3) < 12 THEN 'Mañana'
+            WHEN EXTRACT(HOUR FROM c.fecha_hora AT TIME ZONE $3) < 18 THEN 'Tarde'
+            ELSE 'Noche'
+          END AS franja
+        FROM citas c
+        WHERE (c.fecha_hora AT TIME ZONE $3)::date >= $1::date
+          AND (c.fecha_hora AT TIME ZONE $3)::date <= $2::date
+      ) clasificadas
+      GROUP BY franja
+      ORDER BY CASE franja
+                 WHEN 'Mañana' THEN 1
+                 WHEN 'Tarde' THEN 2
+                 ELSE 3
+               END
+    `, [fechaInicio, fechaFin, ZONA_HORARIA]);
     return result.rows;
   }
 

@@ -3,6 +3,7 @@
 const db = require('../../infrastructure/db');
 const CitaRepository = require('../../domain/ports/CitaRepository');
 const TraslapeError = require('../../domain/value-objects/TraslapeError');
+const { ZONA_HORARIA } = require('../../domain/utils/fechaHoraLocal');
 
 // El EXCLUDE USING gist de citas dispara con código 23P01.
 const CODIGO_EXCLUIR = '23P01';
@@ -122,6 +123,32 @@ class PostgresCitaRepository extends CitaRepository {
     const result = await db.query(sql, [...valores, limit, offset]);
 
     return { data: result.rows, total, page, limit };
+  }
+
+  // Mejora SQL: función de ventana para numerar las citas de cada médico.
+  async listarCitasNumeradasPorMedico({ medico_id = null, fechaInicio = null, fechaFin = null } = {}) {
+    const result = await db.query(
+      `SELECT c.id,
+              c.medico_id,
+              um.nombre AS medico,
+              c.fecha_hora,
+              to_char(c.fecha_hora AT TIME ZONE $3, 'YYYY-MM-DD HH24:MI') AS fecha_local,
+              ec.clave AS estado,
+              (ROW_NUMBER() OVER (
+                PARTITION BY c.medico_id
+                ORDER BY c.fecha_hora ASC
+              ))::int AS numero_cita
+         FROM citas c
+         JOIN medicos m ON m.id = c.medico_id AND m.deleted_at IS NULL
+         JOIN usuarios um ON um.id = m.usuario_id AND um.deleted_at IS NULL
+         JOIN estados_cita ec ON ec.id = c.estado_id
+        WHERE ($1::bigint IS NULL OR c.medico_id = $1)
+          AND ($2::date IS NULL OR (c.fecha_hora AT TIME ZONE $3)::date >= $2::date)
+          AND ($4::date IS NULL OR (c.fecha_hora AT TIME ZONE $3)::date <= $4::date)
+        ORDER BY c.medico_id ASC, numero_cita ASC`,
+      [medico_id, fechaInicio, ZONA_HORARIA, fechaFin]
+    );
+    return result.rows;
   }
 
   // "Mis pacientes" del médico: pacientes distintos con los que tiene citas,
