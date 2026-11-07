@@ -25,6 +25,7 @@ BASE_URL="${BASE_URL:-http://localhost:4000}"
 BASE_URL="${BASE_URL%/}"
 API="$BASE_URL/api"
 TZ_BD="${TZ_BD:-America/Mexico_City}"
+SECRET="${N8N_WEBHOOK_SECRET:-tu-secreto}"
 
 if [ -z "${ADMIN:-}" ]; then
   echo "❌ Falta el token de administrador."
@@ -260,6 +261,43 @@ if [ -z "$CITA_ID" ]; then
   exit 1
 fi
 
+# ── (c2) Cita desde Telegram: n8n envía x-webhook-secret y origen ──────────
+echo
+echo "== (c2) Cita creada desde Telegram/n8n =="
+
+TG_FECHA_HORA="${FECHA}T11:00:00${OFFSET}"
+TG_BODY="{\"medico_id\":$MED_ID,\"consultorio_id\":$CON_ID,\"fecha_hora\":\"$TG_FECHA_HORA\",\"duracion_minutos\":30,\"motivo\":\"Prueba Telegram\",\"origen\":\"telegram\"}"
+request "${P2[@]}" -H "x-webhook-secret: $SECRET" -X POST "$API/citas" -d "$TG_BODY"
+TG_CITA_ID="$(printf '%s' "$RESP_BODY" | jq -r '.data.id // empty' 2>/dev/null)"
+check "Cita de Telegram agendada (201)" 201 "$RESP_CODE"
+check "La cita de Telegram nace confirmada" "confirmada" \
+  "$(printf '%s' "$RESP_BODY" | jq -r '.data.estado // empty' 2>/dev/null)"
+
+# Seguridad: un paciente web no puede saltarse la regla de los 30 minutos
+# enviando origen=telegram sin el secreto compartido de n8n.
+SPOOF_FECHA_HORA="${FECHA}T12:00:00${OFFSET}"
+SPOOF_BODY="{\"medico_id\":$MED_ID,\"consultorio_id\":$CON_ID,\"fecha_hora\":\"$SPOOF_FECHA_HORA\",\"duracion_minutos\":30,\"motivo\":\"Prueba spoof\",\"origen\":\"telegram\"}"
+request "${P2[@]}" -X POST "$API/citas" -d "$SPOOF_BODY"
+SPOOF_CITA_ID="$(printf '%s' "$RESP_BODY" | jq -r '.data.id // empty' 2>/dev/null)"
+check "origen=telegram sin secreto sigue pendiente" "pendiente" \
+  "$(printf '%s' "$RESP_BODY" | jq -r '.data.estado // empty' 2>/dev/null)"
+
+# El secreto por sí solo también identifica a n8n aunque no envíe `origen`.
+SOLO_SECRETO_FECHA_HORA="${FECHA}T13:00:00${OFFSET}"
+SOLO_SECRETO_BODY="{\"medico_id\":$MED_ID,\"consultorio_id\":$CON_ID,\"fecha_hora\":\"$SOLO_SECRETO_FECHA_HORA\",\"duracion_minutos\":30,\"motivo\":\"Prueba solo secreto\"}"
+request "${P2[@]}" -H "x-webhook-secret: $SECRET" -X POST "$API/citas" -d "$SOLO_SECRETO_BODY"
+SOLO_SECRETO_CITA_ID="$(printf '%s' "$RESP_BODY" | jq -r '.data.id // empty' 2>/dev/null)"
+check "x-webhook-secret sin origen también confirma" "confirmada" \
+  "$(printf '%s' "$RESP_BODY" | jq -r '.data.estado // empty' 2>/dev/null)"
+
+for cita_aux in "$TG_CITA_ID" "$SPOOF_CITA_ID" "$SOLO_SECRETO_CITA_ID"; do
+  if [ -n "$cita_aux" ]; then
+    request "${A[@]}" -X PUT "$API/citas/$cita_aux/estado" \
+      -d '{"estado":"cancelada","ignorarPlazo":true}'
+    check "Cita auxiliar $cita_aux cancelada" 200 "$RESP_CODE"
+  fi
+done
+
 # ── (d) Misma hora con otro paciente ────────────────────────────────────────
 echo
 echo "== (d) Otro paciente intenta la misma hora =="
@@ -281,12 +319,19 @@ check "Agendar fuera del horario → 400" 400 "$RESP_CODE"
 check "El rechazo cita RN-072" true \
   "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("fuera de un horario activo"; "i"))' 2>/dev/null)"
 
-# RN-082: la cita aún no empieza, nadie (ni admin) puede marcar asistencia.
-request "${A[@]}" -X PUT "$API/citas/$CITA_ID/estado" -d '{"estado":"completada"}'
+# RN-082: un médico no puede marcar asistencia antes del inicio. El admin
+# sí puede (se usa el token del médico asignado para probar la restricción).
+request -X POST "$API/auth/login" -H "Content-Type: application/json" \
+  -d "{\"email\":\"integracion_med_$S@test.com\",\"password\":\"password123\",\"captchaId\":\"test\",\"captchaTexto\":\"test\"}"
+MED_TOKEN="$(printf '%s' "$RESP_BODY" | jq -r '.data.token // empty' 2>/dev/null)"
+check "Login médico" true "$([ -n "$MED_TOKEN" ] && echo true || echo false)"
+M=(-H "Authorization: Bearer $MED_TOKEN" -H "Content-Type: application/json")
+
+request "${M[@]}" -X PUT "$API/citas/$CITA_ID/estado" -d '{"estado":"completada"}'
 check "Completar antes del inicio → 400" 400 "$RESP_CODE"
 check "El rechazo cita RN-082" true \
   "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("aún no ha comenzado"; "i"))' 2>/dev/null)"
-request "${A[@]}" -X PUT "$API/citas/$CITA_ID/estado" -d '{"estado":"no_asistio"}'
+request "${M[@]}" -X PUT "$API/citas/$CITA_ID/estado" -d '{"estado":"no_asistio"}'
 check "Marcar no_asistio antes del inicio → 400" 400 "$RESP_CODE"
 check "La cita sigue pendiente tras el rechazo" "pendiente" \
   "$(body "${A[@]}" "$API/citas/$CITA_ID" 2>/dev/null | jq -r '.data.estado // empty' 2>/dev/null)"

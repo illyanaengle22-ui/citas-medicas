@@ -269,6 +269,8 @@ pacientes, usuarios, consultorios, especialidades, Telegram y reagendamiento.
 - Vincular es idempotente: si el chat ya está vinculado responde 200
   `"Ya vinculado"`.
 - La desvinculación está disponible desde la web y desde n8n.
+- Las citas creadas desde n8n (petición con `x-webhook-secret` válido) nacen
+  **confirmadas**; las creadas desde la web siguen naciendo **pendientes**.
 
 ### Captcha y seguridad
 

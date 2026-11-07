@@ -20,15 +20,17 @@ function traducirError(error) {
 
 class PostgresCitaRepository extends CitaRepository {
   // Devuelve la cita con estado y nombre del paciente/médico legibles.
-  async crear({ paciente_id, medico_id, consultorio_id, fecha_hora, duracion_minutos = 30, motivo = null, notas = null, estado_id = null }) {
+  // RN-077: `estadoClave` permite que la cita web nazca 'pendiente' y la de
+  // Telegram 'confirmada', resolviendo el id por clave (RN-113).
+  async crear({ paciente_id, medico_id, consultorio_id, fecha_hora, duracion_minutos = 30, motivo = null, notas = null, estado_id = null, estadoClave = 'pendiente' }) {
     try {
       const result = await db.query(
         `INSERT INTO citas (paciente_id, medico_id, consultorio_id, fecha_hora, duracion_minutos, motivo, notas, estado_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7,
-                 COALESCE($8, (SELECT id FROM estados_cita WHERE clave = 'pendiente')))
+                 COALESCE($8, (SELECT id FROM estados_cita WHERE clave = $9)))
          RETURNING id, uuid_publico, paciente_id, medico_id, consultorio_id, fecha_hora,
                    duracion_minutos, fecha_fin, estado_id, motivo, notas, created_at, updated_at`,
-        [paciente_id, medico_id, consultorio_id, fecha_hora, duracion_minutos, motivo, notas, estado_id]
+        [paciente_id, medico_id, consultorio_id, fecha_hora, duracion_minutos, motivo, notas, estado_id, estadoClave || 'pendiente']
       );
       return result.rows[0];
     } catch (error) {

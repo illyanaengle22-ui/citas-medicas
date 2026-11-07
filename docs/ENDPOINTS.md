@@ -594,9 +594,15 @@ El listado devuelve `{ citas, total, page, limit }`; cada cita incluye
   "duracion_minutos":  30,
   "motivo":            "opcional",
   "notas":             "opcional",
-  "paciente_id":       "solo admin"
+  "paciente_id":       "solo admin",
+  "origen":            "opcional: 'telegram' (requiere x-webhook-secret)"
 }
 ```
+
+> Si la petición incluye el header `x-webhook-secret` válido (n8n/Telegram),
+> la cita nace en estado **confirmada**. Sin ese header nace **pendiente**,
+> respetando la regla de los 30 minutos (RN-088). Un `origen: "telegram"`
+> enviado por la web sin el secreto se ignora y la cita sigue pendiente.
 
 ### Errores específicos
 

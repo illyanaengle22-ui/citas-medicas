@@ -124,7 +124,7 @@ El sistema permite gestionar citas médicas: registro y aprobación de usuarios,
 | RN-074 | Un médico **no puede tener dos citas vigentes que se traslapen** en el tiempo. Se garantiza en la base de datos con `EXCLUDE USING gist`, lo que evita el doble agendamiento aun con usuarios concurrentes. |
 | RN-075 | Si el traslape es detectado por la base de datos, la API responde con un mensaje claro (por ejemplo, *"El horario ya fue ocupado"*) y no con un error técnico. |
 | RN-076 | Se consideran **vigentes** las citas en estado `pendiente`, `confirmada` o `reagendada`. Las canceladas y las finalizadas no bloquean el horario. |
-| RN-077 | Una cita nueva se crea en estado **pendiente**. |
+| RN-077 | Una cita nueva creada desde la **web** se crea en estado **pendiente**. Una cita creada desde **Telegram/n8n** (petición con el header `x-webhook-secret` válido) se crea directamente en estado **confirmada**. |
 | RN-078 | Un paciente no puede tener dos citas vigentes que se traslapen.  |
 
 ### 8.2 Ciclo de vida

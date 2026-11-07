@@ -14,6 +14,8 @@ check() { # descripción, esperado, obtenido
 code() { curl -s -o /dev/null -w "%{http_code}" "$@"; }
 A=(-H "Authorization: Bearer $ADMIN" -H "Content-Type: application/json")
 P=(-H "Authorization: Bearer $PAC" -H "Content-Type: application/json")
+# El id del admin no es fijo: depende del orden de creación en la base.
+ADMIN_ID="$(curl -s "${A[@]}" "$BASE_URL/api/usuarios/perfil" | jq -r '.data.id // empty')"
 en_lista() { # token, url, id → true/false
   curl -s -H "Authorization: Bearer $1" "$2" | jq --argjson id "$3" '(.data.data // [] | map(.id) | index($id)) != null'
 }
@@ -49,7 +51,7 @@ echo "== Cambiar rol =="
 check "Cambiar a paciente → 200"        200 $(code "${A[@]}" -X PUT $BASE/$ID/rol -d '{"rol_id":3}')
 check "Cambiar a admin → 200"           200 $(code "${A[@]}" -X PUT $BASE/$ID/rol -d '{"rol_id":1}')
 check "Cambiar a médico → 409"          409 $(code "${A[@]}" -X PUT $BASE/$ID/rol -d '{"rol_id":2}')
-check "Admin no puede cambiar su rol → 400" 400 $(code "${A[@]}" -X PUT $BASE/1/rol -d '{"rol_id":3}')
+check "Admin no puede cambiar su rol → 400" 400 $(code "${A[@]}" -X PUT $BASE/$ADMIN_ID/rol -d '{"rol_id":3}')
 check "Cambiar rol inexistente → 400"   400 $(code "${A[@]}" -X PUT $BASE/$ID/rol -d '{"rol_id":99}')
 check "Cambiar rol id inválido → 400"   400 $(code "${A[@]}" -X PUT $BASE/abc/rol -d '{"rol_id":1}')
 
@@ -65,7 +67,7 @@ check "Eliminar otro usuario → 200"     200 $(code "${A[@]}" -X DELETE $BASE/$
 check "Eliminado NO sale en listado" false $(en_lista $ADMIN $BASE $ID2)
 check "Eliminado NO sale con ?q= " false $(en_lista $ADMIN "$BASE?q=Segunda" $ID2)
 check "Eliminado email libre para reuso → 201" 201 $(code "${A[@]}" -X POST $BASE -d "{\"nombre\":\"Reuso $S\",\"email\":\"segunda$S@test.com\",\"password\":\"password123\",\"rol_id\":3}")
-check "Auto-eliminación bloqueada → 400" 400 $(code "${A[@]}" -X DELETE $BASE/2)
+check "Auto-eliminación bloqueada → 400" 400 $(code "${A[@]}" -X DELETE $BASE/$ADMIN_ID)
 check "Eliminar id inexistente → 404"   404 $(code "${A[@]}" -X DELETE $BASE/9999)
 
 echo "== Login bloqueado para eliminados y pendientes =="

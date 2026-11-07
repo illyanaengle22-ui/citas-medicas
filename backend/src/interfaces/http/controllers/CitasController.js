@@ -10,6 +10,7 @@ const ReagendarCita = require('../../../application/use-cases/ReagendarCita');
 const MarcarAsistencia = require('../../../application/use-cases/MarcarAsistencia');
 const TraslapeError = require('../../../domain/value-objects/TraslapeError');
 const validarId = require('../utils/validarId');
+const { secretValido } = require('../utils/webhookSecret');
 const {
   esAdmin,
   rolClave,
@@ -267,6 +268,13 @@ async function crear(req, res) {
       return res.status(400).json({ ok: false, mensaje: 'paciente_id es requerido para agendar en nombre de un paciente' });
     }
 
+    // RN-077: una cita creada desde Telegram/n8n queda confirmada de inmediato;
+    // la web sigue creándolas pendientes para respetar la regla de los 30
+    // minutos (RN-088). `origen: 'telegram'` solo se honra si la petición trae
+    // el secreto compartido, así un paciente web no puede saltarse la regla.
+    const esTelegram = secretValido(req) && datos.origen !== 'web';
+    const estadoClave = esTelegram ? 'confirmada' : 'pendiente';
+
     const caso = new AgendarCita(citasRepo, horariosRepo);
     const resultado = await caso.execute({
       paciente_id: pacienteId,
@@ -276,6 +284,7 @@ async function crear(req, res) {
       duracion_minutos: datos.duracion_minutos,
       motivo: datos.motivo,
       notas: datos.notas,
+      estadoClave,
     });
 
     if (!resultado.success) {

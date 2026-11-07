@@ -4,9 +4,10 @@ const Cita = require('../../domain/entities/Cita');
 const Horario = require('../../domain/entities/Horario');
 const { formatearFechaHoraLocal, diaSemanaLocal } = require('../../domain/utils/fechaHoraLocal');
 
-// RN-077: la cita nace pendiente; RN-071 / RN-073 / RN-072 / RN-074 / RN-078
-// se validan ANTES de insertar. El EXCLUDE de la BD es la última red por si
-// hay dos peticiones concurrentes (entonces el adaptador lanza TraslapeError).
+// RN-077: la cita web nace pendiente y la de Telegram nace confirmada;
+// RN-071 / RN-073 / RN-072 / RN-074 / RN-078 se validan ANTES de insertar.
+// El EXCLUDE de la BD es la última red por si hay dos peticiones concurrentes
+// (entonces el adaptador lanza TraslapeError).
 class AgendarCita {
   constructor(citaRepository, horarioRepository) {
     this.citas = citaRepository;
@@ -57,6 +58,9 @@ class AgendarCita {
       return { success: false, mensaje: 'El paciente ya tiene una cita que se traslapa con ese horario' };
     }
 
+    // RN-077: el estado se resuelve por clave en la BD, nunca por un id fijo.
+    const estadoClave = datos.estadoClave === 'confirmada' ? 'confirmada' : 'pendiente';
+
     const creada = await this.citas.crear({
       paciente_id: cita.paciente_id,
       medico_id: cita.medico_id,
@@ -64,8 +68,8 @@ class AgendarCita {
       fecha_hora: cita.fecha_hora,
       duracion_minutos: cita.duracion_minutos,
       motivo: cita.motivo || null,
-      notas: cita.notas || null
-      // estado_id lo pone la BD en 1 (pendiente) — RN-077
+      notas: cita.notas || null,
+      estadoClave,
     });
 
     return { success: true, data: creada, mensaje: 'Cita agendada correctamente' };

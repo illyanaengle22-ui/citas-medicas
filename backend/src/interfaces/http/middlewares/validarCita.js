@@ -68,6 +68,15 @@ function validarCreacionCita(req, res, next) {
   const notas = normalizarTexto(body.notas);
   if (notas && notas.error) return responder400(res, `notas: ${notas.error}`);
 
+  // RN-077: las citas web nacen pendientes; las de Telegram/n8n nacen
+  // confirmadas. El origen es solo una pista: el controlador exige además el
+  // secreto compartido para no confiar en un valor enviado por la web. Si no
+  // viene `origen`, se deja null para que el secreto por sí solo identifique
+  // a n8n; `origen: 'web'` explícito fuerza el comportamiento web.
+  const origen = body.origen === 'telegram'
+    ? 'telegram'
+    : (body.origen === 'web' ? 'web' : null);
+
   req.citaValidada = {
     medico_id: medicoId,
     consultorio_id: consultorioId,
@@ -75,6 +84,7 @@ function validarCreacionCita(req, res, next) {
     duracion_minutos: duracion.duracion,
     motivo: motivo || null,
     notas: notas || null,
+    origen,
   };
   // Solo un admin puede agendar en nombre de otro paciente (RN-053).
   if (body.paciente_id !== undefined && body.paciente_id !== null && body.paciente_id !== '') {
