@@ -243,7 +243,7 @@ export default function MiAgenda() {
       lista.push({
         icono: faCheck,
         titulo: citaEsFutura
-          ? 'No puedes marcar la asistencia de una cita que aún no ha comenzado [RN-082]'
+          ? 'No puedes marcar la asistencia de una cita que aún no ha comenzado'
           : 'Marcar completada',
         clase: 'btn-aprobar',
         disabled: citaEsFutura,
@@ -252,7 +252,7 @@ export default function MiAgenda() {
       lista.push({
         icono: faUserSlash,
         titulo: citaEsFutura
-          ? 'No puedes marcar la asistencia de una cita que aún no ha comenzado [RN-082]'
+          ? 'No puedes marcar la asistencia de una cita que aún no ha comenzado'
           : 'Marcar no asistió',
         clase: 'btn-eliminar',
         disabled: citaEsFutura,
@@ -263,7 +263,7 @@ export default function MiAgenda() {
         lista.push({
           icono: faBan,
           titulo: menosDe2Horas
-            ? 'No puedes cancelar con menos de 2 horas de anticipación [RN-086]'
+            ? 'No puedes cancelar con menos de 2 horas de anticipación'
             : 'Cancelar cita',
           clase: 'btn-rechazar',
           disabled: menosDe2Horas,
@@ -445,7 +445,7 @@ export default function MiAgenda() {
                       onClick={() => pedirConfirmacion(detalle, 'completada')}
                       disabled={esFutura(detalle.fecha_hora) && detalle.estado !== 'no_asistio'}
                       title={esFutura(detalle.fecha_hora) && detalle.estado !== 'no_asistio'
-                        ? 'No puedes marcar la asistencia de una cita que aún no ha comenzado [RN-082]'
+                        ? 'No puedes marcar la asistencia de una cita que aún no ha comenzado'
                         : (detalle.estado === 'no_asistio' ? 'Cambiar a completada' : 'Marcar completada')}
                     >
                       <FontAwesomeIcon icon={faCheck} /> {detalle.estado === 'no_asistio' ? 'Cambiar a completada' : 'Marcar completada'}
@@ -458,7 +458,7 @@ export default function MiAgenda() {
                       onClick={() => pedirConfirmacion(detalle, 'no_asistio')}
                       disabled={esFutura(detalle.fecha_hora) && detalle.estado !== 'completada'}
                       title={esFutura(detalle.fecha_hora) && detalle.estado !== 'completada'
-                        ? 'No puedes marcar la asistencia de una cita que aún no ha comenzado [RN-082]'
+                        ? 'No puedes marcar la asistencia de una cita que aún no ha comenzado'
                         : (detalle.estado === 'completada' ? 'Cambiar a no asistió' : 'Marcar no asistió')}
                     >
                       <FontAwesomeIcon icon={faUserSlash} /> {detalle.estado === 'completada' ? 'Cambiar a no asistió' : 'Marcar no asistió'}

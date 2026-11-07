@@ -230,7 +230,7 @@ export default function AdminHorarios() {
     {
       nombre: 'medico_id', etiqueta: 'Médico', tipo: 'select', requerido: true,
       opciones: medicos.map((m) => ({ valor: String(m.id), etiqueta: m.medico_mostrar ?? m.nombre })),
-      ayuda: 'El médico debe estar asignado al consultorio [RN-063].',
+      ayuda: 'El médico debe estar asignado al consultorio.',
     },
     {
       nombre: 'consultorio_id', etiqueta: 'Consultorio', tipo: 'select', requerido: true,
@@ -239,14 +239,14 @@ export default function AdminHorarios() {
     {
       nombre: 'dia_semana', etiqueta: 'Día de la semana', tipo: 'select', requerido: true,
       opciones: opcionesDia,
-      ayuda: '1 = lunes … 7 = domingo [RN-060]',
+      ayuda: '1 = lunes … 7 = domingo',
     },
     {
       nombre: 'hora_inicio', etiqueta: 'Hora de inicio', tipo: 'time', requerido: true,
     },
     {
       nombre: 'hora_fin', etiqueta: 'Hora de fin', tipo: 'time', requerido: true,
-      ayuda: 'Debe ser posterior a la hora de inicio [RN-061]',
+      ayuda: 'Debe ser posterior a la hora de inicio',
     },
   ], [medicos, consultorios]);
 
@@ -365,7 +365,7 @@ export default function AdminHorarios() {
           }
           mensaje={
             esEliminar
-              ? `¿Eliminar el horario de ${nombreFila}? Se desactivará; las citas ya agendadas se conservan [RN-064].`
+              ? `¿Eliminar el horario de ${nombreFila}? Se desactivará; las citas ya agendadas se conservan.`
               : esActivar
               ? `¿Activar el horario de ${nombreFila}?`
               : `¿Desactivar el horario de ${nombreFila}? Dejará de ofrecerse para nuevas citas.`

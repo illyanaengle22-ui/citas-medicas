@@ -41,7 +41,7 @@ function normalizarDuracion(valor) {
   if (valor === undefined || valor === null || valor === '') return DURACION_DEFECTO;
   const numero = Number(valor);
   if (!Number.isInteger(numero) || numero < DURACION_MIN || numero > DURACION_MAX) {
-    return { error: `La duración debe ser un número entero entre ${DURACION_MIN} y ${DURACION_MAX} minutos [RN-071]` };
+    return { error: `La duración debe ser un número entero entre ${DURACION_MIN} y ${DURACION_MAX} minutos` };
   }
   return { duracion: numero };
 }

@@ -262,7 +262,7 @@ request "${P[@]}" -X PUT "$API/citas/$CITA_ID" \
   -d "{\"fecha_hora\":\"${FECHA}T03:00:00${OFFSET}\",\"medico_id\":$MED_A2,\"consultorio_id\":$CON_ID}"
 check "Fuera del horario activo → 400" 400 "$RESP_CODE"
 check "El rechazo cita RN-072" true \
-  "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("RN-072"))' 2>/dev/null)"
+  "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("fuera de un horario activo"; "i"))' 2>/dev/null)"
 
 # ── RN-078 al reagendar ─────────────────────────────────────────────────────
 echo
@@ -277,7 +277,7 @@ request "${P[@]}" -X PUT "$API/citas/$CITA_ID" \
   -d "{\"fecha_hora\":\"${FECHA}T13:00:00${OFFSET}\",\"medico_id\":$MED_A2,\"consultorio_id\":$CON_ID}"
 check "Reagendar encima de otra cita del paciente → 409" 409 "$RESP_CODE"
 check "El rechazo cita RN-078" true \
-  "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("RN-078"))' 2>/dev/null)"
+  "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("traslapa"; "i"))' 2>/dev/null)"
 
 # ── Reagendar sin medico_id (compatibilidad) ────────────────────────────────
 echo

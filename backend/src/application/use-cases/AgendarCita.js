@@ -18,12 +18,12 @@ class AgendarCita {
 
     // RN-071: duración entre 10 y 240 minutos
     if (!cita.duracionValida()) {
-      return { success: false, mensaje: 'La duración debe estar entre 10 y 240 minutos [RN-071]' };
+      return { success: false, mensaje: 'La duración debe estar entre 10 y 240 minutos' };
     }
 
     // RN-073: no se agendan citas en el pasado
     if (!cita.esFutura()) {
-      return { success: false, mensaje: 'No se pueden agendar citas en el pasado [RN-073]' };
+      return { success: false, mensaje: 'No se pueden agendar citas en el pasado' };
     }
 
     // Espejo del trigger: necesario aquí para los chequeos de rango
@@ -32,7 +32,7 @@ class AgendarCita {
     // RN-072: debe caer dentro de un horario activo del médico en ese consultorio
     const enHorario = await this._dentroDeHorario(cita);
     if (!enHorario) {
-      return { success: false, mensaje: 'La fecha cae fuera de un horario activo del médico en ese consultorio [RN-072]' };
+      return { success: false, mensaje: 'La fecha cae fuera de un horario activo del médico en ese consultorio' };
     }
 
     // RN-074 / RN-075: el médico no puede tener dos citas vigentes traslapadas
@@ -42,7 +42,7 @@ class AgendarCita {
       fecha_fin: cita.fecha_fin
     });
     if (traslapeMedico) {
-      return { success: false, mensaje: 'El horario ya fue ocupado para ese médico [RN-074]' };
+      return { success: false, mensaje: 'El horario ya fue ocupado para ese médico' };
     }
 
     // RN-078: el paciente no puede tener dos citas vigentes traslapadas,
@@ -54,7 +54,7 @@ class AgendarCita {
       fecha_fin: cita.fecha_fin
     });
     if (traslapePaciente) {
-      return { success: false, mensaje: 'El paciente ya tiene una cita que se traslapa con ese horario [RN-078]' };
+      return { success: false, mensaje: 'El paciente ya tiene una cita que se traslapa con ese horario' };
     }
 
     const creada = await this.citas.crear({

@@ -57,7 +57,7 @@ class ProcesarRespuestaTelegram {
             ...propuestas,
             chatId,
             mensaje: propuestas.success && propuestas.data.length
-              ? 'Elige una de estas opciones para reagendar [RN-083]'
+              ? 'Elige una de estas opciones para reagendar'
               : propuestas.mensaje
           };
         }
@@ -100,7 +100,7 @@ class ProcesarRespuestaTelegram {
       return { success: false, chatId, mensaje: `La cita ya no está vigente (estado "${cita.estado.clave}")` };
     }
     if (!cita.puedeTransicionarA(confirmada)) {
-      return { success: false, chatId, mensaje: `No se puede pasar de "${cita.estado.clave}" a "confirmada" [RN-080]` };
+      return { success: false, chatId, mensaje: `No se puede pasar de "${cita.estado.clave}" a "confirmada"` };
     }
     const data = await this.citas.cambiarEstado(cita.id, confirmada.id, {
       cambiadoPor: cambiadoPor ?? cita.paciente_usuario_id,
@@ -115,7 +115,7 @@ class ProcesarRespuestaTelegram {
     }
     const cancelada = EstadoCita.fromClave('cancelada');
     if (!cita.puedeTransicionarA(cancelada)) {
-      return { success: false, chatId, mensaje: `No se puede pasar de "${cita.estado.clave}" a "cancelada" [RN-080]` };
+      return { success: false, chatId, mensaje: `No se puede pasar de "${cita.estado.clave}" a "cancelada"` };
     }
     // La cita ya pasó: no se cancela, se marca como completada/no_asistio.
     if (!cita.esFutura()) {
@@ -123,7 +123,7 @@ class ProcesarRespuestaTelegram {
     }
     // RN-086 🔶: el plazo mínimo aplica también por Telegram
     if (cita.fueraDePlazoCancelacion(2)) {
-      return { success: false, chatId, mensaje: 'Faltan menos de 2 horas para la cita; no es posible cancelarla [RN-086]' };
+      return { success: false, chatId, mensaje: 'Faltan menos de 2 horas para la cita; no es posible cancelarla' };
     }
     const data = await this.citas.cambiarEstado(cita.id, cancelada.id, {
       cambiadoPor: cambiadoPor ?? cita.paciente_usuario_id,

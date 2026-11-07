@@ -47,7 +47,7 @@ function validarCuerpo(body = {}) {
 
   const dia = Number(body.dia_semana);
   if (!Number.isInteger(dia) || dia < 1 || dia > 7) {
-    return { error: 'dia_semana debe ser 1 (lunes) a 7 (domingo) [RN-060]' };
+    return { error: 'dia_semana debe ser 1 (lunes) a 7 (domingo)' };
   }
 
   const horaInicio = normalizarHora(body.hora_inicio);
@@ -58,7 +58,7 @@ function validarCuerpo(body = {}) {
 
   // RN-061: la hora de fin debe ser posterior a la de inicio.
   if (horaFin <= horaInicio) {
-    return { error: 'La hora de fin debe ser posterior a la hora de inicio [RN-061]' };
+    return { error: 'La hora de fin debe ser posterior a la hora de inicio' };
   }
 
   return { datos: { medico_id: medicoId, consultorio_id: consultorioId, dia_semana: dia, hora_inicio: horaInicio, hora_fin: horaFin } };
@@ -113,7 +113,7 @@ async function listarPorMedico(req, res) {
       }
       const duracion = Number(duracion_minutos);
       if (!Number.isInteger(duracion) || duracion < 10 || duracion > 240) {
-        return res.status(400).json({ ok: false, mensaje: 'duracion_minutos debe ser un entero entre 10 y 240 [RN-071]' });
+        return res.status(400).json({ ok: false, mensaje: 'duracion_minutos debe ser un entero entre 10 y 240' });
       }
       let consultorioId = null;
       if (consultorio_id !== undefined) {
@@ -177,7 +177,7 @@ async function crear(req, res) {
     if (!asignado) {
       return res.status(400).json({
         ok: false,
-        mensaje: 'El médico no está asignado a ese consultorio [RN-063]',
+        mensaje: 'El médico no está asignado a ese consultorio',
       });
     }
 
@@ -219,7 +219,7 @@ async function actualizar(req, res) {
     if (!asignado) {
       return res.status(400).json({
         ok: false,
-        mensaje: 'El médico no está asignado a ese consultorio [RN-063]',
+        mensaje: 'El médico no está asignado a ese consultorio',
       });
     }
 
@@ -234,7 +234,7 @@ async function actualizar(req, res) {
     if (traslape) {
       return res.status(409).json({
         ok: false,
-        mensaje: 'El médico ya tiene un bloque en ese día y horario que se traslapan [RN-062]',
+        mensaje: 'El médico ya tiene un bloque en ese día y horario que se traslapan',
       });
     }
 

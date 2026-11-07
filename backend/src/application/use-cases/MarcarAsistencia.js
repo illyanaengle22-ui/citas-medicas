@@ -28,7 +28,7 @@ class MarcarAsistencia {
     if (!esAdmin && !esMedicoAsignado) {
       return {
         success: false,
-        mensaje: 'Solo el médico de la cita o un administrador pueden marcar o corregir la asistencia [RN-082]',
+        mensaje: 'Solo el médico de la cita o un administrador pueden marcar o corregir la asistencia',
       };
     }
 
@@ -39,7 +39,7 @@ class MarcarAsistencia {
       return {
         success: false,
         codigo: 400,
-        mensaje: `La cita está en estado final "${cita.estado.clave}" y no se puede modificar [RN-081]`,
+        mensaje: `La cita está en estado final "${cita.estado.clave}" y no se puede modificar`,
       };
     }
 
@@ -70,12 +70,12 @@ class MarcarAsistencia {
       if (cita.estado.esFinal()) {
         return {
           success: false,
-          mensaje: `La cita está en estado final "${cita.estado.clave}" y no se puede modificar [RN-081]`,
+          mensaje: `La cita está en estado final "${cita.estado.clave}" y no se puede modificar`,
         };
       }
       return {
         success: false,
-        mensaje: `No se puede pasar de "${cita.estado.clave}" a "${destino.clave}" [RN-080]`,
+        mensaje: `No se puede pasar de "${cita.estado.clave}" a "${destino.clave}"`,
       };
     }
 

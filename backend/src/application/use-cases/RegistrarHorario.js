@@ -26,7 +26,7 @@ class RegistrarHorario {
       hora_fin: horario.hora_fin
     });
     if (existe) {
-      return { success: false, mensaje: 'El médico ya tiene un bloque en ese día y horario que se traslapan [RN-062]' };
+      return { success: false, mensaje: 'El médico ya tiene un bloque en ese día y horario que se traslapan' };
     }
 
     const creado = await this.repo.crear(horario);

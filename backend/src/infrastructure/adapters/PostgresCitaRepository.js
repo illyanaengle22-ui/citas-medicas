@@ -11,9 +11,9 @@ function traducirError(error) {
   if (error && error.code === CODIGO_EXCLUIR) {
     // RN-075 / RN-078: mensaje claro según el constraint que disparó.
     if (error.constraint === 'ex_citas_sin_traslape_paciente') {
-      return new TraslapeError('El paciente ya tiene una cita vigente que se traslapa en esa fecha y hora [RN-078]');
+      return new TraslapeError('El paciente ya tiene una cita vigente que se traslapa en esa fecha y hora');
     }
-    return new TraslapeError('El horario ya fue ocupado para ese médico en esa fecha y hora [RN-074]');
+    return new TraslapeError('El horario ya fue ocupado para ese médico en esa fecha y hora');
   }
   return error;
 }

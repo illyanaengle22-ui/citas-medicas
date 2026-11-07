@@ -19,7 +19,7 @@ async function ejecutarLimpiezaCitasVencidas() {
     await client1.query(
       `SELECT set_config('app.cambiado_por', '', true),
               set_config('app.origen', 'sistema', true),
-              set_config('app.comentario', 'RN-087: Cita pasada sin asistencia', true)`
+              set_config('app.comentario', 'Cita pasada sin asistencia', true)`
     );
     const res1 = await client1.query(
       `UPDATE citas

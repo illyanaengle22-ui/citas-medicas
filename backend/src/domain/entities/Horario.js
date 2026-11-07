@@ -29,16 +29,16 @@ class Horario {
   // RN-060: día de la semana ISO 8601 (1 = lunes ... 7 = domingo)
   validar() {
     if (!Number.isInteger(Number(this.dia_semana)) || this.dia_semana < 1 || this.dia_semana > 7) {
-      throw new Error('Día de la semana inválido, debe ser 1 (lunes) a 7 (domingo) [RN-060]');
+      throw new Error('Día de la semana inválido, debe ser 1 (lunes) a 7 (domingo)');
     }
     const inicio = aMinutos(this.hora_inicio);
     const fin = aMinutos(this.hora_fin);
     if (inicio === null || fin === null) {
-      throw new Error('hora_inicio y hora_fin son requeridas [RN-060]');
+      throw new Error('hora_inicio y hora_fin son requeridas');
     }
     // RN-061: la hora de fin debe ser posterior a la de inicio
     if (fin <= inicio) {
-      throw new Error('La hora de fin debe ser posterior a la hora de inicio [RN-061]');
+      throw new Error('La hora de fin debe ser posterior a la hora de inicio');
     }
     return true;
   }

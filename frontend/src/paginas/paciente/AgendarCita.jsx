@@ -131,7 +131,7 @@ export default function AgendarCita() {
       const asignado = medicoSeleccionado.consultorios
         .some((c) => String(c.id) === String(huecoSeleccionado.consultorio_id));
       if (!asignado) {
-        setErrorPaso('El médico no está asignado a ese consultorio [RN-063].');
+        setErrorPaso('El médico no está asignado a ese consultorio.');
         return;
       }
     }

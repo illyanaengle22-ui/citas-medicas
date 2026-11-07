@@ -25,9 +25,9 @@ class CancelarCita {
 
     if (!cita.puedeTransicionarA(cancelada)) {
       if (cita.estado.esFinal()) {
-        return { success: false, mensaje: `La cita está en estado final "${cita.estado.clave}" y no se puede modificar [RN-081]` };
+        return { success: false, mensaje: `La cita está en estado final "${cita.estado.clave}" y no se puede modificar` };
       }
-      return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "cancelada" [RN-080]` };
+      return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "cancelada"` };
     }
 
     // Si la cita ya pasó (la fecha es menor o igual a la actual)
@@ -40,11 +40,11 @@ class CancelarCita {
     // RN-086: Si el usuario es Paciente o Médico, NO puede cancelar si faltan menos de 2 horas para la cita.
     // Si el usuario es Administrador (esAdmin = true), se permite sin importar el tiempo.
     if (!esAdmin && cita.fueraDePlazoCancelacion(anticipacionHoras)) {
-      return { success: false, mensaje: `Faltan menos de ${anticipacionHoras} horas para la cita; no es posible cancelarla [RN-086]` };
+      return { success: false, mensaje: `Faltan menos de ${anticipacionHoras} horas para la cita; no es posible cancelarla` };
     }
 
     const data = await this.repo.cambiarEstado(id, cancelada.id, { cambiadoPor, origen, comentario });
-    return { success: true, data, mensaje: 'Cita cancelada; el horario quedó libre [RN-085]' };
+    return { success: true, data, mensaje: 'Cita cancelada; el horario quedó libre' };
   }
 }
 

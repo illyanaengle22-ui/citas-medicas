@@ -101,7 +101,7 @@ async function exigirAccesoCita(req, res, cita) {
     const medicoId = await medicoIdDeUsuario(req.usuario.id);
     if (medicoId && Number(medicoId) === Number(cita.medico_id)) return true;
   }
-  res.status(403).json({ ok: false, mensaje: 'No tienes permiso sobre esta cita [RN-053]' });
+  res.status(403).json({ ok: false, mensaje: 'No tienes permiso sobre esta cita' });
   return false;
 }
 

@@ -21,9 +21,9 @@ class ConfirmarCita {
 
     if (!cita.puedeTransicionarA(confirmada)) {
       if (cita.estado.esFinal()) {
-        return { success: false, mensaje: `La cita está en estado final "${cita.estado.clave}" y no se puede modificar [RN-081]` };
+        return { success: false, mensaje: `La cita está en estado final "${cita.estado.clave}" y no se puede modificar` };
       }
-      return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "confirmada" [RN-080]` };
+      return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "confirmada"` };
     }
 
     const data = await this.repo.cambiarEstado(id, confirmada.id, { cambiadoPor, origen, comentario });

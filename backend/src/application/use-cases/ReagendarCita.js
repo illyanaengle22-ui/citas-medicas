@@ -37,7 +37,7 @@ class ReagendarCita {
     }
     const cita = Cita.fromRow(row);
     if (!cita.estado.esVigente()) {
-      return { success: false, mensaje: `Solo se reagendan citas vigentes; la cita está "${cita.estado.clave}" [RN-076]` };
+      return { success: false, mensaje: `Solo se reagendan citas vigentes; la cita está "${cita.estado.clave}"` };
     }
 
     const cambio = await this._validarCambioMedico(cita, medico_id);
@@ -85,7 +85,7 @@ class ReagendarCita {
       success: true,
       data: propuestas,
       mensaje: propuestas.length
-        ? 'Horarios libres más cercanos [RN-083]'
+        ? 'Horarios libres más cercanos'
         : 'No se encontraron horarios libres en los próximos días'
     };
   }
@@ -111,12 +111,12 @@ class ReagendarCita {
     const cita = Cita.fromRow(row);
 
     if (!cita.estado.esVigente()) {
-      return { success: false, mensaje: `Solo se reagendan citas vigentes; la cita está "${cita.estado.clave}" [RN-076]` };
+      return { success: false, mensaje: `Solo se reagendan citas vigentes; la cita está "${cita.estado.clave}"` };
     }
 
     // RN-086 🔶: plazo mínimo de anticipación para reagendar
     if (cita.fueraDePlazoCancelacion(2)) {
-      return { success: false, mensaje: 'Faltan menos de 2 horas para la cita; no es posible reagendarla [RN-086]' };
+      return { success: false, mensaje: 'Faltan menos de 2 horas para la cita; no es posible reagendarla' };
     }
 
     const cambio = await this._validarCambioMedico(cita, medico_id);
@@ -134,14 +134,14 @@ class ReagendarCita {
       estado_id: cita.estado_id
     });
     if (!nueva.esFutura()) {
-      return { success: false, mensaje: 'La nueva fecha debe ser futura [RN-073]' };
+      return { success: false, mensaje: 'La nueva fecha debe ser futura' };
     }
     nueva.fecha_fin = nueva.calcularFechaFin();
 
     // RN-072 / RN-084: dentro de un horario activo en ese consultorio
     const enHorario = await this._dentroDeHorario(nueva);
     if (!enHorario) {
-      return { success: false, mensaje: 'La nueva fecha cae fuera de un horario activo del médico [RN-072]' };
+      return { success: false, mensaje: 'La nueva fecha cae fuera de un horario activo del médico' };
     }
 
     // RN-074 / RN-075: sin traslape con otras citas vigentes (excluyendo la propia)
@@ -152,7 +152,7 @@ class ReagendarCita {
       excluirId: cita.id
     });
     if (traslape) {
-      return { success: false, mensaje: 'El horario ya fue ocupado para ese médico [RN-074]' };
+      return { success: false, mensaje: 'El horario ya fue ocupado para ese médico' };
     }
 
     // RN-078: el paciente tampoco puede quedar con dos citas traslapadas,
@@ -164,7 +164,7 @@ class ReagendarCita {
       excluirId: cita.id
     });
     if (traslapePaciente) {
-      return { success: false, mensaje: 'El paciente ya tiene otra cita que se traslapa con ese horario [RN-078]' };
+      return { success: false, mensaje: 'El paciente ya tiene otra cita que se traslapa con ese horario' };
     }
 
     // RN-089: al reagendar (actualizar fecha_hora), el estado de la cita debe pasar
@@ -173,7 +173,7 @@ class ReagendarCita {
     const confirmada = EstadoCita.fromClave('confirmada');
     const cambiaEstado = Number(cita.estado.id) !== Number(confirmada.id);
     if (cambiaEstado && !cita.puedeTransicionarA(confirmada)) {
-      return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "confirmada" [RN-080]` };
+      return { success: false, mensaje: `No se puede pasar de "${cita.estado.clave}" a "confirmada"` };
     }
 
     const cambiaMedico = String(nueva.medico_id) !== String(cita.medico_id);
@@ -189,7 +189,7 @@ class ReagendarCita {
       estado_id: confirmada.id,
       cambiadoPor,
       origen,
-      comentario: comentario || 'RN-089: Cita confirmada tácitamente al reagendar',
+      comentario: comentario || 'Cita confirmada tácitamente al reagendar',
     });
 
     return {
@@ -212,7 +212,7 @@ class ReagendarCita {
 
     const nuevo = await this.medicos.obtenerPorId(medicoId, { soloActivo: true });
     if (!nuevo) {
-      return { success: false, mensaje: 'El médico seleccionado no existe o no está activo [RN-031]' };
+      return { success: false, mensaje: 'El médico seleccionado no existe o no está activo' };
     }
 
     const original = await this.medicos.obtenerPorId(cita.medico_id, { soloActivo: true });

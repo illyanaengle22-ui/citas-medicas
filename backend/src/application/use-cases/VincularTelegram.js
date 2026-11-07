@@ -161,7 +161,7 @@ class VincularTelegram {
       );
       if (chatEnUso.rows.length > 0) {
         await client.query('ROLLBACK');
-        return { status: 409, ok: false, mensaje: 'Este chat ya está vinculado a otra cuenta [RN-051]' };
+        return { status: 409, ok: false, mensaje: 'Este chat ya está vinculado a otra cuenta' };
       }
 
       const usuario = await this._usuarioActivo(client, registro.paciente_id);
@@ -206,7 +206,7 @@ class VincularTelegram {
       try { await client.query('ROLLBACK'); } catch { /* ignore */ }
       // RN-051: un chat no puede estar ligado a dos pacientes.
       if (error.code === '23505') {
-        return { status: 409, ok: false, mensaje: 'Este chat ya está vinculado a otra cuenta [RN-051]' };
+        return { status: 409, ok: false, mensaje: 'Este chat ya está vinculado a otra cuenta' };
       }
       if (esErrorDeDatos(error)) {
         return { status: 400, ok: false, mensaje: 'Dato inválido' };

@@ -72,12 +72,12 @@ async function confirmar(req, res) {
       if (rol === 'paciente') {
         const pacienteId = await pacienteIdDeUsuario(req.usuario.id);
         if (!pacienteId || Number(pacienteId) !== Number(cita.paciente_id)) {
-          return res.status(403).json({ ok: false, mensaje: 'No tienes permiso sobre esta cita [RN-053]' });
+          return res.status(403).json({ ok: false, mensaje: 'No tienes permiso sobre esta cita' });
         }
       } else if (rol === 'medico') {
         const medicoId = await medicoIdDeUsuario(req.usuario.id);
         if (!medicoId || Number(medicoId) !== Number(cita.medico_id)) {
-          return res.status(403).json({ ok: false, mensaje: 'No tienes permiso sobre esta cita [RN-053]' });
+          return res.status(403).json({ ok: false, mensaje: 'No tienes permiso sobre esta cita' });
         }
       }
     }
@@ -122,7 +122,7 @@ async function listarPorCita(req, res) {
         puedeVer = medicoId && Number(medicoId) === Number(cita.medico_id);
       }
       if (!puedeVer) {
-        return res.status(403).json({ ok: false, mensaje: 'No tienes permiso sobre esta cita [RN-053]' });
+        return res.status(403).json({ ok: false, mensaje: 'No tienes permiso sobre esta cita' });
       }
     }
 

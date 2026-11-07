@@ -267,7 +267,7 @@ echo "== (d) Otro paciente intenta la misma hora =="
 request "${P2[@]}" -X POST "$API/citas" -d "$CITA_BODY"
 check "Segundo paciente recibe 409" 409 "$RESP_CODE"
 check "El rechazo explica el traslape (RN-074/RN-075)" true \
-  "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("RN-074|RN-075|ocupad|traslap"; "i"))' 2>/dev/null)"
+  "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("ocupad|traslap"; "i"))' 2>/dev/null)"
 
 # ── (d2) Reglas críticas sobre la cita vigente ─────────────────────────────
 echo
@@ -279,13 +279,13 @@ request "${P1[@]}" -X POST "$API/citas" \
   -d "{\"medico_id\":$MED_ID,\"consultorio_id\":$CON_ID,\"fecha_hora\":\"$FUERA_HORA\",\"duracion_minutos\":30}"
 check "Agendar fuera del horario → 400" 400 "$RESP_CODE"
 check "El rechazo cita RN-072" true \
-  "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("RN-072"))' 2>/dev/null)"
+  "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("fuera de un horario activo"; "i"))' 2>/dev/null)"
 
 # RN-082: la cita aún no empieza, nadie (ni admin) puede marcar asistencia.
 request "${A[@]}" -X PUT "$API/citas/$CITA_ID/estado" -d '{"estado":"completada"}'
 check "Completar antes del inicio → 400" 400 "$RESP_CODE"
 check "El rechazo cita RN-082" true \
-  "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("RN-082"))' 2>/dev/null)"
+  "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("aún no ha comenzado"; "i"))' 2>/dev/null)"
 request "${A[@]}" -X PUT "$API/citas/$CITA_ID/estado" -d '{"estado":"no_asistio"}'
 check "Marcar no_asistio antes del inicio → 400" 400 "$RESP_CODE"
 check "La cita sigue pendiente tras el rechazo" "pendiente" \
@@ -317,7 +317,7 @@ if [ -n "$MED2_ID" ]; then
     -d "{\"medico_id\":$MED2_ID,\"consultorio_id\":$CON_ID,\"fecha_hora\":\"$FECHA_HORA\",\"duracion_minutos\":30}"
   check "Paciente con dos médicos a la misma hora → 409" 409 "$RESP_CODE"
   check "El rechazo cita RN-078" true \
-    "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("RN-078"))' 2>/dev/null)"
+    "$(printf '%s' "$RESP_BODY" | jq -r '((.mensaje // "") | test("traslapa"; "i"))' 2>/dev/null)"
 
   # Prueba control: otro paciente sí puede tomar ese mismo hueco.
   request "${P2[@]}" -X POST "$API/citas" \

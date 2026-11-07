@@ -240,9 +240,9 @@ export default function MisCitas() {
       lista.push({
         icono: faBan,
         titulo: !citaEsFutura
-          ? 'No puedes cancelar una cita que ya pasó [RN-086]'
+          ? 'No puedes cancelar una cita que ya pasó'
           : menosDe2Horas
-            ? 'No puedes cancelar con menos de 2 horas de anticipación [RN-086]'
+            ? 'No puedes cancelar con menos de 2 horas de anticipación'
             : 'Cancelar cita',
         clase: 'btn-rechazar',
         onClick: () => pedirConfirmacion(fila, 'cancelar'),
