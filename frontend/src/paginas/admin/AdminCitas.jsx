@@ -8,6 +8,7 @@ import CrudTable from '../../components/CrudTable';
 import FormModal from '../../components/FormModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import ReagendarCitaModal from '../../components/ReagendarCitaModal';
+import ModalAgendarAdmin from '../../components/ModalAgendarAdmin';
 import { apiFetch, construirQuery } from '../../services/api';
 import {
   ESTADOS_CITA, claseEstado, etiquetaEstado, formatearFechaHora, formatearDuracion,
@@ -88,116 +89,8 @@ export default function AdminCitas() {
   const [reagendando, setReagendando] = useState(null);
   const [toast, setToast] = useState(null);
 
-  // ── Nueva Cita (Admin) ──────────────────────────────────────────────────
+  // ── Nueva Cita (Admin Wizard) ───────────────────────────────────────────
   const [modalNuevaCita, setModalNuevaCita] = useState(false);
-  const [pacientes, setPacientes] = useState([]);
-  const [medicos, setMedicos] = useState([]);
-  const [guardandoNuevaCita, setGuardandoNuevaCita] = useState(false);
-  const [erroresNuevaCita, setErroresNuevaCita] = useState({});
-
-  async function abrirModalNuevaCita() {
-    setErroresNuevaCita({});
-    setModalNuevaCita(true);
-    try {
-      const [resPacientes, resMedicos] = await Promise.all([
-        apiFetch('/api/pacientes'),
-        apiFetch('/api/medicos?todos=true'),
-      ]);
-      setPacientes(Array.isArray(resPacientes) ? resPacientes : (resPacientes?.data ?? []));
-      setMedicos(Array.isArray(resMedicos) ? resMedicos : (resMedicos?.data ?? []));
-    } catch (err) {
-      mostrarToast('Error al cargar catálogos: ' + err.message, 'error');
-    }
-  }
-
-  const opcionesPacientes = useMemo(() => {
-    return pacientes.map((p) => ({
-      valor: String(p.id),
-      etiqueta: `${p.nombre} (${p.email || p.telefono || `ID #${p.id}`})`,
-    }));
-  }, [pacientes]);
-
-  const opcionesMedicos = useMemo(() => {
-    return medicos
-      .filter((m) => m.activo !== false)
-      .map((m) => ({
-        valor: String(m.id),
-        etiqueta: m.medico_mostrar || m.nombre || `Dr. #${m.id}`,
-      }));
-  }, [medicos]);
-
-  const camposNuevaCita = useMemo(() => [
-    {
-      nombre: 'paciente_id',
-      etiqueta: 'Paciente',
-      tipo: 'select',
-      requerido: true,
-      placeholder: 'Selecciona un paciente…',
-      opciones: opcionesPacientes,
-    },
-    {
-      nombre: 'medico_id',
-      etiqueta: 'Médico',
-      tipo: 'select',
-      requerido: true,
-      placeholder: 'Selecciona un médico…',
-      opciones: opcionesMedicos,
-    },
-    {
-      nombre: 'fecha_hora',
-      etiqueta: 'Fecha y hora',
-      tipo: 'datetime-local',
-      requerido: true,
-    },
-    {
-      nombre: 'motivo',
-      etiqueta: 'Motivo (opcional)',
-      tipo: 'text',
-      requerido: false,
-      placeholder: 'Ej. Consulta general, dolor de cabeza...',
-    },
-  ], [opcionesPacientes, opcionesMedicos]);
-
-  async function handleCrearCita(valores) {
-    setGuardandoNuevaCita(true);
-    setErroresNuevaCita({});
-
-    const errores = {};
-    if (!valores.paciente_id) errores.paciente_id = 'Selecciona un paciente';
-    if (!valores.medico_id) errores.medico_id = 'Selecciona un médico';
-    if (!valores.fecha_hora) errores.fecha_hora = 'Ingresa la fecha y hora';
-
-    if (Object.keys(errores).length > 0) {
-      setErroresNuevaCita(errores);
-      setGuardandoNuevaCita(false);
-      return;
-    }
-
-    try {
-      const medicoSel = medicos.find((m) => String(m.id) === String(valores.medico_id));
-      const consultorioId = medicoSel?.consultorios?.[0]?.id;
-
-      await apiFetch('/api/citas', {
-        method: 'POST',
-        body: {
-          paciente_id: valores.paciente_id,
-          medico_id: valores.medico_id,
-          consultorio_id: consultorioId || undefined,
-          fecha_hora: valores.fecha_hora,
-          duracion_minutos: 30,
-          motivo: valores.motivo?.trim() || undefined,
-        },
-      });
-
-      mostrarToast('Cita creada y confirmada exitosamente');
-      setModalNuevaCita(false);
-      cargarDatos();
-    } catch (err) {
-      setErroresNuevaCita({ form: err.message });
-    } finally {
-      setGuardandoNuevaCita(false);
-    }
-  }
 
   const cargarDatos = useCallback(async () => {
     setCargando(true);
@@ -404,7 +297,7 @@ export default function AdminCitas() {
           <button
             type="button"
             className="btn btn-primario"
-            onClick={abrirModalNuevaCita}
+            onClick={() => setModalNuevaCita(true)}
           >
             <FontAwesomeIcon icon={faPlus} />
             <span>Nueva Cita</span>
@@ -528,14 +421,13 @@ export default function AdminCitas() {
       )}
 
       {modalNuevaCita && (
-        <FormModal
-          titulo="Nueva Cita"
-          campos={camposNuevaCita}
-          valoresIniciales={{ paciente_id: '', medico_id: '', fecha_hora: '', motivo: '' }}
-          onSubmit={handleCrearCita}
+        <ModalAgendarAdmin
           onCerrar={() => setModalNuevaCita(false)}
-          errores={erroresNuevaCita}
-          guardando={guardandoNuevaCita}
+          onCitaAgendada={() => {
+            setModalNuevaCita(false);
+            cargarDatos();
+          }}
+          mostrarToast={mostrarToast}
         />
       )}
 
