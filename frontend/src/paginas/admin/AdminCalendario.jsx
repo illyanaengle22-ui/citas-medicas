@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  faCalendarAlt, faRotateRight, faCheck, faBan, faUserSlash,
+  faCalendarAlt, faRotateRight, faCheck, faBan, faUserSlash, faPenToSquare, faSave,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import CalendarioCitas from '../../components/CalendarioCitas';
@@ -23,7 +23,6 @@ function DetalleCita({ cita }) {
     ['Duración', formatearDuracion(cita.duracion_minutos)],
     ['Estado', <span key="estado" className={claseEstado(cita.estado)}>{etiquetaEstado(cita.estado)}</span>],
     ['Motivo', cita.motivo || <span key="motivo" className="celda-vacia">—</span>],
-    ['Notas', cita.notas || <span key="notas" className="celda-vacia">—</span>],
   ];
 
   return (
@@ -48,6 +47,37 @@ export default function AdminCalendario() {
   const [confirmacion, setConfirmacion] = useState(null);
   const [enConfirmacion, setEnConfirmacion] = useState(false);
   const [toast, setToast] = useState(null);
+
+  // ── Edición de notas clínicas por el Admin ──────────────────────────────
+  const [editandoNotas, setEditandoNotas] = useState(false);
+  const [textoNotas, setTextoNotas] = useState('');
+  const [guardandoNotas, setGuardandoNotas] = useState(false);
+
+  function abrirDetalle(cita) {
+    setDetalle(cita);
+    setTextoNotas(cita?.notas || '');
+    setEditandoNotas(false);
+  }
+
+  // Guardar notas médicas vía PUT /api/citas/:id
+  async function guardarNotas() {
+    if (!detalle) return;
+    setGuardandoNotas(true);
+    try {
+      await apiFetch(`/api/citas/${detalle.id}`, {
+        method: 'PUT',
+        body: { notas: textoNotas },
+      });
+      setDetalle((prev) => ({ ...prev, notas: textoNotas }));
+      setCitas((prev) => prev.map((c) => (c.id === detalle.id ? { ...c, notas: textoNotas } : c)));
+      setEditandoNotas(false);
+      mostrarToast('Notas actualizadas con éxito');
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      setGuardandoNotas(false);
+    }
+  }
 
   function mostrarToast(mensaje, tipo = 'exito') {
     setToast({ mensaje, tipo });
@@ -192,7 +222,7 @@ export default function AdminCalendario() {
       ) : error ? (
         <div className="alerta-error" role="alert">{error}</div>
       ) : (
-        <CalendarioCitas citas={citasFiltradas} onEventClick={setDetalle} />
+        <CalendarioCitas citas={citasFiltradas} onEventClick={abrirDetalle} />
       )}
 
       {detalle && (
@@ -201,11 +231,72 @@ export default function AdminCalendario() {
           campos={[]}
           valoresIniciales={{}}
           onSubmit={() => {}}
-          onCerrar={() => setDetalle(null)}
+          onCerrar={() => {
+            setDetalle(null);
+            setEditandoNotas(false);
+          }}
           soloLectura
           renderVerUsuario={() => (
             <div>
               <DetalleCita cita={detalle} />
+
+              {/* Sección de Notas Médicas / Evolución con Textarea y edición para Admin */}
+              <div style={{ marginTop: '1.25rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <label htmlFor="admin-cal-notas" style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>
+                    Notas de la consulta / Evolución
+                  </label>
+                  {!editandoNotas ? (
+                    <button
+                      type="button"
+                      className="btn btn-secundario btn-sm"
+                      onClick={() => setEditandoNotas(true)}
+                    >
+                      <FontAwesomeIcon icon={faPenToSquare} /> Editar Notas
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secundario btn-sm"
+                        onClick={() => {
+                          setTextoNotas(detalle.notas || '');
+                          setEditandoNotas(false);
+                        }}
+                        disabled={guardandoNotas}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primario btn-sm"
+                        onClick={guardarNotas}
+                        disabled={guardandoNotas}
+                      >
+                        <FontAwesomeIcon icon={faSave} /> {guardandoNotas ? 'Guardando…' : 'Guardar'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <textarea
+                  id="admin-cal-notas"
+                  className="input"
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    resize: 'vertical',
+                    backgroundColor: editandoNotas ? '#ffffff' : '#f1f5f9',
+                    cursor: editandoNotas ? 'text' : 'not-allowed',
+                    color: '#334155',
+                    fontFamily: 'inherit',
+                  }}
+                  placeholder={editandoNotas ? 'Escribe aquí observaciones médicas, diagnóstico o evolución del paciente...' : 'Sin notas registradas.'}
+                  value={textoNotas}
+                  onChange={(e) => setTextoNotas(e.target.value)}
+                  disabled={!editandoNotas}
+                />
+              </div>
+
               {detalle.estado !== 'cancelada' && (
                 <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Cambiar estado:</span>

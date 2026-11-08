@@ -74,6 +74,7 @@ export default function ModalAgendarAdmin({
 
   // ── Paso 4: Motivo y Guardar ──────────────────────────────────────────────
   const [motivo, setMotivo] = useState('');
+  const [notas, setNotas] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [errorPaso, setErrorPaso] = useState('');
 
@@ -242,6 +243,7 @@ export default function ModalAgendarAdmin({
           fecha_hora: fechaHora,
           duracion_minutos: Number(duracion),
           motivo: motivo.trim() || undefined,
+          notas: notas.trim() || undefined,
         },
       });
 
@@ -454,45 +456,53 @@ export default function ModalAgendarAdmin({
 
                 {/* Fecha */}
                 <label className="form-campo">
-                  <span className="form-label">
-                    <FontAwesomeIcon icon={faCalendarDay} /> Fecha *
+                  <span className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>
+                      <FontAwesomeIcon icon={faCalendarDay} /> Fecha *
+                    </span>
+                    <span style={{ display: 'flex', gap: '0.35rem' }}>
+                      <button
+                        type="button"
+                        className="btn-atajo-fecha"
+                        onClick={() => setFecha(hoyStr)}
+                        disabled={guardando}
+                        title="Seleccionar hoy"
+                      >
+                        Hoy
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-atajo-fecha"
+                        onClick={() => setFecha(fechaISO(new Date(Date.now() + MS_DIA)))}
+                        disabled={guardando}
+                        title="Seleccionar mañana"
+                      >
+                        Mañana
+                      </button>
+                    </span>
                   </span>
-                  <div className="reagendar-fecha-fila">
-                    <input
-                      type="date"
-                      className="input"
-                      min={hoyStr}
-                      value={fecha}
-                      onChange={(e) => setFecha(e.target.value)}
-                      disabled={guardando}
-                      required
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-secundario btn-sm"
-                      onClick={() => setFecha(hoyStr)}
-                      disabled={guardando}
-                    >
-                      Hoy
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secundario btn-sm"
-                      onClick={() => setFecha(fechaISO(new Date(Date.now() + MS_DIA)))}
-                      disabled={guardando}
-                    >
-                      Mañana
-                    </button>
-                  </div>
+                  <input
+                    type="date"
+                    className="input"
+                    style={{ width: '100%' }}
+                    min={hoyStr}
+                    value={fecha}
+                    onChange={(e) => setFecha(e.target.value)}
+                    disabled={guardando}
+                    required
+                  />
                 </label>
 
                 {/* Duración */}
                 <label className="form-campo">
-                  <span className="form-label">
-                    <FontAwesomeIcon icon={faClock} /> Duración
+                  <span className="form-label" style={{ display: 'flex', alignItems: 'center', minHeight: '1.5rem' }}>
+                    <span>
+                      <FontAwesomeIcon icon={faClock} /> Duración
+                    </span>
                   </span>
                   <select
                     className="input"
+                    style={{ width: '100%' }}
                     value={duracion}
                     onChange={(e) => setDuracion(Number(e.target.value))}
                     disabled={guardando}
@@ -622,6 +632,22 @@ export default function ModalAgendarAdmin({
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
                 disabled={guardando}
+              />
+            </label>
+
+            <label className="form-campo" style={{ marginTop: '0.75rem' }}>
+              <span className="form-label">
+                <FontAwesomeIcon icon={faNotesMedical} /> Notas de la consulta / Evolución (opcional)
+              </span>
+              <textarea
+                className="input"
+                rows={3}
+                placeholder="Escribe aquí observaciones médicas, antecedentes o notas clínicas..."
+                maxLength={1000}
+                value={notas}
+                onChange={(e) => setNotas(e.target.value)}
+                disabled={guardando}
+                style={{ width: '100%', resize: 'vertical' }}
               />
             </label>
           </section>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   faCheck, faBan, faUserSlash, faRotateRight, faClipboardList, faChevronLeft, faChevronRight,
-  faPlus,
+  faPlus, faPenToSquare, faSave,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import CrudTable from '../../components/CrudTable';
@@ -55,7 +55,6 @@ function CitaDetalle({ cita }) {
     ['Duración', formatearDuracion(cita.duracion_minutos)],
     ['Estado', <span key="e" className={claseEstado(cita.estado)}>{etiquetaEstado(cita.estado)}</span>],
     ['Motivo', cita.motivo || <span key="m" className="celda-vacia">—</span>],
-    ['Notas', cita.notas || <span key="n" className="celda-vacia">—</span>],
     ['UUID', <code key="u" className="celda-truncada" title={cita.uuid_publico}>{cita.uuid_publico}</code>],
   ];
   return (
@@ -88,6 +87,11 @@ export default function AdminCitas() {
   const [enConfirmacion, setEnConfirmacion] = useState(false);
   const [reagendando, setReagendando] = useState(null);
   const [toast, setToast] = useState(null);
+
+  // ── Edición de notas clínicas por el Admin ──────────────────────────────
+  const [editandoNotas, setEditandoNotas] = useState(false);
+  const [textoNotas, setTextoNotas] = useState('');
+  const [guardandoNotas, setGuardandoNotas] = useState(false);
 
   // ── Nueva Cita (Admin Wizard) ───────────────────────────────────────────
   const [modalNuevaCita, setModalNuevaCita] = useState(false);
@@ -132,9 +136,31 @@ export default function AdminCitas() {
     try {
       const cita = await apiFetch(`/api/citas/${fila.id}`);
       setDetalle(cita);
+      setTextoNotas(cita.notas || '');
+      setEditandoNotas(false);
       setHistorial(null);
     } catch (err) {
       mostrarToast(err.message, 'error');
+    }
+  }
+
+  // Guardar notas de la consulta como Administrador
+  async function guardarNotas() {
+    if (!detalle) return;
+    setGuardandoNotas(true);
+    try {
+      await apiFetch(`/api/citas/${detalle.id}`, {
+        method: 'PUT',
+        body: { notas: textoNotas },
+      });
+      setDetalle((prev) => ({ ...prev, notas: textoNotas }));
+      setDatos((prev) => prev.map((c) => (c.id === detalle.id ? { ...c, notas: textoNotas } : c)));
+      setEditandoNotas(false);
+      mostrarToast('Notas actualizadas con éxito');
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      setGuardandoNotas(false);
     }
   }
 
@@ -346,11 +372,73 @@ export default function AdminCitas() {
           campos={[]}
           valoresIniciales={{}}
           onSubmit={() => {}}
-          onCerrar={() => { setDetalle(null); setHistorial(null); }}
+          onCerrar={() => {
+            setDetalle(null);
+            setHistorial(null);
+            setEditandoNotas(false);
+          }}
           soloLectura
           renderVerUsuario={() => (
             <div>
               <CitaDetalle cita={detalle} />
+
+              {/* Sección de Notas Médicas / Evolución con Textarea y edición para Admin */}
+              <div style={{ marginTop: '1.25rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <label htmlFor="admin-cita-notas" style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>
+                    Notas de la consulta / Evolución
+                  </label>
+                  {!editandoNotas ? (
+                    <button
+                      type="button"
+                      className="btn btn-secundario btn-sm"
+                      onClick={() => setEditandoNotas(true)}
+                    >
+                      <FontAwesomeIcon icon={faPenToSquare} /> Editar Notas
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secundario btn-sm"
+                        onClick={() => {
+                          setTextoNotas(detalle.notas || '');
+                          setEditandoNotas(false);
+                        }}
+                        disabled={guardandoNotas}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primario btn-sm"
+                        onClick={guardarNotas}
+                        disabled={guardandoNotas}
+                      >
+                        <FontAwesomeIcon icon={faSave} /> {guardandoNotas ? 'Guardando…' : 'Guardar'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <textarea
+                  id="admin-cita-notas"
+                  className="input"
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    resize: 'vertical',
+                    backgroundColor: editandoNotas ? '#ffffff' : '#f1f5f9',
+                    cursor: editandoNotas ? 'text' : 'not-allowed',
+                    color: '#334155',
+                    fontFamily: 'inherit',
+                  }}
+                  placeholder={editandoNotas ? 'Escribe aquí observaciones médicas, diagnóstico o evolución del paciente...' : 'Sin notas registradas.'}
+                  value={textoNotas}
+                  onChange={(e) => setTextoNotas(e.target.value)}
+                  disabled={!editandoNotas}
+                />
+              </div>
+
               {detalle.estado !== 'cancelada' && (
                 <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Cambiar estado:</span>

@@ -1118,6 +1118,30 @@ select.input {
   min-height: 44px;
 }
 
+.btn-atajo-fecha {
+  background: var(--suave, #f1f5f9);
+  border: 1px solid var(--borde, #cbd5e1);
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.18rem 0.6rem;
+  color: var(--primario, #0284c7);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.btn-atajo-fecha:hover:not(:disabled) {
+  background: var(--primario, #0284c7);
+  color: #ffffff;
+  border-color: var(--primario, #0284c7);
+}
+
+.btn-atajo-fecha:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .reagendar-slots {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
