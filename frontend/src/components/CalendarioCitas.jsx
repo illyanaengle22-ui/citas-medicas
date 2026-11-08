@@ -9,10 +9,11 @@ const COLORES_ESTADO = {
   pendiente: 'evento-pendiente',
   confirmada: 'evento-confirmada',
   reagendada: 'evento-reagendada',
-  cancelada: 'evento-cancelada',
-  completada: 'evento-completada',
-  no_asistio: 'evento-no-asistio',
 };
+
+// Solo estas claves se muestran en el calendario; las demás (cancelada,
+// completada, no_asistio) se omiten para mantener la vista operativa.
+const ESTADOS_ACTIVOS = new Set(['pendiente', 'confirmada']);
 
 function calcularFin(cita) {
   if (cita.fecha_fin) return cita.fecha_fin;
@@ -25,11 +26,13 @@ function calcularFin(cita) {
 function crearEventos(citas) {
   return (citas ?? []).flatMap((cita) => {
     if (!cita?.fecha_hora) return [];
+    const estado = cita.estado ?? 'pendiente';
+    if (!ESTADOS_ACTIVOS.has(estado)) return [];
+
     const inicio = new Date(cita.fecha_hora);
     if (Number.isNaN(inicio.getTime())) return [];
 
     const partesTitulo = [cita.paciente_nombre, cita.medico_nombre].filter(Boolean);
-    const estado = cita.estado ?? 'pendiente';
 
     return [{
       id: String(cita.id),

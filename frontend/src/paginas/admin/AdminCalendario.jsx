@@ -137,9 +137,14 @@ export default function AdminCalendario() {
     return [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'));
   }, [citas, medicos]);
 
+  const citasActivas = useMemo(
+    () => citas.filter((cita) => cita.estado === 'pendiente' || cita.estado === 'confirmada'),
+    [citas]
+  );
+
   const citasFiltradas = useMemo(
-    () => (medicoId ? citas.filter((cita) => String(cita.medico_id) === medicoId) : citas),
-    [citas, medicoId]
+    () => (medicoId ? citasActivas.filter((cita) => String(cita.medico_id) === medicoId) : citasActivas),
+    [citasActivas, medicoId]
   );
 
   return (
@@ -174,7 +179,7 @@ export default function AdminCalendario() {
 
       {!cargando && !error && (
         <p className="calendario-resumen">
-          Mostrando {citasFiltradas.length} de {citas.length} cita{citas.length === 1 ? '' : 's'}
+          Mostrando {citasFiltradas.length} de {citasActivas.length} cita{citasActivas.length === 1 ? '' : 's'}
           {medicoId ? ' para el médico seleccionado' : ' de todos los médicos'}.
         </p>
       )}
