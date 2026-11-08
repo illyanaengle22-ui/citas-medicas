@@ -224,11 +224,15 @@ class PostgresHorarioRepository extends HorarioRepository {
     const huecos = [];
     const duracion = Number(duracion_minutos);
 
+    // Convierte minutos a string 'HH:MM:SS'.
+    const aHora = (min) =>
+      `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}:00`;
+
     for (const bloque of bloques.rows) {
       const bloqueInicio = enMinutos(bloque.hora_inicio);
       const bloqueFin = enMinutos(bloque.hora_fin);
 
-      // Ocupaciones dentro de este bloque, en minutos desde medianoche del día.
+      // Citas que se cruzan con este bloque, ordenadas por inicio.
       const ocupaciones = citasResult.rows
         .map((c) => ({
           inicio: enMinutos(c.hora_inicio),
@@ -237,28 +241,37 @@ class PostgresHorarioRepository extends HorarioRepository {
         .filter((c) => c.fin > bloqueInicio && c.inicio < bloqueFin)
         .sort((a, b) => a.inicio - b.inicio);
 
+      // Recorremos las ocupaciones y calculamos los tramos libres entre ellas.
+      // Cada tramo libre se subdivide en slots exactos de `duracion` minutos.
       let cursor = bloqueInicio;
       for (const ocupacion of ocupaciones) {
-        if (ocupacion.inicio - cursor >= duracion) {
+        // Tramo libre antes de esta ocupación: [cursor, ocupacion.inicio)
+        let slotInicio = cursor;
+        while (slotInicio + duracion <= ocupacion.inicio) {
           huecos.push({
             horario_id: bloque.id,
             consultorio_id: bloque.consultorio_id,
-            hora_inicio: `${String(Math.floor(cursor / 60)).padStart(2, '0')}:${String(cursor % 60).padStart(2, '0')}:00`,
-            hora_fin: `${String(Math.floor(ocupacion.inicio / 60)).padStart(2, '0')}:${String(ocupacion.inicio % 60).padStart(2, '0')}:00`,
-            duracion_minutos: ocupacion.inicio - cursor
+            hora_inicio: aHora(slotInicio),
+            hora_fin: aHora(slotInicio + duracion),
+            duracion_minutos: duracion,
           });
+          slotInicio += duracion;
         }
         cursor = Math.max(cursor, ocupacion.fin);
       }
 
-      if (bloqueFin - cursor >= duracion) {
+      // Tramo libre tras la última ocupación (o el bloque completo si no hay citas):
+      // [cursor, bloqueFin)
+      let slotInicio = cursor;
+      while (slotInicio + duracion <= bloqueFin) {
         huecos.push({
           horario_id: bloque.id,
           consultorio_id: bloque.consultorio_id,
-          hora_inicio: `${String(Math.floor(cursor / 60)).padStart(2, '0')}:${String(cursor % 60).padStart(2, '0')}:00`,
-          hora_fin: `${String(Math.floor(bloqueFin / 60)).padStart(2, '0')}:${String(bloqueFin % 60).padStart(2, '0')}:00`,
-          duracion_minutos: bloqueFin - cursor
+          hora_inicio: aHora(slotInicio),
+          hora_fin: aHora(slotInicio + duracion),
+          duracion_minutos: duracion,
         });
+        slotInicio += duracion;
       }
     }
 
