@@ -29,6 +29,11 @@ const medicosRepo = new PostgresMedicoRepository();
 
 // RN-113: los catálogos se referencian por clave, no por id numérico fijo.
 const ESTADOS_VALIDOS = ['pendiente', 'confirmada', 'reagendada', 'cancelada', 'completada', 'no_asistio'];
+// Valores que significan "sin filtro de estado". La vista administrativa usa
+// el valor vacío, pero aceptamos también estas variantes por si llegan desde
+// otros clientes (por ejemplo, integraciones o enlaces antiguos).
+const ESTADOS_SIN_FILTRO = ['', 'todos', 'all', '*'];
+const ORDENES_VALIDOS = ['smart', 'asc', 'desc'];
 
 function esErrorDeDatos(error) {
   return error?.code === '22003' || error?.code === '22P02';
@@ -156,13 +161,16 @@ async function listar(req, res) {
     // Filtros adicionales: estado, fechas y paginación.
     if (q.estado !== undefined) {
       const estado = String(q.estado).trim().toLowerCase();
-      if (!ESTADOS_VALIDOS.includes(estado)) {
-        return res.status(400).json({
-          ok: false,
-          mensaje: `estado inválido; use: ${ESTADOS_VALIDOS.join(', ')}`,
-        });
+      // "Todos los estados" no debe agregar ningún WHERE de estado.
+      if (!ESTADOS_SIN_FILTRO.includes(estado)) {
+        if (!ESTADOS_VALIDOS.includes(estado)) {
+          return res.status(400).json({
+            ok: false,
+            mensaje: `estado inválido; use: ${ESTADOS_VALIDOS.join(', ')}`,
+          });
+        }
+        filtros.estado = estado;
       }
-      filtros.estado = estado;
     }
 
     // Permite listar un subconjunto de estados en una sola petición. Las vistas
@@ -182,6 +190,18 @@ async function listar(req, res) {
         });
       }
       filtros.estados = estados;
+    }
+    if (q.orden !== undefined) {
+      const orden = String(q.orden).trim().toLowerCase();
+      if (!ORDENES_VALIDOS.includes(orden)) {
+        return res.status(400).json({
+          ok: false,
+          mensaje: `orden inválido; use: ${ORDENES_VALIDOS.join(', ')}`,
+        });
+      }
+      // 'smart' deja que el repositorio aplique el orden por defecto:
+      // hoy/futuras primero y luego las pasadas.
+      if (orden !== 'smart') filtros.orden = orden;
     }
     if (q.fecha_desde !== undefined) {
       if (!esFechaISO(q.fecha_desde)) {
@@ -268,12 +288,12 @@ async function crear(req, res) {
       return res.status(400).json({ ok: false, mensaje: 'paciente_id es requerido para agendar en nombre de un paciente' });
     }
 
-    // RN-077: una cita creada desde Telegram/n8n queda confirmada de inmediato;
-    // la web sigue creándolas pendientes para respetar la regla de los 30
-    // minutos (RN-088). `origen: 'telegram'` solo se honra si la petición trae
-    // el secreto compartido, así un paciente web no puede saltarse la regla.
+    // RN-077: una cita creada desde Telegram/n8n o por un Administrador queda
+    // confirmada de inmediato; la web de paciente las crea pendientes para
+    // respetar la regla de confirmación en 30 minutos (RN-088).
     const esTelegram = secretValido(req) && datos.origen !== 'web';
-    const estadoClave = esTelegram ? 'confirmada' : 'pendiente';
+    const esAdminUsuario = esAdmin(req.usuario) || actor.rol === 'admin';
+    const estadoClave = (esTelegram || esAdminUsuario) ? 'confirmada' : 'pendiente';
 
     const caso = new AgendarCita(citasRepo, horariosRepo);
     const resultado = await caso.execute({

@@ -1,6 +1,8 @@
 'use strict';
 
 const validarId = require('../utils/validarId');
+const { esAdmin } = require('../utils/identidad');
+const { normalizarFechaEntrada } = require('../../../domain/utils/fechaHoraLocal');
 
 // Validación del body de citas ANTES de llegar al caso de uso (RN-122: 400).
 // Las reglas de negocio (duración, traslapes, horario activo, pasado) viven en
@@ -30,7 +32,8 @@ function normalizarFechaHora(valor) {
   if (typeof valor !== 'string' && !(valor instanceof Date)) {
     return { error: 'La fecha y hora deben enviarse como texto ISO 8601 (YYYY-MM-DDTHH:mm:ss)' };
   }
-  const fecha = new Date(valor);
+  const valorNormalizado = normalizarFechaEntrada(valor);
+  const fecha = new Date(valorNormalizado);
   if (Number.isNaN(fecha.getTime())) {
     return { error: 'La fecha y hora no son válidas' };
   }
@@ -54,7 +57,9 @@ function validarCreacionCita(req, res, next) {
   if (!medicoId) return responder400(res, 'medico_id inválido o ausente');
 
   const consultorioId = validarId(body.consultorio_id, 'bigint');
-  if (!consultorioId) return responder400(res, 'consultorio_id inválido o ausente');
+  if (!consultorioId && !esAdmin(req.usuario)) {
+    return responder400(res, 'consultorio_id inválido o ausente');
+  }
 
   const fecha = normalizarFechaHora(body.fecha_hora);
   if (fecha.error) return responder400(res, fecha.error);
@@ -79,7 +84,7 @@ function validarCreacionCita(req, res, next) {
 
   req.citaValidada = {
     medico_id: medicoId,
-    consultorio_id: consultorioId,
+    consultorio_id: consultorioId || null,
     fecha_hora: fecha.fechaISO,
     duracion_minutos: duracion.duracion,
     motivo: motivo || null,

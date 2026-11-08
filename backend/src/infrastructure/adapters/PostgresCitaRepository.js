@@ -80,14 +80,17 @@ class PostgresCitaRepository extends CitaRepository {
   }
 
   // RN-053: visibilidad por rol. admin ve todas; médico y paciente solo las suyas.
-  async listar({ paciente_id = null, medico_id = null, estado = null, estados = null, fecha_desde = null, fecha_hasta = null, page = 1, limit = 10 } = {}) {
+  async listar({ paciente_id = null, medico_id = null, estado = null, estados = null, fecha_desde = null, fecha_hasta = null, orden = null, page = 1, limit = 10 } = {}) {
     const condiciones = [];
     const valores = [];
 
     if (paciente_id !== null) { valores.push(paciente_id); condiciones.push(`c.paciente_id = $${valores.length}`); }
     if (medico_id !== null) { valores.push(medico_id); condiciones.push(`c.medico_id = $${valores.length}`); }
-    if (estado !== null) {
-      valores.push(estado);
+    // Sin estado (null, vacío o "todos") no se filtra: se devuelven todas las
+    // citas, incluida la clave 'confirmada'.
+    const estadoFiltro = estado == null ? null : String(estado).trim().toLowerCase();
+    if (estadoFiltro && !['todos', 'all', '*'].includes(estadoFiltro)) {
+      valores.push(estadoFiltro);
       condiciones.push(`c.estado_id = (SELECT id FROM estados_cita WHERE clave = $${valores.length})`);
     }
     if (Array.isArray(estados) && estados.length > 0) {
@@ -99,6 +102,25 @@ class PostgresCitaRepository extends CitaRepository {
 
     const where = condiciones.length > 0 ? `WHERE ${condiciones.join(' AND ')}` : '';
     const offset = (page - 1) * limit;
+
+    // Orden configurable:
+    //   asc  → cronológico natural (más antiguas primero)
+    //   desc → más recientes primero
+    //   null → orden inteligente por defecto: citas de hoy/futuras primero
+    //          (las más cercanas), y después las pasadas.
+    const ordenNormalizado = orden == null ? null : String(orden).trim().toLowerCase();
+    let orderSql;
+    if (ordenNormalizado === 'asc') {
+      orderSql = 'c.fecha_hora ASC, c.id ASC';
+    } else if (ordenNormalizado === 'desc') {
+      orderSql = 'c.fecha_hora DESC, c.id DESC';
+    } else {
+      orderSql = `
+        CASE WHEN c.fecha_hora >= CURRENT_DATE THEN 0 ELSE 1 END ASC,
+        CASE WHEN c.fecha_hora >= CURRENT_DATE THEN c.fecha_hora END ASC,
+        CASE WHEN c.fecha_hora < CURRENT_DATE THEN c.fecha_hora END DESC,
+        c.id ASC`;
+    }
 
     const countSql = `SELECT COUNT(*) FROM citas c ${where}`;
     const totalResult = await db.query(countSql, valores);
@@ -117,7 +139,7 @@ class PostgresCitaRepository extends CitaRepository {
       LEFT JOIN usuarios um ON um.id = m.usuario_id AND um.deleted_at IS NULL
       LEFT JOIN consultorios co ON co.id = c.consultorio_id AND co.deleted_at IS NULL
       ${where}
-      ORDER BY c.fecha_hora ASC
+      ORDER BY ${orderSql}
       LIMIT $${valores.length + 1} OFFSET $${valores.length + 2}
     `;
     const result = await db.query(sql, [...valores, limit, offset]);

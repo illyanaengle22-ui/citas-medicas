@@ -89,12 +89,20 @@ class AgendarCita {
     const diaIso = diaSemanaLocal(cita.fecha_hora);
     const hora = local.hora;
 
-    return bloques.some((bloque) => {
+    const bloqueCoincidente = bloques.find((bloque) => {
       if (!bloque.activo) return false;
       if (Number(bloque.dia_semana) !== diaIso) return false;
-      if (Number(bloque.consultorio_id) !== Number(cita.consultorio_id)) return false;
+      if (cita.consultorio_id && Number(bloque.consultorio_id) !== Number(cita.consultorio_id)) return false;
       return Horario.fromRow(bloque).contieneHora(hora);
     });
+
+    if (bloqueCoincidente) {
+      if (!cita.consultorio_id) {
+        cita.consultorio_id = bloqueCoincidente.consultorio_id;
+      }
+      return true;
+    }
+    return false;
   }
 }
 

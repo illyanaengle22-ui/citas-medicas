@@ -25,9 +25,26 @@ export default function CrudTable({
   placeholderBuscar = 'Buscar...',
   mostrarOrdenFecha = true,
   columnaFechaProp = null,
+  // Orden controlado por el padre. Cuando se pasa `onOrdenFechaChange`, el
+  // componente no reordena localmente: delega el orden real a la petición
+  // (por ejemplo, para que AdminCitas envíe ?orden=asc o ?orden=desc).
+  ordenFecha: ordenFechaControlado = null,
+  onOrdenFechaChange = null,
 }) {
   const [termino, setTermino] = useState('');
-  const [ordenFecha, setOrdenFecha] = useState('reciente'); // 'reciente' | 'vieja'
+  const [ordenFechaInterno, setOrdenFechaInterno] = useState('reciente'); // 'reciente' | 'vieja'
+  const ordenFechaControladoActivo = typeof onOrdenFechaChange === 'function';
+  const ordenFecha = ordenFechaControladoActivo
+    ? (ordenFechaControlado ?? 'reciente')
+    : ordenFechaInterno;
+
+  const cambiarOrdenFecha = (valor) => {
+    if (ordenFechaControladoActivo) {
+      onOrdenFechaChange(valor);
+      return;
+    }
+    setOrdenFechaInterno(valor);
+  };
 
   // Detecta automáticamente qué columna contiene fechas
   const columnaFecha = useMemo(() => {
@@ -57,7 +74,7 @@ export default function CrudTable({
   }, [columnas, datos, columnaFechaProp, mostrarOrdenFecha]);
 
   const alternarOrden = () => {
-    setOrdenFecha((prev) => (prev === 'reciente' ? 'vieja' : 'reciente'));
+    cambiarOrdenFecha(ordenFecha === 'reciente' ? 'vieja' : 'reciente');
   };
 
   const datosFiltradosYOrdenados = useMemo(() => {
@@ -71,7 +88,9 @@ export default function CrudTable({
         })
       );
     }
-    if (columnaFecha && ordenFecha) {
+    // Si el orden es controlado por el padre, la API ya devuelve las filas
+    // ordenadas; no hay que reordenar solo la página actual.
+    if (columnaFecha && ordenFecha && !ordenFechaControladoActivo) {
       res = [...res].sort((a, b) => {
         const timeA = valorFecha(a[columnaFecha]);
         const timeB = valorFecha(b[columnaFecha]);
@@ -79,7 +98,7 @@ export default function CrudTable({
       });
     }
     return res;
-  }, [datos, termino, columnas, buscar, columnaFecha, ordenFecha]);
+  }, [datos, termino, columnas, buscar, columnaFecha, ordenFecha, ordenFechaControladoActivo]);
 
   if (cargando) {
     return (
@@ -91,7 +110,10 @@ export default function CrudTable({
   }
 
   const hayAcciones = typeof acciones === 'function' || acciones.length > 0;
-  const hayBarraSuperior = buscar || columnaFecha;
+  // El selector de la barra solo se muestra cuando CrudTable ordena por sí
+  // mismo. Si el padre controla el orden, la flecha del encabezado es el
+  // control visual y el selector externo vive en la vista.
+  const hayBarraSuperior = buscar || (columnaFecha && !ordenFechaControladoActivo);
 
   return (
     <div className="crud-table-container">
@@ -109,7 +131,7 @@ export default function CrudTable({
             </div>
           )}
 
-          {columnaFecha && (
+          {columnaFecha && !ordenFechaControladoActivo && (
             <div className="crud-orden-fecha">
               <FontAwesomeIcon
                 icon={ordenFecha === 'reciente' ? faArrowDownWideShort : faArrowUpWideShort}
@@ -119,7 +141,7 @@ export default function CrudTable({
               <select
                 className="input crud-orden-select"
                 value={ordenFecha}
-                onChange={(e) => setOrdenFecha(e.target.value)}
+                onChange={(e) => cambiarOrdenFecha(e.target.value)}
                 aria-label="Ordenar por fecha"
                 title="Ordenar por fecha"
               >

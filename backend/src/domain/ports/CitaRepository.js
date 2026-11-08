@@ -16,7 +16,7 @@ class CitaRepository {
 
   // Visibilidad por rol (RN-053 / matriz de permisos): admin ve todas,
   // médico y paciente solo las suyas según los filtros que se pasen
-  async listar({ paciente_id = null, medico_id = null, estado = null, estados = null, fecha_desde = null, fecha_hasta = null, page = 1, limit = 10 } = {}) {
+  async listar({ paciente_id = null, medico_id = null, estado = null, estados = null, fecha_desde = null, fecha_hasta = null, orden = null, page = 1, limit = 10 } = {}) {
     throw new Error('Método no implementado');
   }
 

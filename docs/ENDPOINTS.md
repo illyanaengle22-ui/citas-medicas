@@ -537,10 +537,11 @@ El usuario se obtiene del JWT (`req.usuario.id`) y se cruza con `pacientes.usuar
 
 | Parámetro | Tipo | Descripción |
 |-----------|------|-------------|
-| `?estado=` | string | `pendiente`, `confirmada`, `reagendada`, `cancelada`, `completada`, `no_asistio` |
+| `?estado=` | string | `pendiente`, `confirmada`, `reagendada`, `cancelada`, `completada`, `no_asistio`. Vacío o `todos` = sin filtro de estado |
 | `?estados=` | string | Lista separada por comas, por ejemplo `pendiente,confirmada,reagendada`; se combina con `estado` si ambos se envían |
 | `?fecha_desde=` | `YYYY-MM-DD` | Inclusivo (desde 00:00) |
 | `?fecha_hasta=` | `YYYY-MM-DD` | Inclusivo (hasta 23:59) |
+| `?orden=` | string | `smart` (por defecto): hoy/futuras primero y después las pasadas; `asc`: cronológico; `desc`: más recientes primero |
 | `?page=` / `?limit=` | number | Paginación (limit máximo 100, por defecto 10) |
 | `?formato=local` | string | Devuelve `fecha_hora` y `fecha_fin` con el offset de `APP_TIMEZONE`; pensado para n8n/Telegram |
 

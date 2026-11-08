@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   faCheck, faBan, faUserSlash, faRotateRight, faClipboardList, faChevronLeft, faChevronRight,
+  faPlus,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import CrudTable from '../../components/CrudTable';
@@ -73,7 +74,12 @@ export default function AdminCitas() {
   const [total, setTotal] = useState(0);
   const [pagina, setPagina] = useState(1);
   const [cargando, setCargando] = useState(true);
-  const [filtros, setFiltros] = useState({ estado: '', fecha_desde: '', fecha_hasta: '' });
+  const [filtros, setFiltros] = useState({
+    estado: '',
+    fecha_desde: '',
+    fecha_hasta: '',
+    orden: 'smart',
+  });
   const [detalle, setDetalle] = useState(null);
   const [historial, setHistorial] = useState(null);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
@@ -82,6 +88,117 @@ export default function AdminCitas() {
   const [reagendando, setReagendando] = useState(null);
   const [toast, setToast] = useState(null);
 
+  // ── Nueva Cita (Admin) ──────────────────────────────────────────────────
+  const [modalNuevaCita, setModalNuevaCita] = useState(false);
+  const [pacientes, setPacientes] = useState([]);
+  const [medicos, setMedicos] = useState([]);
+  const [guardandoNuevaCita, setGuardandoNuevaCita] = useState(false);
+  const [erroresNuevaCita, setErroresNuevaCita] = useState({});
+
+  async function abrirModalNuevaCita() {
+    setErroresNuevaCita({});
+    setModalNuevaCita(true);
+    try {
+      const [resPacientes, resMedicos] = await Promise.all([
+        apiFetch('/api/pacientes'),
+        apiFetch('/api/medicos?todos=true'),
+      ]);
+      setPacientes(Array.isArray(resPacientes) ? resPacientes : (resPacientes?.data ?? []));
+      setMedicos(Array.isArray(resMedicos) ? resMedicos : (resMedicos?.data ?? []));
+    } catch (err) {
+      mostrarToast('Error al cargar catálogos: ' + err.message, 'error');
+    }
+  }
+
+  const opcionesPacientes = useMemo(() => {
+    return pacientes.map((p) => ({
+      valor: String(p.id),
+      etiqueta: `${p.nombre} (${p.email || p.telefono || `ID #${p.id}`})`,
+    }));
+  }, [pacientes]);
+
+  const opcionesMedicos = useMemo(() => {
+    return medicos
+      .filter((m) => m.activo !== false)
+      .map((m) => ({
+        valor: String(m.id),
+        etiqueta: m.medico_mostrar || m.nombre || `Dr. #${m.id}`,
+      }));
+  }, [medicos]);
+
+  const camposNuevaCita = useMemo(() => [
+    {
+      nombre: 'paciente_id',
+      etiqueta: 'Paciente',
+      tipo: 'select',
+      requerido: true,
+      placeholder: 'Selecciona un paciente…',
+      opciones: opcionesPacientes,
+    },
+    {
+      nombre: 'medico_id',
+      etiqueta: 'Médico',
+      tipo: 'select',
+      requerido: true,
+      placeholder: 'Selecciona un médico…',
+      opciones: opcionesMedicos,
+    },
+    {
+      nombre: 'fecha_hora',
+      etiqueta: 'Fecha y hora',
+      tipo: 'datetime-local',
+      requerido: true,
+    },
+    {
+      nombre: 'motivo',
+      etiqueta: 'Motivo (opcional)',
+      tipo: 'text',
+      requerido: false,
+      placeholder: 'Ej. Consulta general, dolor de cabeza...',
+    },
+  ], [opcionesPacientes, opcionesMedicos]);
+
+  async function handleCrearCita(valores) {
+    setGuardandoNuevaCita(true);
+    setErroresNuevaCita({});
+
+    const errores = {};
+    if (!valores.paciente_id) errores.paciente_id = 'Selecciona un paciente';
+    if (!valores.medico_id) errores.medico_id = 'Selecciona un médico';
+    if (!valores.fecha_hora) errores.fecha_hora = 'Ingresa la fecha y hora';
+
+    if (Object.keys(errores).length > 0) {
+      setErroresNuevaCita(errores);
+      setGuardandoNuevaCita(false);
+      return;
+    }
+
+    try {
+      const medicoSel = medicos.find((m) => String(m.id) === String(valores.medico_id));
+      const consultorioId = medicoSel?.consultorios?.[0]?.id;
+
+      await apiFetch('/api/citas', {
+        method: 'POST',
+        body: {
+          paciente_id: valores.paciente_id,
+          medico_id: valores.medico_id,
+          consultorio_id: consultorioId || undefined,
+          fecha_hora: valores.fecha_hora,
+          duracion_minutos: 30,
+          motivo: valores.motivo?.trim() || undefined,
+        },
+      });
+
+      mostrarToast('Cita creada y confirmada exitosamente');
+      setModalNuevaCita(false);
+      cargarDatos();
+    } catch (err) {
+      setErroresNuevaCita({ form: err.message });
+    } finally {
+      setGuardandoNuevaCita(false);
+    }
+  }
+
   const cargarDatos = useCallback(async () => {
     setCargando(true);
     try {
@@ -89,6 +206,7 @@ export default function AdminCitas() {
         estado: filtros.estado,
         fecha_desde: filtros.fecha_desde,
         fecha_hasta: filtros.fecha_hasta,
+        orden: filtros.orden,
         page: pagina,
         limit: FILA_POR_PAGINA,
       });
@@ -272,6 +390,25 @@ export default function AdminCitas() {
             onChange={(e) => cambiarFiltro('fecha_hasta', e.target.value)}
             title="Fecha hasta"
           />
+          <select
+            className="input"
+            value={filtros.orden}
+            onChange={(e) => cambiarFiltro('orden', e.target.value)}
+            title="Orden de las citas"
+          >
+            <option value="smart">Hoy y próximas primero</option>
+            <option value="asc">Más antiguas primero</option>
+            <option value="desc">Más recientes primero</option>
+          </select>
+
+          <button
+            type="button"
+            className="btn btn-primario"
+            onClick={abrirModalNuevaCita}
+          >
+            <FontAwesomeIcon icon={faPlus} />
+            <span>Nueva Cita</span>
+          </button>
         </div>
       </div>
 
@@ -282,6 +419,10 @@ export default function AdminCitas() {
         acciones={acciones}
         mensajeVacio="No hay citas registradas"
         buscar={false}
+        ordenFecha={filtros.orden === 'asc' ? 'vieja' : 'reciente'}
+        onOrdenFechaChange={(nuevoOrden) => {
+          cambiarFiltro('orden', nuevoOrden === 'vieja' ? 'asc' : 'desc');
+        }}
       />
 
       {total > FILA_POR_PAGINA && (
@@ -383,6 +524,18 @@ export default function AdminCitas() {
           onCerrar={() => setReagendando(null)}
           onReagendada={() => { setReagendando(null); cargarDatos(); }}
           mostrarToast={mostrarToast}
+        />
+      )}
+
+      {modalNuevaCita && (
+        <FormModal
+          titulo="Nueva Cita"
+          campos={camposNuevaCita}
+          valoresIniciales={{ paciente_id: '', medico_id: '', fecha_hora: '', motivo: '' }}
+          onSubmit={handleCrearCita}
+          onCerrar={() => setModalNuevaCita(false)}
+          errores={erroresNuevaCita}
+          guardando={guardandoNuevaCita}
         />
       )}
 
