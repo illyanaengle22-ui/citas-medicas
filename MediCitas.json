@@ -1,5 +1,11 @@
 {
+  "updatedAt": "2026-11-07T22:38:14.146Z",
+  "createdAt": "2026-10-28T22:31:43.828Z",
+  "id": "GLIxoBsZqn5Tb9bT",
   "name": "MediCitas",
+  "description": null,
+  "active": true,
+  "isArchived": false,
   "nodes": [
     {
       "parameters": {
@@ -818,8 +824,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.2,
       "position": [
-        1440,
-        352
+        1504,
+        256
       ],
       "id": "38756933-1c11-448e-8cd5-163a8c730ea5",
       "name": "Webhook",
@@ -834,7 +840,7 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1616,
+        1744,
         272
       ],
       "id": "134ce92c-f865-4841-bcd3-640815471d34",
@@ -930,7 +936,6 @@
       }
     }
   ],
-  "pinData": {},
   "connections": {
     "Groq Chat Model": {
       "ai_languageModel": [
@@ -938,7 +943,7 @@
           {
             "node": "AI Agent",
             "type": "ai_languageModel",
-            "index": 1
+            "index": 0
           }
         ]
       ]
@@ -1194,7 +1199,7 @@
           {
             "node": "AI Agent",
             "type": "ai_languageModel",
-            "index": 0
+            "index": 1
           }
         ]
       ]
@@ -1240,7 +1245,6 @@
       ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
@@ -1248,14 +1252,42 @@
     "timezone": "America/Mexico_City",
     "saveManualExecutions": true
   },
-  "versionId": "5ffba0ad-f1c1-4214-afc3-916e3b3baae7",
+  "staticData": null,
   "meta": {
     "aiBuilderAssisted": true,
     "builderVariant": "mcp",
-    "templateCredsSetupCompleted": true,
-    "instanceId": "a5e45431f2c4a79291e674b0c551b1ef07857addb64d8c05be07a499d7b46aa3"
+    "templateCredsSetupCompleted": true
   },
   "nodeGroups": [],
-  "id": "GLIxoBsZqn5Tb9bT",
-  "tags": []
+  "pinData": {},
+  "versionId": "b3131f1a-cf15-4f8a-9714-61407041bcc8",
+  "activeVersionId": "b3131f1a-cf15-4f8a-9714-61407041bcc8",
+  "versionCounter": 149,
+  "triggerCount": 2,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-10-28T22:31:43.833Z",
+      "createdAt": "2026-10-28T22:31:43.833Z",
+      "role": "workflow:owner",
+      "workflowId": "GLIxoBsZqn5Tb9bT",
+      "projectId": "toA0rKMpNb18SHfL",
+      "project": {
+        "updatedAt": "2026-10-18T23:07:01.136Z",
+        "createdAt": "2026-10-18T23:05:42.100Z",
+        "id": "toA0rKMpNb18SHfL",
+        "name": "Illyana Engle  <illyanaengle@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "d06014c0-d9eb-453a-a628-2230f88fb131"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "Version b3131f1a",
+    "description": ""
+  }
 }

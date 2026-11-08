@@ -13,10 +13,11 @@ if [ -z "$BACKEND_IP" ]; then
 fi
 
 # Variables de entorno secretas requeridas
-N8N_ENCRYPTION_KEY="${N8N_ENCRYPTION_KEY:-}"
+N8N_ENCRYPTION_KEY="${N8N_ENCRYPTION_KEY:-236d50529b956be00aea59c20e531939}"
 N8N_WEBHOOK_SECRET="${N8N_WEBHOOK_SECRET:-}"
 TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
 GROQ_API_KEY="${GROQ_API_KEY:-}"
+GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 NGROK_AUTHTOKEN="${NGROK_AUTHTOKEN:-}"
 NGROK_DOMAIN="willpower-trio-dominion.ngrok-free.dev"
 
@@ -28,6 +29,7 @@ if [ -z "$N8N_ENCRYPTION_KEY" ] || [ -z "$N8N_WEBHOOK_SECRET" ] || \
   echo "   - TELEGRAM_BOT_TOKEN"
   echo "   - GROQ_API_KEY"
   echo "   - NGROK_AUTHTOKEN"
+  echo "   - GEMINI_API_KEY (opcional pero recomendada para el nodo Google Gemini)"
   exit 1
 fi
 
@@ -149,6 +151,14 @@ cat <<EOF > "$CRED_FILE"
     "type": "groqApi",
     "data": {
       "apiKey": "${GROQ_API_KEY}"
+    }
+  },
+  {
+    "id": "iUdNodpkBIK6SEdc",
+    "name": "Google Gemini(PaLM) Api account",
+    "type": "googlePalmApi",
+    "data": {
+      "apiKey": "${GEMINI_API_KEY}"
     }
   }
 ]
