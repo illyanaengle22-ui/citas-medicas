@@ -1,0 +1,4 @@
+docker-compose.yml
+credentials*.json
+*.log
+.DS_Store
