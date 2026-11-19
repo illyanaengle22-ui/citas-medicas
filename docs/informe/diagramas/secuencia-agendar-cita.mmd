@@ -1,0 +1,42 @@
+sequenceDiagram
+    autonumber
+    actor Paciente as Paciente
+    participant Nginx as Nginx
+    participant API as Router / Middleware
+    participant Ctrl as CitaController
+    participant UC as AgendarCita
+    participant RepoHor as HorarioRepo
+    participant RepoCita as CitaRepo
+    participant DB as PostgreSQL
+
+    Paciente->>Nginx: POST /api/citas {medico_id, consultorio_id, fecha_hora, duracion_minutos, motivo}
+    Nginx->>API: Proxy pass a http://IP_PRIVADA_BACK:4000/api/citas
+    API->>API: autenticarJWT() & resolverActor() (Valida Bearer Token, extrae paciente_id)
+    API->>Ctrl: agendar(req, res)
+    Ctrl->>UC: execute({paciente_id, medico_id, consultorio_id, fecha_hora, duracion_minutos, motivo})
+
+    Note over UC: Validaciones de Dominio:<br/>RN-071 (10-240 min)<br/>RN-073 (No en el pasado)
+
+    UC->>RepoHor: obtenerHorarioActivo(medico_id, consultorio_id, dia_semana, hora_inicio, hora_fin)
+    RepoHor->>DB: SELECT en tabla horarios WHERE activo=true
+    DB-->>RepoHor: Horario activo encontrado
+    RepoHor-->>UC: Confirmación de rango activo (RN-072)
+
+    UC->>RepoCita: crear(datosCita)
+    RepoCita->>DB: INSERT INTO citas (paciente_id, medico_id, consultorio_id, fecha_hora, ...) RETURNING *
+
+    Note over DB: Triggers & Constraints DB:<br/>1. trg_citas_fecha_fin calcula fecha_fin<br/>2. ex_citas_sin_traslape_medico (GIST)<br/>3. ex_citas_sin_traslape_paciente (GIST)<br/>4. chk_citas_fecha_futura_al_crear
+
+    alt Traslape detectado (Error 23P01)
+        DB-->>RepoCita: Violación de EXCLUDE USING gist (23P01)
+        RepoCita-->>UC: Error de Concurrencia / Horario ocupado
+        UC-->>Ctrl: 409 Conflict ("El horario ya fue ocupado")
+        Ctrl-->>Nginx: 409 Conflict { ok: false, mensaje: "El horario ya fue ocupado" }
+        Nginx-->>Paciente: Muestra notificación de horario no disponible
+    else Inserción exitosa
+        DB-->>RepoCita: Fila creada con estado "pendiente" (o "confirmada" si webhook)
+        RepoCita-->>UC: Instancia de Entidad Cita
+        UC-->>Ctrl: DTO de éxito
+        Ctrl-->>Nginx: 201 Created { ok: true, mensaje: "Cita agendada", data: { ... } }
+        Nginx-->>Paciente: Cita registrada en agenda
+    end

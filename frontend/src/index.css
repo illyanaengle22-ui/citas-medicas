@@ -314,21 +314,36 @@ select.input {
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
 }
 
 .dashboard-contenido {
   flex: 1;
   min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   margin-left: 240px;
+  transition: margin-left var(--transicion);
 }
 
 .dashboard-main {
   flex: 1;
   min-width: 0;
-  padding: 2.5rem;
+  width: 100%;
+  padding: 2rem 2.5rem;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.dashboard-main-inner {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-width: 0;
 }
 
 /* ═══════════════════════════════════════════
@@ -427,6 +442,24 @@ select.input {
   position: sticky;
   top: 0;
   z-index: 50;
+}
+
+.topbar-izquierda {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-hamburguesa {
+  display: none;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+.sidebar-cabecera-movil {
+  display: none;
 }
 
 .topbar-logo {
@@ -1432,7 +1465,33 @@ select.input {
 }
 
 .crud-table-scroll {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+.crud-table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.crud-table-scroll::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+.crud-table-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.crud-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.crud-cards-mobile {
+  display: none;
 }
 
 .crud-table {
@@ -3848,4 +3907,545 @@ select.input {
 .paciente-opcion-item:hover,
 .paciente-opcion-item:focus {
   background: #f8fafc;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SISTEMA RESPONSIVO INTEGRAL MOBILE-FIRST (MEDIA QUERIES CANÓNICAS)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Base global preventiva para evitar desbordamientos horizontales ── */
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* ── Tablets y pantallas medianas (<= 1024px) ── */
+@media (max-width: 1024px) {
+  .dashboard-main {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .dash-charts {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .dash-chart,
+  .dash-chart--ancho {
+    grid-column: span 1 / -1;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .dash-stat,
+  .dash-skeleton-stat {
+    grid-column: span 6;
+  }
+}
+
+/* ── Móviles y tablets verticales (<= 768px) ── */
+@media (max-width: 768px) {
+  /* 1. Layout Principal */
+  .dashboard-layout {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .dashboard-contenido {
+    margin-left: 0 !important;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  .dashboard-main {
+    padding: 1rem 0.75rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .dashboard-main-inner {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* 2. Topbar & Menú Hamburguesa */
+  .topbar {
+    padding: 0.75rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 80;
+  }
+
+  .topbar-izquierda {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .btn-hamburguesa {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border: 1.5px solid var(--borde);
+    border-radius: var(--radio);
+    background: #fff;
+    color: var(--texto);
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all var(--transicion);
+  }
+
+  .btn-hamburguesa:hover,
+  .btn-hamburguesa:focus-visible {
+    border-color: var(--primario);
+    color: var(--primario);
+    background: var(--fondo);
+  }
+
+  .topbar-usuario {
+    display: none;
+  }
+
+  .texto-cerrar-sesion {
+    display: none;
+  }
+
+  .btn-cerrar-sesion {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.5rem 0.75rem;
+    justify-content: center;
+  }
+
+  /* 3. Menú Lateral (Sidebar Drawer) */
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 90;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 270px;
+    max-width: 82vw;
+    background: #fff;
+    transform: translateX(-100%);
+    transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.16);
+    overflow-y: auto;
+    padding: 0.75rem 0 1.5rem;
+  }
+
+  .sidebar.abierto {
+    transform: translateX(0);
+  }
+
+  .sidebar-cabecera-movil {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem 0.85rem;
+    border-bottom: 1px solid var(--borde);
+    margin-bottom: 0.5rem;
+  }
+
+  .btn-cerrar-sidebar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: transparent;
+    color: var(--texto);
+    font-size: 1.25rem;
+    cursor: pointer;
+    border-radius: 50%;
+  }
+
+  .sidebar-nav {
+    margin-top: 0.5rem;
+    padding: 0 0.75rem;
+  }
+
+  .sidebar-item {
+    min-height: 44px;
+    padding: 0.75rem 0.85rem;
+  }
+
+  /* 4. Tablas CRUD: Modo Tarjetas Apilables */
+  .crud-table-desktop {
+    display: none !important;
+  }
+
+  .crud-cards-mobile {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 0.85rem;
+    background: #fbfcfe;
+  }
+
+  .crud-card-item {
+    background: #ffffff;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    padding: 1rem;
+    box-shadow: var(--sombra-suave);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .crud-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .crud-card-campo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px dashed #f1f5f9;
+  }
+
+  .crud-card-campo:last-child {
+    border-bottom: none;
+  }
+
+  .crud-card-label {
+    font-weight: 600;
+    color: var(--texto);
+    opacity: 0.7;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+
+  .crud-card-valor {
+    font-weight: 500;
+    color: var(--texto);
+    text-align: right;
+    word-break: break-word;
+  }
+
+  .crud-card-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--borde);
+  }
+
+  .crud-card-acciones .btn {
+    min-height: 44px;
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .crud-card-accion-texto {
+    margin-left: 0.35rem;
+    font-size: 0.85rem;
+  }
+
+  /* Barra de búsqueda y orden de tablas */
+  .crud-barra-superior {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+    padding: 0.85rem !important;
+  }
+
+  .crud-buscar {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .crud-buscar-input {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
+  .crud-orden-fecha {
+    width: 100% !important;
+    justify-content: space-between !important;
+    margin-left: 0 !important;
+  }
+
+  .crud-orden-select {
+    width: 100% !important;
+    min-height: 44px !important;
+    flex: 1 !important;
+  }
+
+  /* Barras de filtros generales */
+  .filtros-barra {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+  }
+
+  .filtros-controles {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    gap: 0.5rem !important;
+  }
+
+  .filtros-controles .input[type="text"],
+  .filtros-controles .input,
+  .filtros-controles select.input {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+  }
+
+  .btn-nuevo-container,
+  .btn-nuevo-container-consultorio {
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+
+  .btn-nuevo-container .btn,
+  .btn-nuevo-container-consultorio .btn {
+    width: 100% !important;
+    min-height: 44px !important;
+    justify-content: center !important;
+  }
+
+  /* 5. Formularios e Inputs Táctiles (mínimo 44px) */
+  .input,
+  select.input,
+  textarea.input {
+    min-height: 44px !important;
+    font-size: 16px !important; /* Evita zoom automático en Safari/iOS */
+    box-sizing: border-box !important;
+  }
+
+  .btn,
+  .btn-primario,
+  .btn-secundario,
+  .btn-block {
+    min-height: 44px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Login y Registro */
+  .auth-layout {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem 1rem;
+    box-sizing: border-box;
+  }
+
+  .auth-form-panel {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 1.75rem 1.25rem !important;
+    box-shadow: none;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+  }
+
+  .auth-decor-panel {
+    display: none !important;
+  }
+
+  .auth-titulo {
+    font-size: 1.65rem !important;
+  }
+
+  .auth-form-panel .btn {
+    width: 100% !important;
+    min-height: 46px !important;
+  }
+
+  /* Wizard de Agendar Cita */
+  .paciente-agendar {
+    width: 100%;
+  }
+
+  .agendar-pasos {
+    width: 100%;
+    gap: 1rem;
+  }
+
+  .agendar-paso {
+    padding: 1rem;
+  }
+
+  .agendar-campos {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem;
+  }
+
+  .agendar-campos-accion,
+  .agendar-campos-accion .btn {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
+  .agendar-chips {
+    gap: 0.5rem;
+  }
+
+  .agendar-chip {
+    min-height: 44px !important;
+    padding: 0.5rem 0.85rem !important;
+  }
+
+  .medico-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Modales en Móviles */
+  .modal-overlay {
+    padding: 0.5rem !important;
+    align-items: flex-end !important;
+  }
+
+  .modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    border-radius: var(--radio) var(--radio) 0 0 !important;
+    max-height: 94vh !important;
+  }
+
+  .modal-acciones {
+    flex-direction: column-reverse !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  .modal-acciones .btn {
+    width: 100% !important;
+    min-height: 44px !important;
+    justify-content: center !important;
+  }
+
+  /* 6. Dashboard & Gráficos Recharts */
+  .dash-admin {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .dash-charts {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .dash-chart,
+  .dash-chart--ancho {
+    grid-column: span 1 / -1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    padding: 0.85rem !important;
+    box-sizing: border-box !important;
+  }
+
+  .dash-chart-cabecera {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    min-height: 0;
+  }
+
+  .dash-chart-resumen-corto {
+    margin-left: 0;
+    align-self: flex-start;
+  }
+
+  .dash-chart-cuerpo,
+  .panel-grafica {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    min-height: 230px !important;
+  }
+
+  .recharts-responsive-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .tarjetas-stats {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .dash-stat {
+    grid-column: span 12 !important;
+  }
+}
+
+/* ── Móviles pequeños (<= 480px) ── */
+@media (max-width: 480px) {
+  .dashboard-main {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .topbar {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .topbar-nombre {
+    font-size: 1.1rem;
+  }
+
+  .insignia-rol {
+    display: none;
+  }
+
+  .auth-form-panel {
+    padding: 1.25rem 0.85rem !important;
+  }
+
+  .crud-cards-mobile {
+    padding: 0.5rem;
+  }
+
+  .crud-card-item {
+    padding: 0.75rem;
+  }
+
+  .crud-card-acciones {
+    flex-direction: column;
+  }
+
+  .crud-card-acciones .btn {
+    width: 100%;
+  }
 }

@@ -1,0 +1,39 @@
+graph TD
+    subgraph Local_Dev["Entorno de Desarrollo / CI"]
+        REPO_DEV["Repositorio Git Local<br/>Rama: feature/gestion-clinica"]
+        BUILD_SCRIPT["Script: deploy/build-y-publicar.sh"]
+        ESBUILD["esbuild: Backend bundle<br/>(dist/server.js)"]
+        VITE["vite build: Frontend SPA<br/>(dist/ bundle)"]
+        TMP_DIR["Clonación limpia en /tmp<br/>(Entorno ext4 sin bloqueos DrvFs)"]
+    end
+
+    subgraph GitHub_Remoto["GitHub Remote Repository"]
+        BRANCH_DEV["feature/gestion-clinica<br/>(Código fuente completo)"]
+        BRANCH_BD["deploy/db<br/>(Solo migraciones y scripts DB)"]
+        BRANCH_BACK["deploy/back<br/>(dist/server.js + package.json + deploy-back.sh)"]
+        BRANCH_FRONT["deploy/front<br/>(dist/ compilado + nginx config + deploy-front.sh)"]
+        BRANCH_N8N["deploy/n8n<br/>(MediCitas.json + docker-compose + deploy-n8n.sh)"]
+    end
+
+    subgraph AWS_EC2["Instancias AWS EC2 (Ubuntu 24.04 LTS)"]
+        EC2_BD["EC2 Base de Datos<br/>git clone -b deploy/db<br/>bash deploy-db.sh"]
+        EC2_BACK["EC2 Backend API<br/>git clone -b deploy/back<br/>bash deploy-back.sh"]
+        EC2_FRONT["EC2 Frontend<br/>git clone -b deploy/front<br/>bash deploy-front.sh"]
+        EC2_N8N["EC2 n8n Automation<br/>git clone -b deploy/n8n<br/>bash deploy-n8n.sh"]
+    end
+
+    REPO_DEV --> BUILD_SCRIPT
+    BUILD_SCRIPT --> TMP_DIR
+    TMP_DIR --> ESBUILD
+    TMP_DIR --> VITE
+
+    BUILD_SCRIPT -->|git push -f origin deploy/db| BRANCH_BD
+    BUILD_SCRIPT -->|git push -f origin deploy/back| BRANCH_BACK
+    BUILD_SCRIPT -->|git push -f origin deploy/front| BRANCH_FRONT
+    BUILD_SCRIPT -->|git push -f origin deploy/n8n| BRANCH_N8N
+    REPO_DEV -->|git push origin feature/...| BRANCH_DEV
+
+    BRANCH_BD -->|PULL| EC2_BD
+    BRANCH_BACK -->|PULL| EC2_BACK
+    BRANCH_FRONT -->|PULL| EC2_FRONT
+    BRANCH_N8N -->|PULL| EC2_N8N

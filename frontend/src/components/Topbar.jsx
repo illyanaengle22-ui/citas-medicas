@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import { faSignOutAlt, faBars, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { NavLink } from 'react-router-dom';
 import { API_URL } from '../services/api';
@@ -16,7 +16,7 @@ function iniciales(nombre = '') {
     .toUpperCase();
 }
 
-export default function Topbar() {
+export default function Topbar({ sidebarAbierto, onToggleSidebar }) {
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
@@ -31,12 +31,24 @@ export default function Topbar() {
 
   return (
     <header className="topbar">
-      <div className="topbar-logo">
-        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="3" y="3" width="18" height="18" rx="4" fill="#5E9BBA" />
-          <path d="M12 7v10M7 12h10" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
-        </svg>
-        <span className="topbar-nombre">MediCitas</span>
+      <div className="topbar-izquierda">
+        <button
+          type="button"
+          className="btn-hamburguesa"
+          onClick={onToggleSidebar}
+          aria-label={sidebarAbierto ? 'Cerrar menú lateral' : 'Abrir menú lateral'}
+          aria-expanded={sidebarAbierto}
+        >
+          <FontAwesomeIcon icon={sidebarAbierto ? faTimes : faBars} />
+        </button>
+
+        <div className="topbar-logo">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="3" width="18" height="18" rx="4" fill="#5E9BBA" />
+            <path d="M12 7v10M7 12h10" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+          </svg>
+          <span className="topbar-nombre">MediCitas</span>
+        </div>
       </div>
 
       <div className="topbar-derecha">
@@ -59,9 +71,15 @@ export default function Topbar() {
           )}
         </NavLink>
 
-        <button className="btn-cerrar-sesion" onClick={handleLogout}>
+        <button
+          type="button"
+          className="btn-cerrar-sesion"
+          onClick={handleLogout}
+          title="Cerrar sesión"
+          aria-label="Cerrar sesión"
+        >
           <FontAwesomeIcon icon={faSignOutAlt} />
-          <span>Cerrar sesión</span>
+          <span className="texto-cerrar-sesion">Cerrar sesión</span>
         </button>
       </div>
     </header>

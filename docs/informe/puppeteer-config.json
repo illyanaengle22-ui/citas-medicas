@@ -1,0 +1,10 @@
+{
+  "args": [
+    "--no-sandbox",
+    "--disable-setuid-sandbox"
+  ],
+  "defaultViewport": {
+    "width": 3000,
+    "height": 2000
+  }
+}

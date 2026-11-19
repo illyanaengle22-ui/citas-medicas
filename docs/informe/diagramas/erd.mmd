@@ -1,0 +1,166 @@
+erDiagram
+    roles ||--o{ usuarios : "asigna rol"
+    estados_cuenta ||--o{ usuarios : "define estado"
+    estados_cita ||--o{ citas : "clasifica cita"
+    estados_cita ||--o{ historial_estados_cita : "anterior / nuevo"
+
+    usuarios ||--o| pacientes : "pertenece a"
+    usuarios ||--o| medicos : "pertenece a"
+    usuarios ||--o{ historial_estados_cita : "actor de cambio"
+
+    pacientes ||--o{ citas : "solicita"
+    pacientes ||--o{ telegram_codigos : "genera codigos"
+
+    medicos ||--o{ medico_especialidades : "posee"
+    especialidades ||--o{ medico_especialidades : "agrupa"
+
+    medicos ||--o{ medico_consultorios : "atiende en"
+    consultorios ||--o{ medico_consultorios : "aloja"
+
+    medicos ||--o{ horarios : "define disponibilidad"
+    consultorios ||--o{ horarios : "ubicacion de horario"
+
+    medicos ||--o{ citas : "atiende"
+    consultorios ||--o{ citas : "sede de la cita"
+
+    citas ||--o{ historial_estados_cita : "registra auditoria"
+    citas ||--o{ recordatorios : "genera notificaciones"
+
+    roles {
+        smallint id PK
+        varchar clave
+        varchar descripcion
+    }
+
+    estados_cuenta {
+        smallint id PK
+        varchar clave
+    }
+
+    estados_cita {
+        smallint id PK
+        varchar clave
+    }
+
+    especialidades {
+        smallint id PK
+        varchar nombre
+        varchar descripcion
+        boolean activo
+    }
+
+    usuarios {
+        bigint id PK
+        uuid uuid_publico
+        varchar nombre
+        citext email
+        varchar password_hash
+        smallint rol_id FK
+        smallint estado_id FK
+        timestamptz ultimo_login
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+    }
+
+    pacientes {
+        bigint id PK
+        bigint usuario_id FK
+        varchar telefono
+        varchar telegram_chat_id
+        date fecha_nacimiento
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+    }
+
+    medicos {
+        bigint id PK
+        bigint usuario_id FK
+        varchar cedula_profesional
+        varchar telefono
+        boolean activo
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+    }
+
+    medico_especialidades {
+        bigint medico_id PK, FK
+        smallint especialidad_id PK, FK
+    }
+
+    consultorios {
+        bigint id PK
+        varchar nombre
+        varchar direccion
+        varchar telefono
+        boolean activo
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+    }
+
+    medico_consultorios {
+        bigint medico_id PK, FK
+        bigint consultorio_id PK, FK
+    }
+
+    horarios {
+        bigint id PK
+        bigint medico_id FK
+        bigint consultorio_id FK
+        smallint dia_semana
+        time hora_inicio
+        time hora_fin
+        boolean activo
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    citas {
+        bigint id PK
+        uuid uuid_publico
+        bigint paciente_id FK
+        bigint medico_id FK
+        bigint consultorio_id FK
+        timestamptz fecha_hora
+        smallint duracion_minutos
+        timestamptz fecha_fin
+        smallint estado_id FK
+        text motivo
+        text notas
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    historial_estados_cita {
+        bigint id PK
+        bigint cita_id FK
+        smallint estado_anterior FK
+        smallint estado_nuevo FK
+        bigint cambiado_por FK
+        varchar origen
+        text comentario
+        timestamptz created_at
+    }
+
+    recordatorios {
+        bigint id PK
+        bigint cita_id FK
+        varchar canal
+        varchar tipo
+        varchar estado
+        varchar respuesta
+        timestamptz enviado_at
+        timestamptz respondido_at
+    }
+
+    telegram_codigos {
+        bigint id PK
+        bigint paciente_id FK
+        varchar codigo
+        timestamptz expira_en
+        boolean usado
+        timestamptz created_at
+    }

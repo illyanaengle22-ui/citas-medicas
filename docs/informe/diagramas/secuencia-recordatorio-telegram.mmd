@@ -1,0 +1,48 @@
+sequenceDiagram
+    autonumber
+    participant Job as Scheduler
+    participant UC_Rec as EnviarRecordatorio
+    participant RepoRec as RecordatorioRepo
+    participant AdaptN8n as N8nAdapter
+    participant N8N as n8n
+    participant Telegram as Telegram Bot
+    actor Paciente as Paciente
+    participant WebhookAPI as Webhook API
+    participant UC_Proc as ProcesarRespuesta
+    participant RepoCita as CitaRepo
+    participant DB as PostgreSQL
+
+    Note over Job: Ejecución periódica (cada 5 min)<br/>Ventanas 24h y 2h antes de la cita
+    Job->>UC_Rec: execute({ tipo: "24h" })
+    UC_Rec->>RepoRec: buscarCitasParaRecordatorio("24h")
+    RepoRec->>DB: SELECT citas vigentes + telegram_chat_id
+    DB-->>RepoRec: Citas elegibles
+    RepoRec-->>UC_Rec: Lista de citas sin recordatorio previo
+
+    loop Por cada cita elegible
+        UC_Rec->>AdaptN8n: notificar({ citaId, paciente, doctor, fecha, telegram_chat_id })
+        AdaptN8n->>N8N: POST http://IP_PRIVADA_N8N:5678/webhook/recordatorios
+        N8N->>Telegram: sendMessage con botones de acción (Confirmar / Cancelar / Reagendar)
+        Telegram-->>Paciente: Recibe mensaje: "Recordatorio de cita médica..."
+        UC_Rec->>RepoRec: registrarEnvio(citaId, "telegram", "24h", "enviado")
+        RepoRec->>DB: INSERT INTO recordatorios (...)
+    end
+
+    Note over Paciente: El paciente presiona botón "Confirmar" en Telegram
+    Paciente->>Telegram: Callback / Mensaje "Confirmar"
+    Telegram->>N8N: Webhook update a ngrok / n8n Telegram Trigger
+    N8N->>N8N: Parser y validación de contexto
+
+    N8N->>WebhookAPI: POST /api/webhooks/n8n/respuesta<br/>Header: x-webhook-secret<br/>Body: {chatId, uuidCita, respuesta: "confirmar"}
+    WebhookAPI->>UC_Proc: execute({chatId, uuidCita, respuesta})
+    UC_Proc->>RepoCita: actualizarEstado(citaId, "confirmada", "telegram")
+
+    Note over DB: Transacción en Postgres:<br/>SET LOCAL app.origen = 'telegram'<br/>UPDATE citas SET estado_id = 2 WHERE id = ...<br/>Trigger trg_citas_historial inserta en historial_estados_cita
+    RepoCita->>DB: UPDATE citas & INSERT historial
+    DB-->>RepoCita: Actualización completada
+    RepoCita-->>UC_Proc: Cita actualizada exitosamente
+
+    UC_Proc-->>WebhookAPI: Resultado OK
+    WebhookAPI-->>N8N: 200 OK { ok: true, mensaje: "Cita confirmada" }
+    N8N->>Telegram: sendMessage "¡Gracias! Tu cita ha sido confirmada."
+    Telegram-->>Paciente: Recibe confirmación en el chat

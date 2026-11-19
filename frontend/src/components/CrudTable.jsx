@@ -159,74 +159,122 @@ export default function CrudTable({
           <p>{mensajeVacio}</p>
         </div>
       ) : (
-        <div className="crud-table-scroll">
-          <table className="crud-table">
-            <thead>
-              <tr>
-                {columnas.map((col) => {
-                  const esFecha = col.clave === columnaFecha;
+        <>
+          {/* Vista escritorio y tablet: tabla con scroll horizontal estilizado y contenido */}
+          <div className="crud-table-desktop crud-table-scroll">
+            <table className="crud-table">
+              <thead>
+                <tr>
+                  {columnas.map((col) => {
+                    const esFecha = col.clave === columnaFecha;
+                    return (
+                      <th
+                        key={col.clave}
+                        className={esFecha ? 'crud-th-ordenable' : ''}
+                        onClick={esFecha ? alternarOrden : undefined}
+                        title={esFecha ? 'Clic para alternar orden por fecha' : undefined}
+                      >
+                        <div className="crud-th-contenido">
+                          <span>{col.titulo}</span>
+                          {esFecha && (
+                            <FontAwesomeIcon
+                              icon={ordenFecha === 'reciente' ? faArrowDownWideShort : faArrowUpWideShort}
+                              className="crud-th-icono-orden"
+                              aria-hidden="true"
+                            />
+                          )}
+                        </div>
+                      </th>
+                    );
+                  })}
+                  {hayAcciones && (
+                    <th className="crud-th-acciones">Acciones</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {datosFiltradosYOrdenados.map((fila, idx) => {
+                  const accionesFila = typeof acciones === 'function'
+                    ? acciones(fila)
+                    : acciones;
+                  const accionesVisibles = accionesFila.filter(
+                    (a) => !a.mostrar || a.mostrar(fila)
+                  );
                   return (
-                    <th
-                      key={col.clave}
-                      className={esFecha ? 'crud-th-ordenable' : ''}
-                      onClick={esFecha ? alternarOrden : undefined}
-                      title={esFecha ? 'Clic para alternar orden por fecha' : undefined}
-                    >
-                      <div className="crud-th-contenido">
-                        <span>{col.titulo}</span>
-                        {esFecha && (
-                          <FontAwesomeIcon
-                            icon={ordenFecha === 'reciente' ? faArrowDownWideShort : faArrowUpWideShort}
-                            className="crud-th-icono-orden"
-                            aria-hidden="true"
-                          />
-                        )}
-                      </div>
-                    </th>
+                    <tr key={fila.id ?? idx}>
+                      {columnas.map((col) => (
+                        <td key={col.clave}>
+                          {col.render ? col.render(fila) : fila[col.clave]}
+                        </td>
+                      ))}
+                      {hayAcciones && (
+                        <td className="crud-td-acciones">
+                          {accionesVisibles.map((accion, i) => (
+                            <button
+                              key={i}
+                              className={`btn btn-sm btn-icono ${accion.clase || 'btn-accion'}`}
+                              onClick={() => accion.onClick(fila)}
+                              title={accion.titulo}
+                              aria-label={accion.titulo}
+                              disabled={Boolean(accion.disabled)}
+                            >
+                              <FontAwesomeIcon icon={accion.icono} />
+                            </button>
+                          ))}
+                        </td>
+                      )}
+                    </tr>
                   );
                 })}
-                {hayAcciones && (
-                  <th className="crud-th-acciones">Acciones</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {datosFiltradosYOrdenados.map((fila, idx) => {
-                const accionesFila = typeof acciones === 'function'
-                  ? acciones(fila)
-                  : acciones;
-                const accionesVisibles = accionesFila.filter(
-                  (a) => !a.mostrar || a.mostrar(fila)
-                );
-                return (
-                  <tr key={fila.id ?? idx}>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Vista móvil: tarjetas (cards) apilables sin desbordamiento */}
+          <div className="crud-cards-mobile">
+            {datosFiltradosYOrdenados.map((fila, idx) => {
+              const accionesFila = typeof acciones === 'function'
+                ? acciones(fila)
+                : acciones;
+              const accionesVisibles = accionesFila.filter(
+                (a) => !a.mostrar || a.mostrar(fila)
+              );
+              return (
+                <div key={fila.id ?? idx} className="crud-card-item">
+                  <div className="crud-card-body">
                     {columnas.map((col) => (
-                      <td key={col.clave}>
-                        {col.render ? col.render(fila) : fila[col.clave]}
-                      </td>
+                      <div key={col.clave} className="crud-card-campo">
+                        <span className="crud-card-label">{col.titulo}</span>
+                        <div className="crud-card-valor">
+                          {col.render ? col.render(fila) : (fila[col.clave] ?? '—')}
+                        </div>
+                      </div>
                     ))}
-                    {hayAcciones && (
-                      <td className="crud-td-acciones">
-                        {accionesVisibles.map((accion, i) => (
-                          <button
-                            key={i}
-                            className={`btn btn-sm btn-icono ${accion.clase || 'btn-accion'}`}
-                            onClick={() => accion.onClick(fila)}
-                            title={accion.titulo}
-                            aria-label={accion.titulo}
-                            disabled={Boolean(accion.disabled)}
-                          >
-                            <FontAwesomeIcon icon={accion.icono} />
-                          </button>
-                        ))}
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                  {hayAcciones && accionesVisibles.length > 0 && (
+                    <div className="crud-card-acciones">
+                      {accionesVisibles.map((accion, i) => (
+                        <button
+                          key={i}
+                          className={`btn btn-sm ${accion.clase || 'btn-accion'}`}
+                          onClick={() => accion.onClick(fila)}
+                          title={accion.titulo}
+                          aria-label={accion.titulo}
+                          disabled={Boolean(accion.disabled)}
+                        >
+                          <FontAwesomeIcon icon={accion.icono} />
+                          {accion.titulo && (
+                            <span className="crud-card-accion-texto">{accion.titulo}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );

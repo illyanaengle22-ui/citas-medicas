@@ -1,0 +1,35 @@
+graph LR
+    subgraph Internet["Red Pública / Clientes"]
+        USUARIO["Usuarios (Navegador Web)"]
+        TELEGRAM_CLOUD["Servidores de Telegram"]
+    end
+
+    subgraph AWS_VPC["Amazon VPC (us-east-1)"]
+        subgraph EC2_FRONT["EC2 Frontend (Ubuntu 24.04 / t3.micro)"]
+            NGINX["Nginx Web Server<br/>(Puerto 80 / 443)<br/>SPA React compilada"]
+            SG_FRONT["Security Group: sg-citas-front<br/>Inbound: 80, 443, 22"]
+        end
+
+        subgraph EC2_BACK["EC2 Backend (Ubuntu 24.04 / t3.micro)"]
+            NODE_APP["Node.js 22 + PM2<br/>Express API (Puerto 4000)<br/>IP_PRIVADA_BACK"]
+            SG_BACK["Security Group: sg-citas-back<br/>Inbound: 4000 (desde sg-front y sg-n8n), 22"]
+        end
+
+        subgraph EC2_BD["EC2 Base de Datos (Ubuntu 24.04 / t3.micro)"]
+            POSTGRES["PostgreSQL 14+<br/>citas_medicas (Puerto 5432)<br/>IP_PRIVADA_BD"]
+            SG_BD["Security Group: sg-citas-bd<br/>Inbound: 5432 (únicamente desde sg-back), 22"]
+        end
+
+        subgraph EC2_N8N["EC2 n8n & Automatización (Ubuntu 24.04 / t3.medium / 30GB EBS)"]
+            DOCKER_N8N["Docker Compose:<br/>- n8n v2.43.7 (Puerto 5678)<br/>- ngrok tunnel<br/>IP_PRIVADA_N8N"]
+            SG_N8N["Security Group: sg-citas-n8n<br/>Inbound: 5678 (desde sg-back), 22"]
+        end
+    end
+
+    %% Conexiones
+    USUARIO -->|"HTTP/HTTPS :80/:443"| NGINX
+    NGINX -->|"Proxy inverso /api/ y /uploads/"| NODE_APP
+    NODE_APP -->|"TCP :5432"| POSTGRES
+    NODE_APP -->|"HTTP Webhook :5678 (Recordatorios)"| DOCKER_N8N
+    DOCKER_N8N -->|"HTTP :4000 (Consultas y Respuestas)"| NODE_APP
+    TELEGRAM_CLOUD <-->|"Webhook público HTTPS (ngrok)"| DOCKER_N8N

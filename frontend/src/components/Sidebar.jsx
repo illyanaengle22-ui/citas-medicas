@@ -9,6 +9,7 @@ import {
   faHistory,
   faHome,
   faStethoscope,
+  faTimes,
   faUserCircle,
   faUserInjured,
   faUserMd,
@@ -60,14 +61,38 @@ function obtenerMenu(rolId) {
   }
 }
 
-export default function Sidebar() {
+export default function Sidebar({ abierto, onCerrar }) {
   const { user } = useAuth();
   const items = obtenerMenu(user?.rol_id);
 
   if (items.length === 0) return null;
 
+  const handleClickItem = () => {
+    if (typeof onCerrar === 'function') {
+      onCerrar();
+    }
+  };
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${abierto ? 'abierto' : ''}`}>
+      <div className="sidebar-cabecera-movil">
+        <div className="topbar-logo">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="3" width="18" height="18" rx="4" fill="#5E9BBA" />
+            <path d="M12 7v10M7 12h10" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+          </svg>
+          <span className="topbar-nombre">MediCitas</span>
+        </div>
+        <button
+          type="button"
+          className="btn-cerrar-sidebar"
+          onClick={onCerrar}
+          aria-label="Cerrar menú lateral"
+        >
+          <FontAwesomeIcon icon={faTimes} />
+        </button>
+      </div>
+
       <nav className="sidebar-nav">
         {items.map((item) => (
           <NavLink
@@ -75,6 +100,7 @@ export default function Sidebar() {
             to={item.to}
             end={item.fin}
             className={({ isActive }) => `sidebar-item${isActive ? ' activo' : ''}`}
+            onClick={handleClickItem}
           >
             <FontAwesomeIcon icon={item.icono} className="sidebar-icono" />
             <span>{item.texto}</span>

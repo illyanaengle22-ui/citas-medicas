@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -47,34 +47,75 @@ function crearEventos(citas) {
 }
 
 /**
- * Calendario reutilizable de citas.
+ * Calendario reutilizable de citas responsivo (adaptable a móvil/escritorio).
  *
  * Props:
  *  - citas: array de citas con `fecha_hora`, `paciente_nombre`, `medico_nombre`, etc.
  *  - onEventClick: recibe la cita original al hacer clic en un evento.
  */
 export default function CalendarioCitas({ citas = [], onEventClick }) {
+  const [esMovil, setEsMovil] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
+
+  const calendarRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+    const handleCambio = (e) => setEsMovil(e.matches);
+    mediaQuery.addEventListener('change', handleCambio);
+    return () => mediaQuery.removeEventListener('change', handleCambio);
+  }, []);
+
+  // Cambiar vista programáticamente al redimensionar la pantalla
+  useEffect(() => {
+    if (calendarRef.current) {
+      const api = calendarRef.current.getApi();
+      const currentView = api.view.type;
+      if (esMovil && (currentView === 'dayGridMonth' || currentView === 'timeGridWeek')) {
+        api.changeView('timeGridDay');
+      } else if (!esMovil && currentView === 'timeGridDay') {
+        api.changeView('dayGridMonth');
+      }
+    }
+  }, [esMovil]);
+
   const eventos = useMemo(() => crearEventos(citas), [citas]);
 
   return (
     <section className="calendario-citas" aria-label="Calendario de citas">
       <FullCalendar
+        ref={calendarRef}
         plugins={[dayGridPlugin, timeGridPlugin]}
-        initialView="dayGridMonth"
+        initialView={esMovil ? 'timeGridDay' : 'dayGridMonth'}
         locale={esLocale}
         firstDay={1}
-        height={720}
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek',
-        }}
+        height={esMovil ? 'auto' : 720}
+        contentHeight={esMovil ? 560 : undefined}
+        headerToolbar={
+          esMovil
+            ? {
+                left: 'prev,next',
+                center: 'title',
+                right: 'today timeGridDay,dayGridMonth',
+              }
+            : {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek',
+              }
+        }
         buttonText={{
           today: 'Hoy',
           month: 'Mes',
           week: 'Semana',
+          day: 'Día',
         }}
-        dayMaxEvents={3}
+        dayMaxEvents={esMovil ? 2 : 3}
         eventDisplay="block"
         eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
         slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}

@@ -4,6 +4,8 @@
   border-radius: var(--radio);
   padding: 1rem 1.25rem 1.25rem;
   box-shadow: var(--sombra-suave);
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .calendario-citas .fc {
@@ -43,6 +45,10 @@
   font-size: 0.85rem;
   font-weight: 500;
   text-transform: capitalize;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .calendario-citas .fc .fc-button-primary {
@@ -89,13 +95,14 @@
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.78rem;
-  padding: 1px 4px;
+  padding: 2px 6px;
 }
 
 .calendario-citas .fc .fc-event-main,
 .calendario-citas .fc .fc-event-title {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .calendario-citas .fc .fc-daygrid-day {
@@ -134,21 +141,62 @@
   border-color: currentColor;
 }
 
+/* ── Responsive 768px (tablets y móviles) ── */
 @media (max-width: 768px) {
   .calendario-citas {
-    padding: 0.75rem;
+    padding: 0.75rem 0.5rem;
+    border-radius: var(--radio);
   }
 
   .calendario-citas .fc .fc-toolbar {
-    justify-content: center;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
   }
 
   .calendario-citas .fc .fc-toolbar-chunk {
     display: flex;
     justify-content: center;
+    width: 100%;
+    gap: 0.4rem;
   }
 
   .calendario-citas .fc .fc-toolbar-title {
-    font-size: 1rem;
+    font-size: 1.05rem;
+    text-align: center;
+  }
+
+  .calendario-citas .fc .fc-button {
+    min-height: 44px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.85rem;
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .calendario-citas .fc .fc-timegrid-slot {
+    height: 2.2rem;
+  }
+
+  .calendario-citas .fc .fc-event {
+    font-size: 0.8rem;
+    line-height: 1.25;
+  }
+}
+
+/* ── Responsive 480px (móviles pequeños) ── */
+@media (max-width: 480px) {
+  .calendario-citas {
+    padding: 0.5rem 0.25rem;
+  }
+
+  .calendario-citas .fc .fc-toolbar-title {
+    font-size: 0.95rem;
+  }
+
+  .calendario-citas .fc .fc-button {
+    font-size: 0.78rem;
+    padding: 0.35rem 0.6rem;
   }
 }

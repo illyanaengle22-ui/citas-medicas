@@ -1,0 +1,60 @@
+graph TB
+    subgraph Interfaces["Capa de Interfaces (Entrada / Adaptadores Primarios)"]
+        HTTP_ROUTES["Express Routes<br/>(citas, auth, medicos, horarios, etc.)"]
+        HTTP_CTRL["Controllers<br/>(CitaController, AuthController, etc.)"]
+        MW["Middlewares<br/>(autenticarJWT, requerirRol, resolverActor)"]
+    end
+
+    subgraph Aplicacion["Capa de Aplicación (Casos de Uso)"]
+        UC_AGENDAR["AgendarCita"]
+        UC_CONFIRMAR["ConfirmarCita"]
+        UC_CANCELAR["CancelarCita"]
+        UC_REAGENDAR["ReagendarCita"]
+        UC_RECORDATORIO["EnviarRecordatorio"]
+        UC_TELEGRAM["ProcesarRespuestaTelegram"]
+        UC_OTROS["MedicoUseCases / Auth / Dashboard"]
+    end
+
+    subgraph Dominio["Capa de Dominio (Núcleo)"]
+        subgraph Entidades["Entidades de Dominio"]
+            E_CITA["Cita"]
+            E_MEDICO["Medico"]
+            E_HORARIO["Horario"]
+            E_RECORDATORIO["Recordatorio"]
+            E_USUARIO["Usuario"]
+        end
+        subgraph Puertos["Puertos (Interfaces)"]
+            P_CITA["CitaRepositoryPort"]
+            P_MEDICO["MedicoRepositoryPort"]
+            P_HORARIO["HorarioRepositoryPort"]
+            P_RECORDATORIO["RecordatorioRepositoryPort"]
+            P_NOTIF["NotificacionPort"]
+        end
+    end
+
+    subgraph Infraestructura["Capa de Infraestructura (Adaptadores Secundarios / Salida)"]
+        ADAPT_PG_CITA["PostgresCitaRepository"]
+        ADAPT_PG_MED["PostgresMedicoRepository"]
+        ADAPT_PG_HOR["PostgresHorarioRepository"]
+        ADAPT_PG_REC["PostgresRecordatorioRepository"]
+        ADAPT_N8N["N8nNotificacionAdapter"]
+        JOBS["Schedulers (citasVencidas, recordatorios)"]
+        DB[(PostgreSQL 14+<br/>Schema public)]
+    end
+
+    %% Relaciones
+    HTTP_ROUTES --> HTTP_CTRL
+    HTTP_CTRL --> MW
+    HTTP_CTRL --> Aplicacion
+    Aplicacion --> Dominio
+    Aplicacion -.->|Invoca puertos| Puertos
+    ADAPT_PG_CITA -.->|Implementa| P_CITA
+    ADAPT_PG_MED -.->|Implementa| P_MEDICO
+    ADAPT_PG_HOR -.->|Implementa| P_HORARIO
+    ADAPT_PG_REC -.->|Implementa| P_RECORDATORIO
+    ADAPT_N8N -.->|Implementa| P_NOTIF
+    ADAPT_PG_CITA --> DB
+    ADAPT_PG_MED --> DB
+    ADAPT_PG_HOR --> DB
+    ADAPT_PG_REC --> DB
+    JOBS --> UC_RECORDATORIO
